@@ -9,6 +9,9 @@
 .DS_Store
 Thumbs.db
 
+# Sample/reference files (not part of the project)
+Sample Files/
+
 # Sensitive device-specific config (never commit!)
 firmware/data/config.json
 
