@@ -50,11 +50,13 @@ Schematic and PCB files are in `Circuit/`. 3D printable enclosure files are in `
      "mqtt_port": 8883,
      "mqtt_user": "your_username",
      "mqtt_pass": "your_password",
-     "ota_url": ""
+     "ota_url": "https://aarushmagic.github.io/Linked-Lamp"
    }
    ```
    - Set `device_id` to `"A"` for the first lamp and `"B"` for the second
    - Use the same broker/credentials for both lamps
+   - Don't edit `ota_url` unless you have a custom domain and want to make personal changes to the firmware
+      - If you do choose to do this, you would also have to update the `triggerUpdate()` function in `docs/script.js`
 
 ### Step 2: Flash the Firmware & Config
 

@@ -171,7 +171,7 @@ void setup() {
   setupPins();
 
   // Mount LittleFS and load device config + saved state
-  if (!LittleFS.begin(true)) {
+  if (!LittleFS.begin(false)) { // DO NOT auto-format if mount fails
     Serial.println("FATAL: LittleFS Mount Failed!");
   } else {
     loadConfig();
@@ -227,8 +227,8 @@ void setup() {
   // MQTT Setup
   setupMQTT();
 
-  // OTA Rollback Protection: mark this firmware as valid
-  esp_ota_mark_app_valid_cancel_rollback();
+  // OTA Rollback Protection: removed from here, moved to MQTT connect
+  // esp_ota_mark_app_valid_cancel_rollback();
   Serial.println("Firmware marked as valid (rollback cancelled).");
 
   // Configure NTP with user timezone
@@ -442,6 +442,10 @@ void handleMqttReconnect() {
     mqttClient.subscribe(settingsTopicSub.c_str());
     mqttClient.subscribe(otaTopicSub.c_str());
 
+    // OTA Rollback Protection: mark this firmware as valid once we've proven we can connect
+    esp_ota_mark_app_valid_cancel_rollback();
+    Serial.println("Firmware marked as valid (rollback cancelled).");
+
   } else {
     mqttFailCount++;
     Serial.printf("Failed, rc=%d (attempt %d)\n", mqttClient.state(), mqttFailCount);
@@ -461,11 +465,7 @@ void handleMqttReconnect() {
 
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
   String topicStr(topic);
-  String msg;
-  msg.reserve(length);
-  for (unsigned int i = 0; i < length; i++) {
-    msg += (char)payload[i];
-  }
+  String msg((char*)payload, length); // Avoid byte-by-byte fragmentation
 
   Serial.println("MQTT [" + topicStr + "] " + msg);
 
@@ -727,7 +727,7 @@ void setRGB(uint8_t r, uint8_t g, uint8_t b) {
 // =============================================================================
 bool isNighttime() {
   struct tm timeinfo;
-  if (!getLocalTime(&timeinfo)) return false; // Can't determine, assume daytime
+  if (!getLocalTime(&timeinfo, 0)) return false; // Non-blocking: timeout=0
 
   int nowMinutes = timeinfo.tm_hour * 60 + timeinfo.tm_min;
 
@@ -777,6 +777,17 @@ float hexToHue(String hexColor) {
 void handleAutoOTA() {
   if (ota_url.length() == 0) return; // No OTA URL configured
   if (!wifiConnected) return;
+
+  // Initial check shortly after boot (after 1 min)
+  static bool firstCheckDone = false;
+  if (!firstCheckDone && millis() > 60000) {
+    firstCheckDone = true;
+    lastOtaCheckMs = millis();
+    Serial.println("Initial boot-up OTA check triggered.");
+    String fullUrl = ota_url + "/firmware.bin";
+    performOTA(fullUrl);
+    return;
+  }
 
   if (millis() - lastOtaCheckMs >= OTA_CHECK_INTERVAL) {
     lastOtaCheckMs = millis();
@@ -829,17 +840,18 @@ void performOTA(String url) {
     }
 
     int totalSize = http.getSize();
+    size_t updateSize = (totalSize > 0) ? totalSize : UPDATE_SIZE_UNKNOWN;
+
     if (totalSize <= 0) {
-      Serial.println("Error: No content-length from server.");
-      http.end();
-      if (attempt < MAX_RETRIES) { delay(5000); continue; }
-      break;
+      Serial.println("Using UPDATE_SIZE_UNKNOWN (likely chunked transfer).");
+    } else {
+      Serial.printf("Firmware size: %d bytes\n", totalSize);
     }
 
-    Serial.printf("Firmware size: %d bytes\n", totalSize);
-    if (!Update.begin(totalSize)) {
+    if (!Update.begin(updateSize)) {
       Serial.println("Error: Not enough space for OTA!");
       http.end();
+      if (attempt < MAX_RETRIES) { delay(5000); continue; }
       break;
     }
 
@@ -849,13 +861,17 @@ void performOTA(String url) {
     unsigned long lastDataTime = millis();
     bool downloadOk = true;
 
-    while (written < (size_t)totalSize) {
+    while (http.connected() || stream->available() > 0) {
+      // Break if we already reached known size
+      if (totalSize > 0 && written >= (size_t)totalSize) break;
+
       size_t available = stream->available();
       if (available) {
         int bytesRead = stream->readBytes(buff, min(available, sizeof(buff)));
         size_t bytesWritten = Update.write(buff, bytesRead);
         if (bytesWritten != (size_t)bytesRead) {
           downloadOk = false;
+          Serial.println("\nOTA Write Failed.");
           break;
         }
         written += bytesWritten;
@@ -866,16 +882,11 @@ void performOTA(String url) {
           downloadOk = false;
           break;
         }
-        if (!http.connected()) {
-          Serial.println("\nConnection lost during OTA.");
-          downloadOk = false;
-          break;
-        }
         delay(1); // Yield to watchdog
       }
     }
 
-    if (downloadOk && written == (size_t)totalSize) {
+    if (downloadOk) { 
       if (Update.end(true)) {
         Serial.println("\nOTA Success! Rebooting...");
         if (mqttClient.connected()) {
