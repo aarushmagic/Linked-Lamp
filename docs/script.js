@@ -197,9 +197,10 @@ function updateStatusUI() {
         return;
     }
     
-    // If we have status info from firmware LWT, show detailed status
-    const myStatus = myLampOnline === null ? true : myLampOnline;
-    const partnerStatus = partnerLampOnline === null ? true : partnerLampOnline;
+    // If we have status info from firmware LWT, show detailed status.
+    // Default an unknown (null) lamp to offline to prevent false "Both Online" claims.
+    const myStatus = myLampOnline === null ? false : myLampOnline;
+    const partnerStatus = partnerLampOnline === null ? false : partnerLampOnline;
     
     if (myStatus && partnerStatus) {
         dot.className = "dot online";
