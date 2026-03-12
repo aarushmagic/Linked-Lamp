@@ -354,6 +354,7 @@ void loadConfig() {
     mqtt_pass    = doc["mqtt_pass"]   | "";
     ota_url      = doc["ota_url"]     | "";
     Serial.println("Config loaded from /config.json");
+    Serial.println("MQTT Server: " + mqtt_server);
   } else {
     Serial.println("Failed to parse config.json!");
   }
@@ -434,6 +435,7 @@ void handleMqttReconnect() {
 
     // Announce ONLINE with retained message
     mqttClient.publish(statusTopicPub.c_str(), "ONLINE", true);
+    Serial.println("Published ONLINE status.");
 
     // Subscribe to all topics
     mqttClient.subscribe(triggerTopicSub.c_str());

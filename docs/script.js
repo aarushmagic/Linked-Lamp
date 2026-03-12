@@ -26,8 +26,8 @@ let partnerDeviceId = "B";
 let partnerName = "Partner";
 
 let isMqttConnected = false;
-let myLampOnline = false;
-let partnerLampOnline = false;
+let myLampOnline = null;       // null = unknown (no status msg received yet)
+let partnerLampOnline = null;  // null = unknown
 
 // ==========================================================================
 // State
@@ -173,8 +173,8 @@ function connectMQTT() {
     mqttClient.on("error", (err) => console.error("MQTT Error:", err));
     mqttClient.on("offline", () => {
         isMqttConnected = false;
-        myLampOnline = false;
-        partnerLampOnline = false;
+        myLampOnline = null;
+        partnerLampOnline = null;
         updateStatusUI();
     });
 }
@@ -185,17 +185,29 @@ function updateStatusUI() {
     
     if (!isMqttConnected) {
         dot.className = "dot offline";
-        text.innerText = "Connecting...";
+        text.innerText = "Offline";
         return;
     }
     
-    if (myLampOnline && partnerLampOnline) {
+    // If we haven't received any status messages from firmware yet,
+    // just show "Online" based on broker connectivity
+    if (myLampOnline === null && partnerLampOnline === null) {
+        dot.className = "dot online";
+        text.innerText = "Online";
+        return;
+    }
+    
+    // If we have status info from firmware LWT, show detailed status
+    const myStatus = myLampOnline === null ? true : myLampOnline;
+    const partnerStatus = partnerLampOnline === null ? true : partnerLampOnline;
+    
+    if (myStatus && partnerStatus) {
         dot.className = "dot online";
         text.innerText = "Both Online";
-    } else if (myLampOnline && !partnerLampOnline) {
+    } else if (myStatus && !partnerStatus) {
         dot.className = "dot partial";
         text.innerText = partnerName + " Offline";
-    } else if (!myLampOnline && partnerLampOnline) {
+    } else if (!myStatus && partnerStatus) {
         dot.className = "dot partial";
         text.innerText = "Your Lamp Offline";
     } else {
@@ -310,11 +322,29 @@ function initColorPickers() {
     };
 }
 
+function getLuminance(hexCode) {
+    let hex = hexCode.replace('#', '');
+    if (hex.length === 3) hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
+    const r = parseInt(hex.substr(0, 2), 16);
+    const g = parseInt(hex.substr(2, 2), 16);
+    const b = parseInt(hex.substr(4, 2), 16);
+    return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+}
+
 function updateMainButton(hex) {
     const btn = document.getElementById("btnMainSignal");
     btn.style.backgroundColor = hex;
     // Dynamic glow based on the color
     btn.style.boxShadow = `0 0 40px ${hex}55, inset 0 0 20px rgba(255,255,255,0.15)`;
+    
+    // Adjust text readability based on background brightness
+    if (getLuminance(hex) > 0.6) {
+        btn.classList.add("dark-text");
+        btn.classList.remove("light-text");
+    } else {
+        btn.classList.add("light-text");
+        btn.classList.remove("dark-text");
+    }
 }
 
 // ==========================================================================

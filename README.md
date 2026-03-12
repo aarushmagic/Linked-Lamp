@@ -56,13 +56,18 @@ Schematic and PCB files are in `Circuit/`. 3D printable enclosure files are in `
    - Set `device_id` to `"A"` for the first lamp and `"B"` for the second
    - Use the same broker/credentials for both lamps
 
-### Step 2: Flash the Firmware
+### Step 2: Flash the Firmware & Config
 
-1. Open the `firmware/` folder in VS Code with PlatformIO
-2. In the PlatformIO sidebar, go to **esp32dev → Platform → Upload Filesystem Image**  
-   *(This writes your `config.json` to the ESP32's internal storage)*
-3. Click the **Upload** button (→ arrow) to flash the firmware
-4. Repeat for the second lamp with `device_id` set to `"B"`
+There are **two separate things** that need to be flashed to the lamp for it to work: the codebase, and the `data/` folder containing your `config.json` settings.
+
+1. Open the `firmware/` folder in VS Code with PlatformIO.
+2. **Flash the Config (LittleFS)**:
+   - In the PlatformIO sidebar (Alien icon), go to **Project Tasks → esp32dev → Platform**.
+   - Click **Build Filesystem Image** and wait for SUCCESS.
+   - Click **Upload Filesystem Image** and wait for SUCCESS. *(This pushes your `config.json` info to the lamp's internal storage).*
+3. **Flash the Code**:
+   - Now, click the regular **Upload** button (the `→` arrow icon on the bottom blue bar) to flash the main `main.cpp` codebase.
+4. Repeat for the second lamp (making sure to change `device_id` to `"B"` in your `config.json` before flashing its filesystem image!)
 
 ### Step 3: Connect to WiFi
 
