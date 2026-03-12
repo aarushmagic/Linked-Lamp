@@ -65,7 +65,9 @@ window.addEventListener("load", () => {
     }
 
     initColorPickers();
-    initSliders();
+    initSliders(); // Now only handles brightness
+    initDurationPickers();
+    initDial();
     initNightToggle();
     initTimezone();
     renderPresets();
@@ -154,6 +156,7 @@ function connectMQTT() {
         mqttClient.subscribe(`linkedlamp/${myDeviceId}/status`);
         mqttClient.subscribe(`linkedlamp/${partnerDeviceId}/status`);
         mqttClient.subscribe(`linkedlamp/${myDeviceId}/settings`); // Pull retained settings
+        mqttClient.subscribe(`linkedlamp/${myDeviceId}/presets`);  // Pull retained presets
 
         updateStatusUI();
     });
@@ -161,28 +164,28 @@ function connectMQTT() {
     // We use a flag to prevent echoing our own settings publishes
     // back into the UI and causing infinite loops
     let isSelfPublishingUi = false;
-    
+
     // Make publishSettings aware of the flag so we can export it later
     window._setSelfPublishing = (val) => isSelfPublishingUi = val;
 
     mqttClient.on("message", (topic, message) => {
         const msg = message.toString();
-        
+
         if (topic === `linkedlamp/${myDeviceId}/status`) {
             myLampOnline = (msg === "ONLINE");
             updateStatusUI();
-            
+
         } else if (topic === `linkedlamp/${partnerDeviceId}/status`) {
             partnerLampOnline = (msg === "ONLINE");
             updateStatusUI();
-            
+
         } else if (topic === `linkedlamp/${myDeviceId}/settings`) {
             if (isSelfPublishingUi) return; // Ignore our own publishes
-            
+
             try {
                 const incomingSettings = JSON.parse(msg);
                 let changed = false;
-                
+
                 // Merge incoming settings (e.g. from another phone, or from long-pressing the lamp)
                 for (let key in incomingSettings) {
                     if (mySettings[key] !== incomingSettings[key]) {
@@ -190,7 +193,7 @@ function connectMQTT() {
                         changed = true;
                     }
                 }
-                
+
                 if (changed) {
                     console.log("Applied remote settings from MQTT:", mySettings);
                     // Save to local storage
@@ -200,6 +203,20 @@ function connectMQTT() {
                 }
             } catch (e) {
                 console.error("Failed to parse incoming settings payload:", e);
+            }
+        } else if (topic === `linkedlamp/${myDeviceId}/presets`) {
+            if (isSelfPublishingUi) return;
+
+            try {
+                const incomingPresets = JSON.parse(msg);
+                if (Array.isArray(incomingPresets)) {
+                    presets = incomingPresets;
+                    localStorage.setItem("ll_presets_" + myDeviceId, JSON.stringify(presets));
+                    renderPresets();
+                    console.log("Applied remote presets from MQTT.");
+                }
+            } catch (e) {
+                console.error("Failed to parse incoming presets payload:", e);
             }
         }
     });
@@ -268,28 +285,45 @@ function sendSignal(hexColor) {
 function publishSettings() {
     const payload = JSON.stringify(mySettings);
     localStorage.setItem("ll_settings_" + myDeviceId, payload);
-    
+
     if (!mqttClient || !mqttClient.connected) return;
-    
+
     const topic = `linkedlamp/${myDeviceId}/settings`;
-    
+
     if (window._setSelfPublishing) window._setSelfPublishing(true);
-    
+
     mqttClient.publish(topic, payload, { retain: true });
     console.log("Settings published:", payload);
-    
+
     // Clear the flag shortly after publishing so we can receive external updates again
     setTimeout(() => {
         if (window._setSelfPublishing) window._setSelfPublishing(false);
     }, 1000);
 }
 
+function publishPresets() {
+    const payload = JSON.stringify(presets);
+    localStorage.setItem("ll_presets_" + myDeviceId, payload);
+
+    if (!mqttClient || !mqttClient.connected) return;
+
+    const topic = `linkedlamp/${myDeviceId}/presets`;
+
+    if (window._setSelfPublishing) window._setSelfPublishing(true);
+
+    mqttClient.publish(topic, payload, { retain: true });
+    console.log("Presets published to MQTT.");
+
+    setTimeout(() => {
+        if (window._setSelfPublishing) window._setSelfPublishing(false);
+    }, 1000);
+}
+
+
 function applySettingsToUI() {
-    // Sliders
+    // Sliders (Brightness only)
     const map = [
-        ["dayDuration", "dayTimeMin", " min", false],
         ["dayBrightness", "dayBright", "%", true],
-        ["nightDuration", "nightTimeMin", " min", false],
         ["nightBrightness", "nightBright", "%", true]
     ];
     map.forEach(m => {
@@ -301,10 +335,16 @@ function applySettingsToUI() {
         }
     });
 
+    // Durations
+    const dd = document.getElementById("dayDurationDisplay");
+    if (dd) dd.innerText = mySettings.dayTimeMin + " min";
+    const nd = document.getElementById("nightDurationDisplay");
+    if (nd) nd.innerText = mySettings.nightTimeMin + " min";
+
     // Color Pickers
     if (mainColorPicker) mainColorPicker.color.hexString = mySettings.defaultColor;
-    document.getElementById("colorPreview").innerText = mySettings.defaultColor;
     document.getElementById("colorPreview").style.borderLeft = `8px solid ${mySettings.defaultColor}`;
+    document.getElementById("colorPreview").style.backgroundColor = mySettings.defaultColor;
     updateMainButton(mySettings.defaultColor);
 
     // Night Toggle
@@ -365,8 +405,9 @@ function initColorPickers() {
 
     mainColorPicker.on("color:change", (color) => {
         const hex = color.hexString;
-        document.getElementById("colorPreview").innerText = hex;
+        console.log("Color selected:", hex);
         document.getElementById("colorPreview").style.borderLeft = `8px solid ${hex}`;
+        document.getElementById("colorPreview").style.backgroundColor = hex;
         updateMainButton(hex);
         mySettings.defaultColor = hex;
     });
@@ -388,8 +429,8 @@ function initColorPickers() {
     });
 
     // Set initial preview
-    document.getElementById("colorPreview").innerText = mySettings.defaultColor;
     document.getElementById("colorPreview").style.borderLeft = `8px solid ${mySettings.defaultColor}`;
+    document.getElementById("colorPreview").style.backgroundColor = mySettings.defaultColor;
     updateMainButton(mySettings.defaultColor);
 
     // Bind main send button
@@ -432,13 +473,20 @@ function updateMainButton(hex) {
 }
 
 // ==========================================================================
-// Settings Sliders
+// Settings Sliders & Durations
 // ==========================================================================
 function initSliders() {
-    bindSlider("dayDuration", "dayTimeMin", " min", false);
     bindSlider("dayBrightness", "dayBright", "%", true);
-    bindSlider("nightDuration", "nightTimeMin", " min", false);
     bindSlider("nightBrightness", "nightBright", "%", true);
+}
+
+function initDurationPickers() {
+    // Init display values
+    document.getElementById("dayDurationDisplay").innerText = mySettings.dayTimeMin + " min";
+    document.getElementById("nightDurationDisplay").innerText = mySettings.nightTimeMin + " min";
+
+    document.getElementById("btnDayDuration").onclick = () => openTimePicker("dayDuration");
+    document.getElementById("btnNightDuration").onclick = () => openTimePicker("nightDuration");
 }
 
 function bindSlider(sliderId, settingKey, suffix, isPercent) {
@@ -449,8 +497,19 @@ function bindSlider(sliderId, settingKey, suffix, isPercent) {
     slider.value = mySettings[settingKey];
     label.innerText = formatSliderVal(mySettings[settingKey], suffix, isPercent);
 
+    const updateSliderBg = () => {
+        const min = Number(slider.min) || 0;
+        const max = Number(slider.max) || 100;
+        const val = Number(slider.value);
+        const percent = ((val - min) / (max - min)) * 100;
+        slider.style.background = `linear-gradient(to right, var(--accent) ${percent}%, rgba(255, 255, 255, 0.1) ${percent}%)`;
+    };
+
+    updateSliderBg();
+
     slider.oninput = () => {
         label.innerText = formatSliderVal(parseInt(slider.value), suffix, isPercent);
+        updateSliderBg();
     };
     slider.onchange = () => {
         mySettings[settingKey] = parseInt(slider.value);
@@ -499,30 +558,48 @@ function updateTimeDisplay(elementId, time24) {
 }
 
 // ==========================================================================
-// Time Picker Modal Logic
+// Time & Duration Picker Modal Logic
 // ==========================================================================
-let editingTimeTarget = null; // 'start' or 'end'
-let currentPickerMode = 'hour'; // 'hour' or 'minute'
+let editingTimeTarget = null; // 'start', 'end', 'dayDuration', 'nightDuration'
+let currentPickerMode = 'hour'; // 'hour', 'minute', or 'duration'
 let tpTempHour24 = 0;
 let tpTempMinute = 0;
+let tpTempDuration = 5;
 
 function openTimePicker(target) {
     editingTimeTarget = target;
-    currentPickerMode = 'hour';
-    
-    // Parse current setting
-    const currentVal = target === 'start' ? (mySettings.nightStart || "22:00") : (mySettings.nightEnd || "08:00");
-    const parts = currentVal.split(":");
-    tpTempHour24 = parseInt(parts[0]);
-    tpTempMinute = parseInt(parts[1]);
 
-    document.getElementById("timePickerTitle").innerText = target === 'start' ? "Starts At" : "Ends At";
+    const isDuration = (target === 'dayDuration' || target === 'nightDuration');
+    currentPickerMode = isDuration ? 'duration' : 'hour';
+
+    document.getElementById("timeDisplayGroup").style.display = isDuration ? "none" : "flex";
+    document.getElementById("durationDisplayGroup").style.display = isDuration ? "flex" : "none";
+
+    document.getElementById("clockContainer").style.display = isDuration ? "none" : "flex";
+    document.getElementById("dialContainer").style.display = isDuration ? "block" : "none";
+
+    if (isDuration) {
+        tpTempDuration = target === 'dayDuration' ? mySettings.dayTimeMin : mySettings.nightTimeMin;
+        document.getElementById("timePickerTitle").innerText = "Duration (Minutes)";
+        updateTpHeader();
+        renderDial();
+    } else {
+        // Parse current setting
+        const currentVal = target === 'start' ? (mySettings.nightStart || "22:00") : (mySettings.nightEnd || "08:00");
+        const parts = currentVal.split(":");
+        tpTempHour24 = parseInt(parts[0]);
+        tpTempMinute = parseInt(parts[1]);
+        document.getElementById("timePickerTitle").innerText = target === 'start' ? "Starts At" : "Ends At";
+        updateTpHeader();
+        renderClockFace();
+    }
+
     document.getElementById("timePickerModal").style.display = "block";
-    
+
     // Bind AM/PM toggles
     document.getElementById("tpAM").onclick = () => { if (tpTempHour24 >= 12) { tpTempHour24 -= 12; updateTpHeader(); } };
     document.getElementById("tpPM").onclick = () => { if (tpTempHour24 < 12) { tpTempHour24 += 12; updateTpHeader(); } };
-    
+
     // Bind Hour/Min toggles
     document.getElementById("tpHour").onclick = () => { currentPickerMode = 'hour'; renderClockFace(); };
     document.getElementById("tpMinute").onclick = () => { currentPickerMode = 'minute'; renderClockFace(); };
@@ -536,31 +613,46 @@ function closeTimePickerModal() {
 }
 
 function saveTimePickerModal() {
-    const hStr = tpTempHour24.toString().padStart(2, '0');
-    const mStr = tpTempMinute.toString().padStart(2, '0');
-    const time24 = `${hStr}:${mStr}`;
-    
-    if (editingTimeTarget === 'start') {
-        mySettings.nightStart = time24;
-        updateTimeDisplay("nightStartDisplay", time24);
+    if (editingTimeTarget === 'dayDuration' || editingTimeTarget === 'nightDuration') {
+        if (editingTimeTarget === 'dayDuration') {
+            mySettings.dayTimeMin = tpTempDuration;
+            document.getElementById("dayDurationDisplay").innerText = tpTempDuration + " min";
+        } else {
+            mySettings.nightTimeMin = tpTempDuration;
+            document.getElementById("nightDurationDisplay").innerText = tpTempDuration + " min";
+        }
     } else {
-        mySettings.nightEnd = time24;
-        updateTimeDisplay("nightEndDisplay", time24);
+        const hStr = tpTempHour24.toString().padStart(2, '0');
+        const mStr = tpTempMinute.toString().padStart(2, '0');
+        const time24 = `${hStr}:${mStr}`;
+
+        if (editingTimeTarget === 'start') {
+            mySettings.nightStart = time24;
+            updateTimeDisplay("nightStartDisplay", time24);
+        } else {
+            mySettings.nightEnd = time24;
+            updateTimeDisplay("nightEndDisplay", time24);
+        }
     }
     publishSettings();
     closeTimePickerModal();
 }
 
 function updateTpHeader() {
+    if (currentPickerMode === 'duration') {
+        document.getElementById("tpDurationVal").innerText = tpTempDuration;
+        return;
+    }
+
     let h = tpTempHour24 % 12;
     if (h === 0) h = 12;
-    
+
     document.getElementById("tpHour").innerText = h;
     document.getElementById("tpMinute").innerText = tpTempMinute.toString().padStart(2, '0');
-    
+
     document.getElementById("tpAM").className = tpTempHour24 < 12 ? "am-pm-btn active" : "am-pm-btn";
     document.getElementById("tpPM").className = tpTempHour24 >= 12 ? "am-pm-btn active" : "am-pm-btn";
-    
+
     document.getElementById("tpHour").className = currentPickerMode === 'hour' ? "tp-part active" : "tp-part";
     document.getElementById("tpMinute").className = currentPickerMode === 'minute' ? "tp-part active" : "tp-part";
 }
@@ -569,35 +661,64 @@ function renderClockFace() {
     updateTpHeader();
     const face = document.getElementById("clockFace");
     const hand = document.getElementById("clockHand");
-    
+
     // Clear existing numbers
     const numbers = face.querySelectorAll('.clock-number');
     numbers.forEach(n => n.remove());
-    
+
     const radius = 95; // px from center
     const center = 120; // 240px width / 2
-    
-    let activeVal = currentPickerMode === 'hour' ? (tpTempHour24 % 12 || 12) : tpTempMinute;
 
-    // We draw 12 numbers arranged in a circle
-    for (let i = 1; i <= 12; i++) {
-        const numVal = currentPickerMode === 'hour' ? i : (i === 12 ? 0 : i * 5);
-        
-        const deg = i * 30; // 360 / 12 = 30
+    let activeVal;
+    if (currentPickerMode === 'duration') activeVal = tpTempDuration;
+    else if (currentPickerMode === 'hour') activeVal = (tpTempHour24 % 12 || 12);
+    else activeVal = tpTempMinute;
+
+    // We draw numbers arranged in a circle
+    let numCount = 12;
+    if (currentPickerMode === 'duration') {
+        // Durations 1-30 are mapped around the clock
+        numCount = 30;
+    }
+
+    for (let i = 1; i <= numCount; i++) {
+        let numVal;
+        if (currentPickerMode === 'duration') {
+            numVal = i;
+        } else if (currentPickerMode === 'hour') {
+            numVal = i;
+        } else {
+            numVal = (i === 12 ? 0 : i * 5); // minutes jump 5
+            if (i > 12) continue; // For minutes we only draw 12 main markers to prevent clutter
+        }
+
+        const deg = i * (360 / numCount);
         const rad = (deg - 90) * (Math.PI / 180);
         const x = center + radius * Math.cos(rad);
         const y = center + radius * Math.sin(rad);
-        
+
         const el = document.createElement('div');
         el.className = 'clock-number';
+
+        // Make duration numbers smaller to fit 30 of them
+        if (currentPickerMode === 'duration') {
+            el.style.width = '24px';
+            el.style.height = '24px';
+            el.style.fontSize = '12px';
+            el.style.lineHeight = '24px';
+        }
+
         if (numVal === activeVal) el.classList.add('active');
-        
-        el.innerText = currentPickerMode === 'minute' ? numVal.toString().padStart(2, '0') : numVal;
+
+        el.innerText = (currentPickerMode === 'minute') ? numVal.toString().padStart(2, '0') : numVal;
         el.style.left = `${x}px`;
         el.style.top = `${y}px`;
-        
+
         el.onclick = () => {
-            if (currentPickerMode === 'hour') {
+            if (currentPickerMode === 'duration') {
+                tpTempDuration = numVal;
+                renderClockFace();
+            } else if (currentPickerMode === 'hour') {
                 let isPM = tpTempHour24 >= 12;
                 tpTempHour24 = (numVal === 12 ? 0 : numVal) + (isPM ? 12 : 0);
                 // Auto switch to minutes
@@ -608,13 +729,130 @@ function renderClockFace() {
                 renderClockFace();
             }
         };
-        
+
         face.appendChild(el);
     }
-    
+
     // Position the hand correctly
-    const handDeg = activeVal * (currentPickerMode === 'hour' ? 30 : 6);
+    let handDeg;
+    if (currentPickerMode === 'duration') {
+        handDeg = activeVal * (360 / 30);
+    } else {
+        handDeg = activeVal * (currentPickerMode === 'hour' ? 30 : 6);
+    }
     hand.style.transform = `translateX(-50%) rotate(${handDeg}deg)`;
+}
+
+// ==========================================================================
+// Rotary Dial Logic (Duration Picker)
+// ==========================================================================
+let isDialDragging = false;
+
+function initDial() {
+    const dialSvg = document.getElementById("durationDial");
+    if (!dialSvg) return;
+
+    dialSvg.addEventListener("mousedown", startDialDrag);
+    dialSvg.addEventListener("touchstart", startDialDrag, {passive: false});
+
+    document.addEventListener("mousemove", doDialDrag);
+    document.addEventListener("touchmove", doDialDrag, {passive: false});
+
+    document.addEventListener("mouseup", stopDialDrag);
+    document.addEventListener("touchend", stopDialDrag);
+}
+
+function startDialDrag(e) {
+    if (currentPickerMode !== 'duration') return;
+    isDialDragging = true;
+    updateDialFromEvent(e);
+}
+
+function doDialDrag(e) {
+    if (!isDialDragging) return;
+    e.preventDefault(); // prevent scrolling
+    updateDialFromEvent(e);
+}
+
+function stopDialDrag() {
+    isDialDragging = false;
+}
+
+function updateDialFromEvent(e) {
+    const dialSvg = document.getElementById("durationDial");
+    const rect = dialSvg.getBoundingClientRect();
+    
+    // Get mouse/touch relative to SVG center (which is 100, 100 in viewbox but we need screen px)
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    
+    let dx = clientX - centerX;
+    let dy = clientY - centerY;
+    
+    // Calculate angle in radians
+    let angleRad = Math.atan2(dy, dx);
+    
+    // Convert to degrees (0 to 360, where 0 is 3 o'clock natively)
+    let angleDeg = angleRad * (180 / Math.PI);
+    
+    // Because we rotated the SVG by -90deg in CSS, visually top is 0deg.
+    // The visual top corresponds to dx=0, dy=-radius relative to screen.
+    // Let's map it so Top = 0deg, Right = 90deg, Bottom = 180deg, Left = 270deg.
+    angleDeg += 90; 
+    if (angleDeg < 0) angleDeg += 360;
+
+    // Map 0-360 degrees to 1-30 minutes
+    // Let's cap at 360 -> 30, and 0 -> 1.
+    // 360 degrees / 30 minutes = 12 degrees per minute.
+    let minutes = Math.round(angleDeg / 12);
+    if (minutes < 1) minutes = 1;
+    if (minutes > 30) minutes = 30;
+
+    tpTempDuration = minutes;
+    document.getElementById("tpDurationVal").innerText = tpTempDuration;
+    renderDial();
+}
+
+function renderDial() {
+    const minVal = 1;
+    const maxVal = 30;
+    const radius = 80;
+    const center = 100;
+    
+    // Calculate progress fraction (0.0 to 1.0)
+    let fraction = tpTempDuration / maxVal;
+    
+    // Circumference of the circle
+    const circumference = 2 * Math.PI * radius;
+    // Stroke dasharray creates the filled arc and empty remainder
+    const dashVal = fraction * circumference;
+    
+    const progressArc = document.getElementById("dialProgress");
+    if (progressArc) {
+        // We use a clean circle path instead of arc logic for stroke-dasharray
+        progressArc.setAttribute("d", `M 100, 20 A 80,80 0 1,1 99.9,20`); 
+        progressArc.style.strokeDasharray = `${dashVal} ${circumference}`;
+        progressArc.style.stroke = "var(--accent)"; // fallback
+        // Add purple glow dynamically based on our primary var
+        progressArc.style.stroke = "#6b4cff"; 
+    }
+    
+    // Position the knob
+    // Angle: 0 fraction = 0deg (top), 1.0 fraction = 360deg
+    const angleDeg = fraction * 360;
+    const angleRad = (angleDeg - 90) * (Math.PI / 180); // -90 because 0deg is naturally 3 o'clock in trig
+    
+    const knobX = center + radius * Math.cos(angleRad);
+    const knobY = center + radius * Math.sin(angleRad);
+    
+    const knob = document.getElementById("dialKnob");
+    if (knob) {
+        knob.setAttribute("cx", knobX);
+        knob.setAttribute("cy", knobY);
+    }
 }
 
 // ==========================================================================
@@ -740,6 +978,7 @@ function savePreset() {
     }
 
     localStorage.setItem("ll_presets_" + myDeviceId, JSON.stringify(presets));
+    publishPresets();
     renderPresets();
     closePresetModal();
 }
@@ -748,6 +987,7 @@ function deleteCurrentPreset() {
     if (!confirm("Delete this signal preset?")) return;
     presets = presets.filter(x => x.id !== editingPresetId);
     localStorage.setItem("ll_presets_" + myDeviceId, JSON.stringify(presets));
+    publishPresets();
     renderPresets();
     closePresetModal();
 }

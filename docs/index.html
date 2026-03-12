@@ -1,25 +1,28 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Linked Lamp</title>
-    <meta name="description" content="Control your Linked Friendship Lamp - send signals, manage settings, and customize your lamp experience.">
-    
+    <meta name="description"
+        content="Control your Linked Friendship Lamp - send signals, manage settings, and customize your lamp experience.">
+
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
-    
+
     <!-- Color Picker Library (iro.js v5) -->
     <script src="https://cdn.jsdelivr.net/npm/@jaames/iro@5"></script>
-    
+
     <!-- MQTT.js Library -->
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
     <div class="app-container">
         <!-- Header -->
@@ -33,7 +36,7 @@
 
         <!-- Main Content Area -->
         <main class="content-area">
-            
+
             <!-- ============ View 1: Partner Control ============ -->
             <div id="view-partner" class="view active">
                 <div class="main-action-area">
@@ -54,24 +57,26 @@
 
             <!-- ============ View 2: My Settings ============ -->
             <div id="view-settings" class="view">
-                
+
                 <!-- Default Color -->
                 <div class="settings-card color-picker-card">
                     <h3>My Default Color</h3>
                     <p class="desc">The color sent when you tap your lamp.</p>
                     <div id="colorPickerContainer" class="color-wheel-wrapper"></div>
-                    <div class="selected-color-preview" id="colorPreview">#FF0000</div>
+                    <div class="selected-color-preview" id="colorPreview" style="color: transparent; display: none;">
+                    </div>
                 </div>
 
                 <!-- Daytime Settings -->
                 <div class="settings-card">
                     <h3>Daytime</h3>
-                    <div class="setting-row">
-                        <label for="dayDuration">Lamp On Time</label>
-                        <span id="dayDurationVal" class="setting-val">5 min</span>
+                    <div class="time-row mt-2">
+                        <div class="time-block" id="btnDayDuration">
+                            <label>Lamp On Time</label>
+                            <div class="time-display" id="dayDurationDisplay">5 min</div>
+                        </div>
                     </div>
-                    <input type="range" id="dayDuration" min="1" max="30" value="5" class="custom-slider">
-                    
+
                     <div class="setting-row mt-3">
                         <label for="dayBrightness">Max Brightness</label>
                         <span id="dayBrightnessVal" class="setting-val">100%</span>
@@ -88,7 +93,7 @@
                             <span class="toggle-slider"></span>
                         </label>
                     </div>
-                    
+
                     <div id="nightSettings" class="expandable-section hidden">
                         <div class="time-row">
                             <div class="time-block" id="btnStartTime">
@@ -144,13 +149,14 @@
                                 <option value="Pacific/Auckland">Auckland (NZST/NZDT)</option>
                             </select>
                         </div>
-                        
-                        <div class="setting-row mt-3">
-                            <label for="nightDuration">Lamp On Time</label>
-                            <span id="nightDurationVal" class="setting-val">5 min</span>
+
+                        <div class="time-row mt-3">
+                            <div class="time-block" id="btnNightDuration">
+                                <label>Lamp On Time</label>
+                                <div class="time-display" id="nightDurationDisplay">5 min</div>
+                            </div>
                         </div>
-                        <input type="range" id="nightDuration" min="1" max="30" value="5" class="custom-slider">
-                        
+
                         <div class="setting-row mt-3">
                             <label for="nightBrightness">Max Brightness</label>
                             <span id="nightBrightnessVal" class="setting-val">30%</span>
@@ -166,10 +172,10 @@
                         <span class="material-icons-round">system_update</span> Check for Update
                     </button>
                 </div>
-                
+
                 <div style="height: 80px;"></div>
             </div>
-            
+
         </main>
 
         <!-- Bottom Navigation -->
@@ -195,15 +201,17 @@
                 <h2 id="presetModalTitle">New Signal</h2>
                 <div style="flex:1"></div>
             </div>
-            
+
             <div class="modal-body">
-                <input type="text" id="presetName" class="preset-name-input" placeholder="Signal Name (e.g. I Love You)" maxlength="20">
+                <input type="text" id="presetName" class="preset-name-input" placeholder="Signal Name (e.g. I Love You)"
+                    maxlength="20">
                 <div class="color-wheel-wrapper mt-3" id="presetColorPickerContainer"></div>
             </div>
 
             <div class="preset-modal-actions mt-3">
                 <button class="action-btn primary-btn" onclick="savePreset()">Save Signal</button>
-                <button class="action-btn danger-btn hidden mt-2" id="btnDeletePreset" onclick="deleteCurrentPreset()">Delete Signal</button>
+                <button class="action-btn danger-btn hidden mt-2" id="btnDeletePreset"
+                    onclick="deleteCurrentPreset()">Delete Signal</button>
             </div>
         </div>
     </div>
@@ -212,18 +220,27 @@
     <div id="timePickerModal" class="modal">
         <div class="modal-content timepicker-modal">
             <h2 id="timePickerTitle" style="text-align: center; margin-bottom: 20px;">Select Time</h2>
-            
+
             <!-- Digital Display Header -->
             <div class="timepicker-display">
-                <span id="tpHour" class="tp-part active">10</span>:<span id="tpMinute" class="tp-part">00</span>
-                <div class="tp-ampm">
-                    <div id="tpAM" class="am-pm-btn">AM</div>
-                    <div id="tpPM" class="am-pm-btn active">PM</div>
+                <div id="durationDisplayGroup" style="display:none; text-align:center; flex:1;">
+                    <span id="tpDurationVal" style="font-size: 3.5rem; font-weight:700; color: #fff;">5</span>
+                    <span id="tpDurationLabel" style="font-size: 1.2rem; color: #aaa; margin-left: 5px;">min</span>
+                </div>
+                
+                <div id="timeDisplayGroup" style="display:flex; align-items:center; justify-content:center; flex:1;">
+                    <span id="tpHour" class="tp-part active">10</span>
+                    <span id="tpColon">:</span>
+                    <span id="tpMinute" class="tp-part">00</span>
+                    <div class="tp-ampm" id="tpAmPmContainer">
+                        <div id="tpAM" class="am-pm-btn">AM</div>
+                        <div id="tpPM" class="am-pm-btn active">PM</div>
+                    </div>
                 </div>
             </div>
 
             <!-- Analog Clock Face -->
-            <div class="clock-container">
+            <div class="clock-container" id="clockContainer">
                 <div class="clock-face" id="clockFace">
                     <!-- Numbers injected by JS -->
                     <div class="clock-center"></div>
@@ -231,14 +248,30 @@
                 </div>
             </div>
 
+            <!-- Rotary Dial (Used for Duration) -->
+            <div class="dial-container" id="dialContainer" style="display: none;">
+                <svg viewBox="0 0 200 200" class="dial-svg" id="durationDial">
+                    <!-- Background Track -->
+                    <circle cx="100" cy="100" r="80" class="dial-track"></circle>
+                    <!-- Progress Arc -->
+                    <path d="" class="dial-progress" id="dialProgress"></path>
+                    <!-- Knob -->
+                    <circle cx="100" cy="20" r="14" class="dial-knob" id="dialKnob"></circle>
+                </svg>
+            </div>
+
             <!-- Modal Actions -->
             <div class="preset-modal-actions" style="flex-direction: row; gap: 10px; margin-top: 30px;">
-                <button class="action-btn secondary-btn" style="flex: 1;" onclick="closeTimePickerModal()">Cancel</button>
+                <button class="action-btn secondary-btn" style="flex: 1;"
+                    onclick="closeTimePickerModal()">Cancel</button>
                 <button class="action-btn primary-btn" style="flex: 1;" onclick="saveTimePickerModal()">OK</button>
             </div>
         </div>
     </div>
 
+    <!-- We reuse the timePickerModal for durations by toggling visibility of the display elements -->
+
     <script src="script.js"></script>
 </body>
+
 </html>

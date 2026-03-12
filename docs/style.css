@@ -5,29 +5,45 @@
    ========================================================================== */
 
 :root {
-    --bg:            #0d0f17;
-    --bg-card:       rgba(255, 255, 255, 0.05);
-    --border:        rgba(255, 255, 255, 0.08);
-    --text:          #ffffff;
-    --text-dim:      #8b91a7;
-    --accent:        #6b4cff;
-    --accent-glow:   rgba(107, 76, 255, 0.35);
-    --danger:        #ff4757;
-    --success:       #2ed573;
-    --nav-bg:        rgba(13, 15, 23, 0.9);
+    --bg: #0d0f17;
+    --bg-card: rgba(255, 255, 255, 0.05);
+    --border: rgba(255, 255, 255, 0.08);
+    --text: #ffffff;
+    --text-dim: #8b91a7;
+    --accent: #6b4cff;
+    --accent-glow: rgba(107, 76, 255, 0.35);
+    --danger: #ff4757;
+    --success: #2ed573;
+    --nav-bg: rgba(13, 15, 23, 0.9);
 
-    --font:          'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
-    --ease:          0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-    --radius:        14px;
+    --font: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+    --ease: 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    --radius: 14px;
 }
 
 /* --- Reset & Base --- */
-*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; }
+*,
+*::before,
+*::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html {
+    -webkit-text-size-adjust: 100%;
+}
 
 /* Hide scrollbar globally */
-::-webkit-scrollbar { display: none; }
-* { -ms-overflow-style: none; scrollbar-width: none; }
+::-webkit-scrollbar {
+    display: none;
+}
+
+* {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
 body {
     background: var(--bg);
     color: var(--text);
@@ -46,12 +62,31 @@ body {
 }
 
 /* --- Utilities --- */
-.hidden  { display: none !important; }
-.mt-1    { margin-top: 0.5rem; }
-.mt-3    { margin-top: 1rem; }
-.mt-4    { margin-top: 1.5rem; }
-.mb-4    { margin-bottom: 1.5rem; }
-.desc    { color: var(--text-dim); font-size: 0.82rem; line-height: 1.4; }
+.hidden {
+    display: none !important;
+}
+
+.mt-1 {
+    margin-top: 0.5rem;
+}
+
+.mt-3 {
+    margin-top: 1rem;
+}
+
+.mt-4 {
+    margin-top: 1.5rem;
+}
+
+.mb-4 {
+    margin-bottom: 1.5rem;
+}
+
+.desc {
+    color: var(--text-dim);
+    font-size: 0.82rem;
+    line-height: 1.4;
+}
 
 /* ==========================================================================
    Header
@@ -63,7 +98,12 @@ body {
     padding: 1.25rem 1.5rem;
     z-index: 10;
 }
-.app-header h1 { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.3px; }
+
+.app-header h1 {
+    font-size: 1.4rem;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+}
 
 .status-indicator {
     display: flex;
@@ -78,14 +118,26 @@ body {
 }
 
 .dot {
-    width: 7px; height: 7px;
+    width: 7px;
+    height: 7px;
     border-radius: 50%;
     background: #555;
     transition: var(--ease);
 }
-.dot.online  { background: var(--success); box-shadow: 0 0 8px var(--success); }
-.dot.partial { background: #ffa502; box-shadow: 0 0 8px #ffa502; }
-.dot.offline { background: var(--danger); }
+
+.dot.online {
+    background: var(--success);
+    box-shadow: 0 0 8px var(--success);
+}
+
+.dot.partial {
+    background: #ffa502;
+    box-shadow: 0 0 8px #ffa502;
+}
+
+.dot.offline {
+    background: var(--danger);
+}
 
 /* ==========================================================================
    Content Area / Views
@@ -101,11 +153,21 @@ body {
     display: none;
     animation: fadeSlideIn 0.35s ease forwards;
 }
-.view.active { display: block; }
+
+.view.active {
+    display: block;
+}
 
 @keyframes fadeSlideIn {
-    from { opacity: 0; transform: translateY(8px); }
-    to   { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* ==========================================================================
@@ -121,7 +183,8 @@ body {
 }
 
 .pulse-button {
-    width: 170px; height: 170px;
+    width: 170px;
+    height: 170px;
     border-radius: 50%;
     border: none;
     font-family: var(--font);
@@ -132,15 +195,18 @@ body {
     cursor: pointer;
     position: relative;
     overflow: hidden;
-    transition: transform 0.2s cubic-bezier(.175,.885,.32,1.275), box-shadow 0.3s, color 0.3s;
+    transition: transform 0.2s cubic-bezier(.175, .885, .32, 1.275), box-shadow 0.3s, color 0.3s;
 }
+
 .pulse-button .material-icons-round {
     font-size: 2.8rem;
     margin-bottom: 6px;
     transition: filter 0.3s;
 }
+
 .pulse-button .btn-text {
-    font-weight: 600; font-size: 1rem;
+    font-weight: 600;
+    font-size: 1rem;
     transition: text-shadow 0.3s;
 }
 
@@ -148,32 +214,43 @@ body {
 .pulse-button.light-text {
     color: #ffffff;
 }
+
 .pulse-button.light-text .material-icons-round {
-    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.35));
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.35));
 }
+
 .pulse-button.light-text .btn-text {
-    text-shadow: 0 1px 3px rgba(0,0,0,0.4);
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 
 .pulse-button.dark-text {
     color: #111111;
 }
+
 .pulse-button.dark-text .material-icons-round {
-    filter: drop-shadow(0 1px 2px rgba(255,255,255,0.4));
+    filter: drop-shadow(0 1px 2px rgba(255, 255, 255, 0.4));
 }
+
 .pulse-button.dark-text .btn-text {
-    text-shadow: 0 1px 2px rgba(255,255,255,0.4);
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.4);
 }
-.pulse-button:active { transform: scale(0.9); }
+
+.pulse-button:active {
+    transform: scale(0.9);
+}
+
 .pulse-button::after {
     content: '';
     position: absolute;
     inset: -50%;
-    background: radial-gradient(circle, rgba(255,255,255,0.25) 0%, transparent 55%);
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.25) 0%, transparent 55%);
     opacity: 0;
     transition: opacity 0.25s;
 }
-.pulse-button:active::after { opacity: 1; }
+
+.pulse-button:active::after {
+    opacity: 1;
+}
 
 .subtitle {
     margin-top: 1.2rem;
@@ -184,14 +261,21 @@ body {
 /* ==========================================================================
    Presets Grid
    ========================================================================== */
-.presets-section { margin-top: 0.5rem; }
-.presets-section h3 { margin-bottom: 0.75rem; font-size: 1.05rem; }
+.presets-section {
+    margin-top: 0.5rem;
+}
+
+.presets-section h3 {
+    margin-bottom: 0.75rem;
+    font-size: 1.05rem;
+}
 
 .presets-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
     gap: 10px;
-    padding-bottom: 80px; /* Space for bottom nav */
+    padding-bottom: 80px;
+    /* Space for bottom nav */
 }
 
 .preset-btn {
@@ -212,23 +296,32 @@ body {
     overflow: hidden;
     transition: var(--ease);
 }
+
 .preset-btn::before {
     content: '';
     position: absolute;
-    left: 0; top: 0; bottom: 0;
+    left: 0;
+    top: 0;
+    bottom: 0;
     width: 5px;
     background: var(--preset-color, #888);
     border-radius: var(--radius) 0 0 var(--radius);
 }
-.preset-btn:active { transform: scale(0.97); background: rgba(255,255,255,0.08); }
+
+.preset-btn:active {
+    transform: scale(0.97);
+    background: rgba(255, 255, 255, 0.08);
+}
 
 .preset-color-dot {
-    width: 12px; height: 12px;
+    width: 12px;
+    height: 12px;
     border-radius: 50%;
     flex-shrink: 0;
     margin-left: auto;
-    box-shadow: 0 0 6px rgba(0,0,0,0.4);
+    box-shadow: 0 0 6px rgba(0, 0, 0, 0.4);
 }
+
 .preset-edit-icon {
     font-size: 15px;
     color: var(--text-dim);
@@ -240,8 +333,14 @@ body {
     border: 1px dashed var(--text-dim);
     color: var(--text-dim);
 }
-.preset-btn.add-new::before { display: none; }
-.preset-btn.add-new .material-icons-round { font-size: 1.5rem; }
+
+.preset-btn.add-new::before {
+    display: none;
+}
+
+.preset-btn.add-new .material-icons-round {
+    font-size: 1.5rem;
+}
 
 /* ==========================================================================
    Settings Cards
@@ -255,7 +354,11 @@ body {
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
 }
-.settings-card h3 { margin-bottom: 0.25rem; font-size: 1.05rem; }
+
+.settings-card h3 {
+    margin-bottom: 0.25rem;
+    font-size: 1.05rem;
+}
 
 .setting-row {
     display: flex;
@@ -263,6 +366,7 @@ body {
     align-items: center;
     margin-bottom: 0.4rem;
 }
+
 .setting-val {
     color: var(--accent);
     font-weight: 600;
@@ -277,20 +381,24 @@ body {
     width: 100%;
     height: 5px;
     border-radius: 3px;
-    background: rgba(255,255,255,0.1);
+    background: rgba(255, 255, 255, 0.1);
     outline: none;
     margin: 8px 0 4px;
 }
+
 .custom-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
-    width: 22px; height: 22px;
+    width: 22px;
+    height: 22px;
     border-radius: 50%;
     background: var(--text);
     cursor: pointer;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
 }
+
 .custom-slider::-moz-range-thumb {
-    width: 22px; height: 22px;
+    width: 22px;
+    height: 22px;
     border-radius: 50%;
     background: var(--text);
     cursor: pointer;
@@ -303,6 +411,7 @@ body {
     justify-content: center;
     margin: 1.25rem 0;
 }
+
 .selected-color-preview {
     padding: 10px;
     border-radius: 8px;
@@ -318,28 +427,44 @@ body {
 .toggle-switch {
     position: relative;
     display: inline-block;
-    width: 48px; height: 26px;
+    width: 48px;
+    height: 26px;
 }
-.toggle-switch input { opacity: 0; width: 0; height: 0; }
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
 .toggle-slider {
     position: absolute;
     cursor: pointer;
     inset: 0;
-    background: rgba(255,255,255,0.15);
+    background: rgba(255, 255, 255, 0.15);
     transition: .35s;
     border-radius: 26px;
 }
+
 .toggle-slider::before {
     position: absolute;
     content: "";
-    height: 20px; width: 20px;
-    left: 3px; bottom: 3px;
+    height: 20px;
+    width: 20px;
+    left: 3px;
+    bottom: 3px;
     background: white;
     transition: .35s;
     border-radius: 50%;
 }
-input:checked + .toggle-slider { background: var(--accent); }
-input:checked + .toggle-slider::before { transform: translateX(22px); }
+
+input:checked+.toggle-slider {
+    background: var(--accent);
+}
+
+input:checked+.toggle-slider::before {
+    transform: translateX(22px);
+}
 
 .night-mode-header {
     display: flex;
@@ -355,11 +480,25 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 }
 
 /* --- Time Pickers --- */
-.time-row { display: flex; gap: 12px; }
-.time-block { flex: 1; display: flex; flex-direction: column; }
-.time-block label { font-size: 0.82rem; color: var(--text-dim); margin-bottom: 4px; }
+.time-row {
+    display: flex;
+    gap: 12px;
+}
+
+.time-block {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.time-block label {
+    font-size: 0.82rem;
+    color: var(--text-dim);
+    margin-bottom: 4px;
+}
+
 input[type="time"] {
-    background: rgba(0,0,0,0.25);
+    background: rgba(0, 0, 0, 0.25);
     border: 1px solid var(--border);
     color: white;
     padding: 10px;
@@ -367,11 +506,14 @@ input[type="time"] {
     font-family: var(--font);
     font-size: 1rem;
 }
-input[type="time"]::-webkit-calendar-picker-indicator { filter: invert(1); }
+
+input[type="time"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+}
 
 /* --- Timezone Select --- */
 .timezone-select {
-    background: rgba(0,0,0,0.25);
+    background: rgba(0, 0, 0, 0.25);
     border: 1px solid var(--border);
     color: white;
     padding: 10px 12px;
@@ -382,7 +524,11 @@ input[type="time"]::-webkit-calendar-picker-indicator { filter: invert(1); }
     cursor: pointer;
     min-width: 140px;
 }
-.timezone-select option { background: #1a1a2e; color: #fff; }
+
+.timezone-select option {
+    background: #1a1a2e;
+    color: #fff;
+}
 
 /* ==========================================================================
    Buttons
@@ -402,10 +548,27 @@ input[type="time"]::-webkit-calendar-picker-indicator { filter: invert(1); }
     cursor: pointer;
     transition: var(--ease);
 }
-.action-btn.primary { background: var(--accent); color: white; box-shadow: 0 4px 15px var(--accent-glow); }
-.action-btn.secondary-btn { background: rgba(255,255,255,0.08); color: white; }
-.action-btn.outline-danger { background: transparent; border: 1px solid var(--danger); color: var(--danger); }
-.action-btn:active { transform: scale(0.97); }
+
+.action-btn.primary {
+    background: var(--accent);
+    color: white;
+    box-shadow: 0 4px 15px var(--accent-glow);
+}
+
+.action-btn.secondary-btn {
+    background: rgba(255, 255, 255, 0.08);
+    color: white;
+}
+
+.action-btn.outline-danger {
+    background: transparent;
+    border: 1px solid var(--danger);
+    color: var(--danger);
+}
+
+.action-btn:active {
+    transform: scale(0.97);
+}
 
 /* ==========================================================================
    Full-Screen Modal (Presets)
@@ -417,13 +580,16 @@ input[type="time"]::-webkit-calendar-picker-indicator { filter: invert(1); }
     inset: 0;
     background: var(--bg);
 }
+
 .fullscreen-modal {
-    width: 100%; height: 100%;
+    width: 100%;
+    height: 100%;
     max-width: 480px;
     margin: 0 auto;
     display: flex;
     flex-direction: column;
 }
+
 .modal-header {
     display: flex;
     justify-content: space-between;
@@ -431,6 +597,7 @@ input[type="time"]::-webkit-calendar-picker-indicator { filter: invert(1); }
     padding: 1.25rem 1.5rem;
     border-bottom: 1px solid var(--border);
 }
+
 .icon-btn {
     background: transparent;
     border: none;
@@ -439,14 +606,16 @@ input[type="time"]::-webkit-calendar-picker-indicator { filter: invert(1); }
     padding: 4px;
     cursor: pointer;
 }
+
 .modal-body {
     padding: 1.5rem;
     flex: 1;
     overflow-y: auto;
 }
+
 .preset-name-input {
     width: 100%;
-    background: rgba(255,255,255,0.05);
+    background: rgba(255, 255, 255, 0.05);
     border: 1px solid var(--border);
     color: white;
     padding: 14px;
@@ -457,7 +626,10 @@ input[type="time"]::-webkit-calendar-picker-indicator { filter: invert(1); }
     box-sizing: border-box;
     transition: border-color 0.2s;
 }
-.preset-name-input:focus { border-color: var(--accent); }
+
+.preset-name-input:focus {
+    border-color: var(--accent);
+}
 
 .preset-modal-actions {
     display: flex;
@@ -474,10 +646,11 @@ input[type="time"]::-webkit-calendar-picker-indicator { filter: invert(1); }
     border-radius: 20px;
     padding: 24px;
     position: absolute;
-    top: 50%; left: 50%;
+    top: 50%;
+    left: 50%;
     transform: translate(-50%, -50%);
-    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
-    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .timepicker-display {
@@ -490,12 +663,14 @@ input[type="time"]::-webkit-calendar-picker-indicator { filter: invert(1); }
     margin-bottom: 24px;
     color: var(--text-dim);
 }
+
 .tp-part {
     cursor: pointer;
     border-radius: 8px;
     padding: 0 8px;
     transition: color 0.2s, background 0.2s;
 }
+
 .tp-part.active {
     color: var(--accent);
     background: rgba(107, 76, 255, 0.15);
@@ -508,6 +683,7 @@ input[type="time"]::-webkit-calendar-picker-indicator { filter: invert(1); }
     font-weight: 600;
     margin-left: 8px;
 }
+
 .am-pm-btn {
     padding: 6px 12px;
     border-radius: 6px;
@@ -515,8 +691,9 @@ input[type="time"]::-webkit-calendar-picker-indicator { filter: invert(1); }
     color: var(--text-dim);
     transition: var(--ease);
 }
+
 .am-pm-btn.active {
-    background: rgba(255,255,255,0.1);
+    background: rgba(255, 255, 255, 0.1);
     color: white;
 }
 
@@ -525,26 +702,32 @@ input[type="time"]::-webkit-calendar-picker-indicator { filter: invert(1); }
     justify-content: center;
     margin: 20px 0;
 }
+
 .clock-face {
     width: 240px;
     height: 240px;
-    background: rgba(255,255,255,0.04);
+    background: rgba(255, 255, 255, 0.04);
     border-radius: 50%;
     position: relative;
-    box-shadow: inset 0 2px 10px rgba(0,0,0,0.2);
+    box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.2);
 }
+
 .clock-center {
-    width: 8px; height: 8px;
+    width: 8px;
+    height: 8px;
     background: var(--accent);
     border-radius: 50%;
     position: absolute;
-    top: 50%; left: 50%;
+    top: 50%;
+    left: 50%;
     transform: translate(-50%, -50%);
     z-index: 10;
 }
+
 .clock-hand {
     position: absolute;
-    bottom: 50%; left: 50%;
+    bottom: 50%;
+    left: 50%;
     width: 2px;
     height: 38%;
     background: var(--accent);
@@ -554,18 +737,22 @@ input[type="time"]::-webkit-calendar-picker-indicator { filter: invert(1); }
     z-index: 5;
     pointer-events: none;
 }
+
 .clock-hand::after {
     content: '';
     position: absolute;
-    top: -14px; left: -14px;
-    width: 30px; height: 30px;
+    top: -14px;
+    left: -14px;
+    width: 30px;
+    height: 30px;
     border-radius: 50%;
     background: var(--accent);
 }
 
 .clock-number {
     position: absolute;
-    width: 36px; height: 36px;
+    width: 36px;
+    height: 36px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -573,37 +760,66 @@ input[type="time"]::-webkit-calendar-picker-indicator { filter: invert(1); }
     font-size: 1.1rem;
     color: var(--text);
     cursor: pointer;
-    transform: translate(-50%, -50%); /* Base translation applied before top/left */
+    transform: translate(-50%, -50%);
+    /* Base translation applied before top/left */
     transition: background 0.2s, color 0.2s;
     user-select: none;
     z-index: 20;
 }
-.clock-number:hover { background: rgba(255,255,255,0.1); }
-.clock-number.active { color: white; }
+
+.clock-number:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.clock-number.active {
+    color: white;
+}
 
 .time-display {
     font-size: 1.2rem;
     font-weight: 500;
     padding: 8px 12px;
     border-radius: 8px;
-    background: rgba(255,255,255,0.05);
+    background: rgba(255, 255, 255, 0.05);
     border: 1px solid transparent;
     transition: border 0.2s;
 }
+
 .time-block:active .time-display {
     border-color: var(--accent);
-    background: rgba(255,255,255,0.08);
+    background: rgba(255, 255, 255, 0.08);
 }
-.primary-btn { background: var(--accent); color: white; box-shadow: 0 4px 15px var(--accent-glow); border: none; font-weight: 600;}
-.secondary-btn { background: rgba(255,255,255,0.08); color: white; border: none; font-weight: 600;}
-.danger-btn { background: transparent; border: 1px solid var(--danger); color: var(--danger); font-weight: 600;}
+
+.primary-btn {
+    background: var(--accent);
+    color: white;
+    box-shadow: 0 4px 15px var(--accent-glow);
+    border: none;
+    font-weight: 600;
+}
+
+.secondary-btn {
+    background: rgba(255, 255, 255, 0.08);
+    color: white;
+    border: none;
+    font-weight: 600;
+}
+
+.danger-btn {
+    background: transparent;
+    border: 1px solid var(--danger);
+    color: var(--danger);
+    font-weight: 600;
+}
 
 /* ==========================================================================
    Bottom Navigation
    ========================================================================== */
 .bottom-nav {
     position: fixed;
-    bottom: 0; left: 0; right: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
     height: 62px;
     background: var(--nav-bg);
     backdrop-filter: blur(18px);
@@ -616,6 +832,7 @@ input[type="time"]::-webkit-calendar-picker-indicator { filter: invert(1); }
     max-width: 480px;
     margin: 0 auto;
 }
+
 .nav-item {
     flex: 1;
     display: flex;
@@ -629,6 +846,72 @@ input[type="time"]::-webkit-calendar-picker-indicator { filter: invert(1); }
     cursor: pointer;
     transition: color 0.2s;
 }
-.nav-item .material-icons-round { font-size: 1.4rem; margin-bottom: 1px; }
-.nav-item span:not(.material-icons-round) { font-size: 0.7rem; font-weight: 500; }
-.nav-item.active { color: var(--accent); }
+
+.nav-item .material-icons-round {
+    font-size: 1.4rem;
+    margin-bottom: 1px;
+}
+
+.nav-item span:not(.material-icons-round) {
+    font-size: 0.7rem;
+    font-weight: 500;
+}
+
+.nav-item.active {
+    color: var(--accent);
+}
+
+/* ==========================================================================
+   Rotary Dial (Duration Picker)
+   ========================================================================== */
+.dial-container {
+    width: 240px;
+    height: 240px;
+    margin: 20px auto;
+    position: relative;
+    background: radial-gradient(circle, #2a2d35 0%, #17191e 100%);
+    border-radius: 50%;
+    box-shadow: inset 0 6px 15px rgba(0, 0, 0, 0.6), 0 2px 10px rgba(255, 255, 255, 0.03);
+}
+
+.dial-svg {
+    width: 100%;
+    height: 100%;
+    transform: rotate(0deg); /* JS handles rotation logically */
+    overflow: visible;
+}
+
+.dial-track {
+    fill: transparent;
+    stroke: rgba(255, 255, 255, 0.05); /* Faint background track */
+    stroke-width: 12;
+}
+
+.dial-progress {
+    fill: transparent;
+    stroke: var(--accent);
+    stroke-width: 12;
+    stroke-linecap: round;
+    transition: stroke-dasharray 0.05s linear;
+    filter: drop-shadow(0 0 10px rgba(107, 76, 255, 0.8)); /* Subtle purple glow */
+}
+
+.dial-knob {
+    fill: #ffffff;
+    stroke: var(--accent);
+    stroke-width: 4;
+    cursor: grab;
+    transition: cx 0.05s linear, cy 0.05s linear;
+    filter: drop-shadow(0 4px 5px rgba(0, 0, 0, 0.5));
+}
+
+.dial-knob:hover {
+    fill: #f5f5f5;
+    transform: scale(1.05);
+    transform-origin: center;
+}
+
+.dial-knob:active {
+    cursor: grabbing;
+    fill: #e8e8e8;
+}
