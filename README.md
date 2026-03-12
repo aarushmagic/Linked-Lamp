@@ -99,7 +99,7 @@ After the first visit, credentials are saved — you can just open the page norm
 After making code changes, you can push OTA updates to all lamps without plugging them in:
 
 1. Compile in PlatformIO — the binary is at `firmware/.pio/build/esp32dev/firmware.bin`
-2. Copy that file into `web interface/` as both `firmware_A.bin` and `firmware_B.bin`
+2. Copy that file into `docs/` as both `firmware_A.bin` and `firmware_B.bin`
 3. Commit and push to GitHub — GitHub Pages will serve the `.bin` files
 4. The ESP32 auto-checks for updates every 7 days, or users can tap "Check for Update" in the web app
 
