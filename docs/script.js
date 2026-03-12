@@ -16,39 +16,43 @@
 // Configuration
 // ==========================================================================
 let mqtt_server = "";
-let mqtt_user   = "";
-let mqtt_pass   = "";
+let mqtt_user = "";
+let mqtt_pass = "";
 const mqtt_port = 8884; // HiveMQ WebSockets TLS port
 
-let mqttClient      = null;
-let myDeviceId       = "A";
-let partnerDeviceId  = "B";
-let partnerName      = "Partner";
+let mqttClient = null;
+let myDeviceId = "A";
+let partnerDeviceId = "B";
+let partnerName = "Partner";
+
+let isMqttConnected = false;
+let myLampOnline = false;
+let partnerLampOnline = false;
 
 // ==========================================================================
 // State
 // ==========================================================================
 let mySettings = {
     defaultColor: "#FF0000",
-    dayTimeMin:   5,
-    dayBright:    255,
-    nightMode:    false,
-    nightStart:   "22:00",
-    nightEnd:     "08:00",
+    dayTimeMin: 5,
+    dayBright: 255,
+    nightMode: false,
+    nightStart: "22:00",
+    nightEnd: "08:00",
     nightTimeMin: 5,
-    nightBright:  76,
-    timezone:     "EST5EDT"
+    nightBright: 76,
+    timezone: "EST5EDT"
 };
 
 let presets = [
-    { id: "default_love", name: "I Love You",  color: "#FF0000" },
-    { id: "default_miss", name: "I Miss You",  color: "#00FF00" }
+    { id: "default_love", name: "I Love You", color: "#FF0000" },
+    { id: "default_miss", name: "I Miss You", color: "#00FF00" }
 ];
 
 let editingPresetId = null;
 
 // Color Picker instances (iro.js)
-let mainColorPicker   = null;
+let mainColorPicker = null;
 let presetColorPicker = null;
 
 // ==========================================================================
@@ -84,9 +88,9 @@ function loadCredentials() {
 
     if (params.has("s") && params.has("u") && params.has("p") && params.has("id")) {
         mqtt_server = params.get("s");
-        mqtt_user   = params.get("u");
-        mqtt_pass   = params.get("p");
-        myDeviceId  = params.get("id").toUpperCase() === "B" ? "B" : "A";
+        mqtt_user = params.get("u");
+        mqtt_pass = params.get("p");
+        myDeviceId = params.get("id").toUpperCase() === "B" ? "B" : "A";
         partnerDeviceId = myDeviceId === "A" ? "B" : "A";
 
         // Partner name from URL
@@ -95,18 +99,18 @@ function loadCredentials() {
             localStorage.setItem("ll_name", partnerName);
         }
 
-        localStorage.setItem("ll_s",  mqtt_server);
-        localStorage.setItem("ll_u",  mqtt_user);
-        localStorage.setItem("ll_p",  mqtt_pass);
+        localStorage.setItem("ll_s", mqtt_server);
+        localStorage.setItem("ll_u", mqtt_user);
+        localStorage.setItem("ll_p", mqtt_pass);
         localStorage.setItem("ll_id", myDeviceId);
 
         // Clean the URL
         history.replaceState(null, null, window.location.pathname);
     } else {
         mqtt_server = localStorage.getItem("ll_s");
-        mqtt_user   = localStorage.getItem("ll_u");
-        mqtt_pass   = localStorage.getItem("ll_p");
-        const id    = localStorage.getItem("ll_id");
+        mqtt_user = localStorage.getItem("ll_u");
+        mqtt_pass = localStorage.getItem("ll_p");
+        const id = localStorage.getItem("ll_id");
         if (id) {
             myDeviceId = id;
             partnerDeviceId = myDeviceId === "A" ? "B" : "A";
@@ -133,7 +137,7 @@ function loadCredentials() {
 // ==========================================================================
 function connectMQTT() {
     const brokerUrl = `wss://${mqtt_server}:${mqtt_port}/mqtt`;
-    const clientId  = "Web-" + myDeviceId + "-" + Math.random().toString(16).substring(2, 8);
+    const clientId = "Web-" + myDeviceId + "-" + Math.random().toString(16).substring(2, 8);
 
     mqttClient = mqtt.connect(brokerUrl, {
         clientId,
@@ -145,20 +149,59 @@ function connectMQTT() {
 
     mqttClient.on("connect", () => {
         console.log("MQTT Connected!");
-        setConnectionUI(true);
+        isMqttConnected = true;
+        
+        mqttClient.subscribe(`linkedlamp/${myDeviceId}/status`);
+        mqttClient.subscribe(`linkedlamp/${partnerDeviceId}/status`);
+        
+        updateStatusUI();
         publishSettings(); // Sync settings on every fresh connect
+    });
+
+    mqttClient.on("message", (topic, message) => {
+        const msg = message.toString();
+        if (topic === `linkedlamp/${myDeviceId}/status`) {
+            myLampOnline = (msg === "ONLINE");
+            updateStatusUI();
+        } else if (topic === `linkedlamp/${partnerDeviceId}/status`) {
+            partnerLampOnline = (msg === "ONLINE");
+            updateStatusUI();
+        }
     });
 
     mqttClient.on("reconnect", () => console.log("MQTT Reconnecting..."));
     mqttClient.on("error", (err) => console.error("MQTT Error:", err));
-    mqttClient.on("offline", () => setConnectionUI(false));
+    mqttClient.on("offline", () => {
+        isMqttConnected = false;
+        myLampOnline = false;
+        partnerLampOnline = false;
+        updateStatusUI();
+    });
 }
 
-function setConnectionUI(online) {
-    const dot  = document.getElementById("connectionDot");
+function updateStatusUI() {
+    const dot = document.getElementById("connectionDot");
     const text = document.getElementById("connectionText");
-    dot.className  = online ? "dot online" : "dot offline";
-    text.innerText = online ? "Online"     : "Offline";
+    
+    if (!isMqttConnected) {
+        dot.className = "dot offline";
+        text.innerText = "Connecting...";
+        return;
+    }
+    
+    if (myLampOnline && partnerLampOnline) {
+        dot.className = "dot online";
+        text.innerText = "Both Online";
+    } else if (myLampOnline && !partnerLampOnline) {
+        dot.className = "dot partial";
+        text.innerText = partnerName + " Offline";
+    } else if (!myLampOnline && partnerLampOnline) {
+        dot.className = "dot partial";
+        text.innerText = "Your Lamp Offline";
+    } else {
+        dot.className = "dot offline";
+        text.innerText = "Lamps Offline";
+    }
 }
 
 // ==========================================================================
@@ -278,15 +321,15 @@ function updateMainButton(hex) {
 // Settings Sliders
 // ==========================================================================
 function initSliders() {
-    bindSlider("dayDuration",    "dayTimeMin",  " min", false);
-    bindSlider("dayBrightness",  "dayBright",   "%",    true);
-    bindSlider("nightDuration",  "nightTimeMin"," min", false);
-    bindSlider("nightBrightness","nightBright",  "%",   true);
+    bindSlider("dayDuration", "dayTimeMin", " min", false);
+    bindSlider("dayBrightness", "dayBright", "%", true);
+    bindSlider("nightDuration", "nightTimeMin", " min", false);
+    bindSlider("nightBrightness", "nightBright", "%", true);
 }
 
 function bindSlider(sliderId, settingKey, suffix, isPercent) {
     const slider = document.getElementById(sliderId);
-    const label  = document.getElementById(sliderId + "Val");
+    const label = document.getElementById(sliderId + "Val");
     if (!slider || !label) return;
 
     slider.value = mySettings[settingKey];
@@ -309,7 +352,7 @@ function formatSliderVal(val, suffix, isPercent) {
 // Night Mode Toggle
 // ==========================================================================
 function initNightToggle() {
-    const toggle  = document.getElementById("nightModeToggle");
+    const toggle = document.getElementById("nightModeToggle");
     const section = document.getElementById("nightSettings");
 
     toggle.checked = mySettings.nightMode;
@@ -323,7 +366,7 @@ function initNightToggle() {
 
     // Time picker changes
     document.getElementById("nightStart").value = mySettings.nightStart || "22:00";
-    document.getElementById("nightEnd").value   = mySettings.nightEnd   || "08:00";
+    document.getElementById("nightEnd").value = mySettings.nightEnd || "08:00";
 
     document.getElementById("nightStart").onchange = (e) => {
         mySettings.nightStart = e.target.value;
@@ -347,19 +390,19 @@ function initTimezone() {
         const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
         // Map common IANA to POSIX (best-effort)
         const ianaMap = {
-            "America/New_York":    "EST5EDT",
-            "America/Chicago":     "CST6CDT",
-            "America/Denver":      "MST7MDT",
+            "America/New_York": "EST5EDT",
+            "America/Chicago": "CST6CDT",
+            "America/Denver": "MST7MDT",
             "America/Los_Angeles": "PST8PDT",
-            "America/Anchorage":   "AKST9AKDT",
-            "Pacific/Honolulu":    "HST",
-            "Europe/London":       "GMT0BST",
-            "Europe/Berlin":       "CET-1CEST",
-            "Europe/Bucharest":    "EET-2EEST",
-            "Asia/Kolkata":        "IST-5:30",
-            "Asia/Shanghai":       "CST-8",
-            "Asia/Tokyo":          "JST-9",
-            "Australia/Sydney":    "AEST-10AEDT",
+            "America/Anchorage": "AKST9AKDT",
+            "Pacific/Honolulu": "HST",
+            "Europe/London": "GMT0BST",
+            "Europe/Berlin": "CET-1CEST",
+            "Europe/Bucharest": "EET-2EEST",
+            "Asia/Kolkata": "IST-5:30",
+            "Asia/Shanghai": "CST-8",
+            "Asia/Tokyo": "JST-9",
+            "Australia/Sydney": "AEST-10AEDT",
         };
         mySettings.timezone = ianaMap[tz] || "EST5EDT";
     }
@@ -388,7 +431,7 @@ function renderPresets() {
         nameSpan.style.flex = "1";
         nameSpan.style.textAlign = "left";
         nameSpan.innerText = p.name;
-        
+
         const dot = document.createElement("div");
         dot.className = "preset-color-dot";
         dot.style.background = p.color;
@@ -403,9 +446,9 @@ function renderPresets() {
 
         // Tap the button area = send signal, tap edit icon = edit
         nameSpan.onclick = () => sendSignal(p.color);
-        dot.onclick      = () => sendSignal(p.color);
+        dot.onclick = () => sendSignal(p.color);
         editIcon.onclick = (e) => { e.stopPropagation(); openPresetModal(p.id); };
-        btn.onclick      = () => sendSignal(p.color);
+        btn.onclick = () => sendSignal(p.color);
 
         grid.appendChild(btn);
     });
@@ -420,21 +463,21 @@ function renderPresets() {
 
 function openPresetModal(presetId = null) {
     editingPresetId = presetId;
-    const modal    = document.getElementById("presetModal");
-    const title    = document.getElementById("presetModalTitle");
-    const nameInp  = document.getElementById("presetName");
-    const delBtn   = document.getElementById("btnDeletePreset");
+    const modal = document.getElementById("presetModal");
+    const title = document.getElementById("presetModalTitle");
+    const nameInp = document.getElementById("presetName");
+    const delBtn = document.getElementById("btnDeletePreset");
 
     if (presetId) {
         const p = presets.find(x => x.id === presetId);
         if (!p) return;
         title.innerText = "Edit Signal";
-        nameInp.value   = p.name;
+        nameInp.value = p.name;
         presetColorPicker.color.hexString = p.color;
         delBtn.classList.remove("hidden");
     } else {
         title.innerText = "New Signal";
-        nameInp.value   = "";
+        nameInp.value = "";
         presetColorPicker.color.hexString = "#ffffff";
         delBtn.classList.add("hidden");
     }

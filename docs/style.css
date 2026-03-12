@@ -24,6 +24,10 @@
 /* --- Reset & Base --- */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
+
+/* Hide scrollbar globally */
+::-webkit-scrollbar { display: none; }
+* { -ms-overflow-style: none; scrollbar-width: none; }
 body {
     background: var(--bg);
     color: var(--text);
@@ -80,6 +84,7 @@ body {
     transition: var(--ease);
 }
 .dot.online  { background: var(--success); box-shadow: 0 0 8px var(--success); }
+.dot.partial { background: #ffa502; box-shadow: 0 0 8px #ffa502; }
 .dot.offline { background: var(--danger); }
 
 /* ==========================================================================
