@@ -73,7 +73,7 @@ On first power-up, each lamp creates a WiFi network called **"Linked Lamp Setup"
 The web app is already hosted. Open this URL on your phone (bookmark it!):
 
 ```
-https://YOUR_GITHUB_USERNAME.github.io/linked-lamp/?s=BROKER_URL&u=USERNAME&p=PASSWORD&id=A&name=Sarah
+https://aarushmagic.github.io/Linked-Lamp/?s=BROKER_URL&u=USERNAME&p=PASSWORD&id=A&name=Sarah
 ```
 
 Replace the values:
@@ -99,7 +99,7 @@ After the first visit, credentials are saved — you can just open the page norm
 After making code changes, you can push OTA updates to all lamps without plugging them in:
 
 1. Compile in PlatformIO — the binary is at `firmware/.pio/build/esp32dev/firmware.bin`
-2. Copy that file into `docs/` as both `firmware_A.bin` and `firmware_B.bin`
+2. Copy that file into `docs/firmware.bin`
 3. Commit and push to GitHub — GitHub Pages will serve the `.bin` files
 4. The ESP32 auto-checks for updates every 7 days, or users can tap "Check for Update" in the web app
 

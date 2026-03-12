@@ -188,7 +188,7 @@ function triggerUpdate() {
     if (mqttClient && mqttClient.connected) {
         // OTA binary hosted on the same GitHub Pages site
         const baseUrl = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '');
-        const otaUrl = baseUrl + "/firmware_" + myDeviceId + ".bin";
+        const otaUrl = baseUrl + "/firmware.bin";
         mqttClient.publish(`linkedlamp/${myDeviceId}/system/ota`, otaUrl);
         alert("Update command sent! Your lamp will restart shortly.");
     } else {

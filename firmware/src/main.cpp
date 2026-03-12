@@ -779,7 +779,7 @@ void handleAutoOTA() {
   if (millis() - lastOtaCheckMs >= OTA_CHECK_INTERVAL) {
     lastOtaCheckMs = millis();
     Serial.println("7-day auto OTA check triggered.");
-    String fullUrl = ota_url + "/firmware_" + device_id + ".bin";
+    String fullUrl = ota_url + "/firmware.bin";
     performOTA(fullUrl);
   }
 }
