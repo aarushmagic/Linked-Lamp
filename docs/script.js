@@ -150,22 +150,57 @@ function connectMQTT() {
     mqttClient.on("connect", () => {
         console.log("MQTT Connected!");
         isMqttConnected = true;
-        
+
         mqttClient.subscribe(`linkedlamp/${myDeviceId}/status`);
         mqttClient.subscribe(`linkedlamp/${partnerDeviceId}/status`);
-        
+        mqttClient.subscribe(`linkedlamp/${myDeviceId}/settings`); // Pull retained settings
+
         updateStatusUI();
-        publishSettings(); // Sync settings on every fresh connect
     });
+
+    // We use a flag to prevent echoing our own settings publishes
+    // back into the UI and causing infinite loops
+    let isSelfPublishingUi = false;
+    
+    // Make publishSettings aware of the flag so we can export it later
+    window._setSelfPublishing = (val) => isSelfPublishingUi = val;
 
     mqttClient.on("message", (topic, message) => {
         const msg = message.toString();
+        
         if (topic === `linkedlamp/${myDeviceId}/status`) {
             myLampOnline = (msg === "ONLINE");
             updateStatusUI();
+            
         } else if (topic === `linkedlamp/${partnerDeviceId}/status`) {
             partnerLampOnline = (msg === "ONLINE");
             updateStatusUI();
+            
+        } else if (topic === `linkedlamp/${myDeviceId}/settings`) {
+            if (isSelfPublishingUi) return; // Ignore our own publishes
+            
+            try {
+                const incomingSettings = JSON.parse(msg);
+                let changed = false;
+                
+                // Merge incoming settings (e.g. from another phone, or from long-pressing the lamp)
+                for (let key in incomingSettings) {
+                    if (mySettings[key] !== incomingSettings[key]) {
+                        mySettings[key] = incomingSettings[key];
+                        changed = true;
+                    }
+                }
+                
+                if (changed) {
+                    console.log("Applied remote settings from MQTT:", mySettings);
+                    // Save to local storage
+                    localStorage.setItem("ll_settings_" + myDeviceId, JSON.stringify(mySettings));
+                    // Update UI elements visually
+                    applySettingsToUI();
+                }
+            } catch (e) {
+                console.error("Failed to parse incoming settings payload:", e);
+            }
         }
     });
 
@@ -182,26 +217,26 @@ function connectMQTT() {
 function updateStatusUI() {
     const dot = document.getElementById("connectionDot");
     const text = document.getElementById("connectionText");
-    
+
     if (!isMqttConnected) {
         dot.className = "dot offline";
         text.innerText = "Offline";
         return;
     }
-    
+
     // If we haven't received any status messages from firmware yet,
     // just show "Online" based on broker connectivity
     if (myLampOnline === null && partnerLampOnline === null) {
-        dot.className = "dot online";
-        text.innerText = "Online";
+        dot.className = "dot offline";
+        text.innerText = "Offline";
         return;
     }
-    
+
     // If we have status info from firmware LWT, show detailed status.
     // Default an unknown (null) lamp to offline to prevent false "Both Online" claims.
     const myStatus = myLampOnline === null ? false : myLampOnline;
     const partnerStatus = partnerLampOnline === null ? false : partnerLampOnline;
-    
+
     if (myStatus && partnerStatus) {
         dot.className = "dot online";
         text.innerText = "Both Online";
@@ -231,12 +266,60 @@ function sendSignal(hexColor) {
 }
 
 function publishSettings() {
-    if (!mqttClient || !mqttClient.connected) return;
-    const topic = `linkedlamp/${myDeviceId}/settings`;
     const payload = JSON.stringify(mySettings);
-    mqttClient.publish(topic, payload, { retain: true });
     localStorage.setItem("ll_settings_" + myDeviceId, payload);
+    
+    if (!mqttClient || !mqttClient.connected) return;
+    
+    const topic = `linkedlamp/${myDeviceId}/settings`;
+    
+    if (window._setSelfPublishing) window._setSelfPublishing(true);
+    
+    mqttClient.publish(topic, payload, { retain: true });
     console.log("Settings published:", payload);
+    
+    // Clear the flag shortly after publishing so we can receive external updates again
+    setTimeout(() => {
+        if (window._setSelfPublishing) window._setSelfPublishing(false);
+    }, 1000);
+}
+
+function applySettingsToUI() {
+    // Sliders
+    const map = [
+        ["dayDuration", "dayTimeMin", " min", false],
+        ["dayBrightness", "dayBright", "%", true],
+        ["nightDuration", "nightTimeMin", " min", false],
+        ["nightBrightness", "nightBright", "%", true]
+    ];
+    map.forEach(m => {
+        const slider = document.getElementById(m[0]);
+        const label = document.getElementById(m[0] + "Val");
+        if (slider && label) {
+            slider.value = mySettings[m[1]];
+            label.innerText = formatSliderVal(mySettings[m[1]], m[2], m[3]);
+        }
+    });
+
+    // Color Pickers
+    if (mainColorPicker) mainColorPicker.color.hexString = mySettings.defaultColor;
+    document.getElementById("colorPreview").innerText = mySettings.defaultColor;
+    document.getElementById("colorPreview").style.borderLeft = `8px solid ${mySettings.defaultColor}`;
+    updateMainButton(mySettings.defaultColor);
+
+    // Night Toggle
+    const toggle = document.getElementById("nightModeToggle");
+    const section = document.getElementById("nightSettings");
+    if (toggle && section) {
+        toggle.checked = mySettings.nightMode;
+        section.classList.toggle("hidden", !mySettings.nightMode);
+    }
+    updateTimeDisplay("nightStartDisplay", mySettings.nightStart || "22:00");
+    updateTimeDisplay("nightEndDisplay", mySettings.nightEnd || "08:00");
+
+    // Timezone
+    const sel = document.getElementById("timezoneSelect");
+    if (sel) sel.value = mySettings.timezone;
 }
 
 function triggerUpdate() {
@@ -337,7 +420,7 @@ function updateMainButton(hex) {
     btn.style.backgroundColor = hex;
     // Dynamic glow based on the color
     btn.style.boxShadow = `0 0 40px ${hex}55, inset 0 0 20px rgba(255,255,255,0.15)`;
-    
+
     // Adjust text readability based on background brightness
     if (getLuminance(hex) > 0.6) {
         btn.classList.add("dark-text");
@@ -395,18 +478,143 @@ function initNightToggle() {
         publishSettings();
     };
 
-    // Time picker changes
-    document.getElementById("nightStart").value = mySettings.nightStart || "22:00";
-    document.getElementById("nightEnd").value = mySettings.nightEnd || "08:00";
+    // Time picker updates
+    updateTimeDisplay("nightStartDisplay", mySettings.nightStart || "22:00");
+    updateTimeDisplay("nightEndDisplay", mySettings.nightEnd || "08:00");
 
-    document.getElementById("nightStart").onchange = (e) => {
-        mySettings.nightStart = e.target.value;
-        publishSettings();
-    };
-    document.getElementById("nightEnd").onchange = (e) => {
-        mySettings.nightEnd = e.target.value;
-        publishSettings();
-    };
+    document.getElementById("btnStartTime").onclick = () => openTimePicker("start");
+    document.getElementById("btnEndTime").onclick = () => openTimePicker("end");
+}
+
+function updateTimeDisplay(elementId, time24) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    const parts = time24.split(":");
+    let h = parseInt(parts[0]);
+    const m = parts[1];
+    const ampm = h >= 12 ? "PM" : "AM";
+    if (h === 0) h = 12;
+    if (h > 12) h -= 12;
+    el.innerText = `${h}:${m} ${ampm}`;
+}
+
+// ==========================================================================
+// Time Picker Modal Logic
+// ==========================================================================
+let editingTimeTarget = null; // 'start' or 'end'
+let currentPickerMode = 'hour'; // 'hour' or 'minute'
+let tpTempHour24 = 0;
+let tpTempMinute = 0;
+
+function openTimePicker(target) {
+    editingTimeTarget = target;
+    currentPickerMode = 'hour';
+    
+    // Parse current setting
+    const currentVal = target === 'start' ? (mySettings.nightStart || "22:00") : (mySettings.nightEnd || "08:00");
+    const parts = currentVal.split(":");
+    tpTempHour24 = parseInt(parts[0]);
+    tpTempMinute = parseInt(parts[1]);
+
+    document.getElementById("timePickerTitle").innerText = target === 'start' ? "Starts At" : "Ends At";
+    document.getElementById("timePickerModal").style.display = "block";
+    
+    // Bind AM/PM toggles
+    document.getElementById("tpAM").onclick = () => { if (tpTempHour24 >= 12) { tpTempHour24 -= 12; updateTpHeader(); } };
+    document.getElementById("tpPM").onclick = () => { if (tpTempHour24 < 12) { tpTempHour24 += 12; updateTpHeader(); } };
+    
+    // Bind Hour/Min toggles
+    document.getElementById("tpHour").onclick = () => { currentPickerMode = 'hour'; renderClockFace(); };
+    document.getElementById("tpMinute").onclick = () => { currentPickerMode = 'minute'; renderClockFace(); };
+
+    updateTpHeader();
+    renderClockFace();
+}
+
+function closeTimePickerModal() {
+    document.getElementById("timePickerModal").style.display = "none";
+}
+
+function saveTimePickerModal() {
+    const hStr = tpTempHour24.toString().padStart(2, '0');
+    const mStr = tpTempMinute.toString().padStart(2, '0');
+    const time24 = `${hStr}:${mStr}`;
+    
+    if (editingTimeTarget === 'start') {
+        mySettings.nightStart = time24;
+        updateTimeDisplay("nightStartDisplay", time24);
+    } else {
+        mySettings.nightEnd = time24;
+        updateTimeDisplay("nightEndDisplay", time24);
+    }
+    publishSettings();
+    closeTimePickerModal();
+}
+
+function updateTpHeader() {
+    let h = tpTempHour24 % 12;
+    if (h === 0) h = 12;
+    
+    document.getElementById("tpHour").innerText = h;
+    document.getElementById("tpMinute").innerText = tpTempMinute.toString().padStart(2, '0');
+    
+    document.getElementById("tpAM").className = tpTempHour24 < 12 ? "am-pm-btn active" : "am-pm-btn";
+    document.getElementById("tpPM").className = tpTempHour24 >= 12 ? "am-pm-btn active" : "am-pm-btn";
+    
+    document.getElementById("tpHour").className = currentPickerMode === 'hour' ? "tp-part active" : "tp-part";
+    document.getElementById("tpMinute").className = currentPickerMode === 'minute' ? "tp-part active" : "tp-part";
+}
+
+function renderClockFace() {
+    updateTpHeader();
+    const face = document.getElementById("clockFace");
+    const hand = document.getElementById("clockHand");
+    
+    // Clear existing numbers
+    const numbers = face.querySelectorAll('.clock-number');
+    numbers.forEach(n => n.remove());
+    
+    const radius = 95; // px from center
+    const center = 120; // 240px width / 2
+    
+    let activeVal = currentPickerMode === 'hour' ? (tpTempHour24 % 12 || 12) : tpTempMinute;
+
+    // We draw 12 numbers arranged in a circle
+    for (let i = 1; i <= 12; i++) {
+        const numVal = currentPickerMode === 'hour' ? i : (i === 12 ? 0 : i * 5);
+        
+        const deg = i * 30; // 360 / 12 = 30
+        const rad = (deg - 90) * (Math.PI / 180);
+        const x = center + radius * Math.cos(rad);
+        const y = center + radius * Math.sin(rad);
+        
+        const el = document.createElement('div');
+        el.className = 'clock-number';
+        if (numVal === activeVal) el.classList.add('active');
+        
+        el.innerText = currentPickerMode === 'minute' ? numVal.toString().padStart(2, '0') : numVal;
+        el.style.left = `${x}px`;
+        el.style.top = `${y}px`;
+        
+        el.onclick = () => {
+            if (currentPickerMode === 'hour') {
+                let isPM = tpTempHour24 >= 12;
+                tpTempHour24 = (numVal === 12 ? 0 : numVal) + (isPM ? 12 : 0);
+                // Auto switch to minutes
+                currentPickerMode = 'minute';
+                renderClockFace();
+            } else {
+                tpTempMinute = numVal;
+                renderClockFace();
+            }
+        };
+        
+        face.appendChild(el);
+    }
+    
+    // Position the hand correctly
+    const handDeg = activeVal * (currentPickerMode === 'hour' ? 30 : 6);
+    hand.style.transform = `translateX(-50%) rotate(${handDeg}deg)`;
 }
 
 // ==========================================================================
