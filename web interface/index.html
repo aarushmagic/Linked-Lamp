@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Linked Lamp</title>
+    <meta name="description" content="Control your Linked Friendship Lamp - send signals, manage settings, and customize your lamp experience.">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    
+    <!-- Color Picker Library (iro.js v5) -->
+    <script src="https://cdn.jsdelivr.net/npm/@jaames/iro@5"></script>
+    
+    <!-- MQTT.js Library -->
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <h1 id="pageTitle">Linked Lamp</h1>
+            <div class="status-indicator" id="statusIndicator">
+                <span id="connectionDot" class="dot offline"></span>
+                <span id="connectionText">Offline</span>
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <main class="content-area">
+            
+            <!-- ============ View 1: Partner Control ============ -->
+            <div id="view-partner" class="view active">
+                <div class="main-action-area">
+                    <button id="btnMainSignal" class="pulse-button">
+                        <span class="material-icons-round">favorite</span>
+                        <span class="btn-text">Send Signal</span>
+                    </button>
+                    <p class="subtitle" id="signalSubtitle">Tap to turn on their lamp</p>
+                </div>
+
+                <div class="presets-section">
+                    <h3>Quick Signals</h3>
+                    <div class="presets-grid" id="presetsGrid">
+                        <!-- JS generated -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============ View 2: My Settings ============ -->
+            <div id="view-settings" class="view">
+                
+                <!-- Default Color -->
+                <div class="settings-card color-picker-card">
+                    <h3>My Default Color</h3>
+                    <p class="desc">The color sent when you tap your lamp.</p>
+                    <div id="colorPickerContainer" class="color-wheel-wrapper"></div>
+                    <div class="selected-color-preview" id="colorPreview">#FF0000</div>
+                </div>
+
+                <!-- Daytime Settings -->
+                <div class="settings-card">
+                    <h3>Daytime</h3>
+                    <div class="setting-row">
+                        <label for="dayDuration">Lamp On Time</label>
+                        <span id="dayDurationVal" class="setting-val">5 min</span>
+                    </div>
+                    <input type="range" id="dayDuration" min="1" max="30" value="5" class="custom-slider">
+                    
+                    <div class="setting-row mt-3">
+                        <label for="dayBrightness">Max Brightness</label>
+                        <span id="dayBrightnessVal" class="setting-val">100%</span>
+                    </div>
+                    <input type="range" id="dayBrightness" min="10" max="255" value="255" class="custom-slider">
+                </div>
+
+                <!-- Nighttime Settings -->
+                <div class="settings-card">
+                    <div class="night-mode-header">
+                        <h3>Nighttime Mode</h3>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="nightModeToggle">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    
+                    <div id="nightSettings" class="expandable-section hidden">
+                        <div class="time-row">
+                            <div class="time-block">
+                                <label>Starts At</label>
+                                <input type="time" id="nightStart" value="22:00">
+                            </div>
+                            <div class="time-block">
+                                <label>Ends At</label>
+                                <input type="time" id="nightEnd" value="08:00">
+                            </div>
+                        </div>
+
+                        <div class="setting-row mt-3">
+                            <label>Timezone</label>
+                            <select id="timezoneSelect" class="timezone-select">
+                                <option value="EST5EDT">Eastern (ET)</option>
+                                <option value="CST6CDT">Central (CT)</option>
+                                <option value="MST7MDT">Mountain (MT)</option>
+                                <option value="PST8PDT">Pacific (PT)</option>
+                                <option value="AST4ADT">Atlantic</option>
+                                <option value="HST">Hawaii</option>
+                                <option value="AKST9AKDT">Alaska</option>
+                                <option value="GMT0BST">UK (GMT/BST)</option>
+                                <option value="CET-1CEST">Central Europe</option>
+                                <option value="EET-2EEST">Eastern Europe</option>
+                                <option value="IST-5:30">India (IST)</option>
+                                <option value="CST-8">China (CST)</option>
+                                <option value="JST-9">Japan (JST)</option>
+                                <option value="AEST-10AEDT">Australia East</option>
+                            </select>
+                        </div>
+                        
+                        <div class="setting-row mt-3">
+                            <label for="nightDuration">Lamp On Time</label>
+                            <span id="nightDurationVal" class="setting-val">5 min</span>
+                        </div>
+                        <input type="range" id="nightDuration" min="1" max="30" value="5" class="custom-slider">
+                        
+                        <div class="setting-row mt-3">
+                            <label for="nightBrightness">Max Brightness</label>
+                            <span id="nightBrightnessVal" class="setting-val">30%</span>
+                        </div>
+                        <input type="range" id="nightBrightness" min="0" max="255" value="76" class="custom-slider">
+                        <p class="desc mt-1">Set to 0% to keep lamp off at night.</p>
+                    </div>
+                </div>
+
+                <!-- Firmware Update -->
+                <div class="settings-card">
+                    <button id="btnCheckUpdate" class="action-btn secondary-btn" onclick="triggerUpdate()">
+                        <span class="material-icons-round">system_update</span> Check for Update
+                    </button>
+                </div>
+                
+                <div style="height: 80px;"></div>
+            </div>
+            
+        </main>
+
+        <!-- Bottom Navigation -->
+        <nav class="bottom-nav">
+            <button class="nav-item active" id="navSend" onclick="switchTab('partner')">
+                <span class="material-icons-round">send</span>
+                <span>Send</span>
+            </button>
+            <button class="nav-item" id="navSettings" onclick="switchTab('settings')">
+                <span class="material-icons-round">tune</span>
+                <span>Settings</span>
+            </button>
+        </nav>
+    </div>
+
+    <!-- ============ Preset Full-Screen Modal ============ -->
+    <div id="presetModal" class="modal">
+        <div class="modal-content fullscreen-modal">
+            <div class="modal-header">
+                <button class="icon-btn" id="btnPresetBack" onclick="closePresetModal()">
+                    <span class="material-icons-round">arrow_back</span>
+                </button>
+                <h2 id="presetModalTitle">New Signal</h2>
+                <div style="width:40px;"></div>
+            </div>
+            
+            <div class="modal-body">
+                <div class="input-group">
+                    <label for="presetName">Signal Name</label>
+                    <input type="text" id="presetName" placeholder="e.g., Thinking of you" autocomplete="off">
+                </div>
+                
+                <h3 class="mt-4">Pick a Color</h3>
+                <div id="presetColorPickerContainer" class="color-wheel-wrapper mb-4"></div>
+                
+                <div class="modal-actions">
+                    <button id="btnDeletePreset" class="action-btn outline-danger hidden" onclick="deleteCurrentPreset()">Delete</button>
+                    <button id="btnSavePreset" class="action-btn primary" onclick="savePreset()">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

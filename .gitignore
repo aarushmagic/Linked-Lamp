@@ -1,0 +1,22 @@
+# IDE & Build
+.pio/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Sensitive device-specific config (never commit!)
+firmware/data/config.json
+
+# Node
+node_modules/
+
+# Compiled (firmware build output — NOT the OTA binaries in web interface/)
+firmware/.pio/
+*.o
+*.elf
+
