@@ -922,8 +922,6 @@ function renderPresets() {
         btn.appendChild(editIcon);
 
         // Tap the button area = send signal, tap edit icon = edit
-        nameSpan.onclick = () => sendSignal(p.color);
-        dot.onclick = () => sendSignal(p.color);
         editIcon.onclick = (e) => { e.stopPropagation(); openPresetModal(p.id); };
         btn.onclick = () => sendSignal(p.color);
 
