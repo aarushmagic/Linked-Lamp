@@ -23,3 +23,5 @@ firmware/.pio/
 *.o
 *.elf
 
+
+linkedlampinstructions.md
