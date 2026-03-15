@@ -4,274 +4,161 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Linked Lamp</title>
+    <title>Linked Lamp | Stay Connected</title>
     <meta name="description"
-        content="Control your Linked Friendship Lamp - send signals, manage settings, and customize your lamp experience.">
-
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        content="An open-source, touch-activated Wi-Fi Lamp to stay connected with Friends, Family, and Significant Others across the globe.">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
-
-    <!-- Color Picker Library (iro.js v5) -->
-    <script src="https://cdn.jsdelivr.net/npm/@jaames/iro@5"></script>
-
-    <!-- MQTT.js Library -->
-    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
-
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="landing.css">
 </head>
 
 <body>
-    <div class="app-container">
-        <!-- Header -->
-        <header class="app-header">
-            <h1 id="pageTitle">Linked Lamp</h1>
-            <div class="status-indicator" id="statusIndicator">
-                <span id="connectionDot" class="dot offline"></span>
-                <span id="connectionText">Offline</span>
+
+    <!-- Ambient Background Effects -->
+    <div class="ambient-glow glow-1"></div>
+    <div class="ambient-glow glow-2"></div>
+
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-content max-w">
+            <div class="logo">
+                <a href="index.html" style="color:inherit; text-decoration:none; display:flex; align-items:center; gap:10px;">
+                    <span class="material-icons-round">lightbulb</span>
+                    <span class="logo-text">Linked Lamp</span>
+                </a>
             </div>
-        </header>
-
-        <!-- Main Content Area -->
-        <main class="content-area">
-
-            <!-- ============ View 1: Partner Control ============ -->
-            <div id="view-partner" class="view active">
-                <div class="main-action-area">
-                    <button id="btnMainSignal" class="pulse-button">
-                        <span class="material-icons-round">favorite</span>
-                        <span class="btn-text">Send Signal</span>
-                    </button>
-                    <p class="subtitle" id="signalSubtitle">Tap to turn on their lamp</p>
-                </div>
-
-                <div class="presets-section">
-                    <h3>Quick Signals</h3>
-                    <div class="presets-grid" id="presetsGrid">
-                        <!-- JS generated -->
-                    </div>
-                </div>
-            </div>
-
-            <!-- ============ View 2: My Settings ============ -->
-            <div id="view-settings" class="view">
-
-                <!-- Default Color -->
-                <div class="settings-card color-picker-card">
-                    <h3>My Default Color</h3>
-                    <p class="desc">The color sent when you tap your lamp.</p>
-                    <div id="colorPickerContainer" class="color-wheel-wrapper"></div>
-                    <div class="selected-color-preview" id="colorPreview" style="color: transparent; display: none;">
-                    </div>
-                </div>
-
-                <!-- Daytime Settings -->
-                <div class="settings-card">
-                    <h3>Daytime</h3>
-                    <div class="time-row mt-2">
-                        <div class="time-block" id="btnDayDuration">
-                            <label>Lamp On Time</label>
-                            <div class="time-display" id="dayDurationDisplay">5 min</div>
-                        </div>
-                    </div>
-
-                    <div class="setting-row mt-3">
-                        <label for="dayBrightness">Max Brightness</label>
-                        <span id="dayBrightnessVal" class="setting-val">100%</span>
-                    </div>
-                    <input type="range" id="dayBrightness" min="10" max="255" value="255" class="custom-slider">
-                </div>
-
-                <!-- Nighttime Settings -->
-                <div class="settings-card">
-                    <div class="night-mode-header">
-                        <h3>Nighttime Mode</h3>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="nightModeToggle">
-                            <span class="toggle-slider"></span>
-                        </label>
-                    </div>
-
-                    <div id="nightSettings" class="expandable-section hidden">
-                        <div class="time-row">
-                            <div class="time-block" id="btnStartTime">
-                                <label>Starts At</label>
-                                <div class="time-display" id="nightStartDisplay">10:00 PM</div>
-                            </div>
-                            <div class="time-block" id="btnEndTime">
-                                <label>Ends At</label>
-                                <div class="time-display" id="nightEndDisplay">08:00 AM</div>
-                            </div>
-                        </div>
-
-                        <div class="setting-row mt-3">
-                            <label>Timezone</label>
-                            <select id="timezoneSelect" class="timezone-select">
-                                <option value="Pacific/Midway">Midway Island (UTC-11)</option>
-                                <option value="HST">Hawaii (HST)</option>
-                                <option value="America/Anchorage">Alaska (AKST/AKDT)</option>
-                                <option value="PST8PDT">Pacific Time (PT)</option>
-                                <option value="MST7MDT">Mountain Time (MT)</option>
-                                <option value="America/Phoenix">Arizona (MST)</option>
-                                <option value="CST6CDT">Central Time (CT)</option>
-                                <option value="EST5EDT">Eastern Time (ET)</option>
-                                <option value="America/Bogota">Bogota, Lima (UTC-5)</option>
-                                <option value="AST4ADT">Atlantic Time (AST/ADT)</option>
-                                <option value="America/Caracas">Caracas (UTC-4)</option>
-                                <option value="America/Argentina/Buenos_Aires">Buenos Aires (UTC-3)</option>
-                                <option value="America/St_Johns">Newfoundland (UTC-3:30)</option>
-                                <option value="America/Sao_Paulo">Sao Paulo (UTC-3)</option>
-                                <option value="Atlantic/Azores">Azores (UTC-1)</option>
-                                <option value="GMT0BST">UK (GMT/BST)</option>
-                                <option value="Europe/Lisbon">Lisbon (WET/WEST)</option>
-                                <option value="CET-1CEST">Central Europe (CET/CEST)</option>
-                                <option value="Africa/Johannesburg">South Africa (SAST)</option>
-                                <option value="EET-2EEST">Eastern Europe (EET/EEST)</option>
-                                <option value="Asia/Jerusalem">Jerusalem (IST/IDT)</option>
-                                <option value="Europe/Moscow">Moscow (MSK)</option>
-                                <option value="Asia/Dubai">Dubai (GST)</option>
-                                <option value="Asia/Kabul">Kabul (UTC+4:30)</option>
-                                <option value="Asia/Karachi">Karachi (PKT)</option>
-                                <option value="IST-5:30">India (IST)</option>
-                                <option value="Asia/Kathmandu">Kathmandu (UTC+5:45)</option>
-                                <option value="Asia/Dhaka">Dhaka (BST)</option>
-                                <option value="Asia/Yangon">Yangon (UTC+6:30)</option>
-                                <option value="Asia/Bangkok">Bangkok, Hanoi, Jakarta (ICT)</option>
-                                <option value="CST-8">China (CST)</option>
-                                <option value="Asia/Singapore">Singapore (SGT)</option>
-                                <option value="Asia/Tokyo">Japan (JST)</option>
-                                <option value="Australia/Adelaide">Adelaide (ACST/ACDT)</option>
-                                <option value="AEST-10AEDT">Sydney, Melbourne (AEST/AEDT)</option>
-                                <option value="Australia/Brisbane">Brisbane (AEST)</option>
-                                <option value="Pacific/Noumea">New Caledonia (UTC+11)</option>
-                                <option value="Pacific/Auckland">Auckland (NZST/NZDT)</option>
-                            </select>
-                        </div>
-
-                        <div class="time-row mt-3">
-                            <div class="time-block" id="btnNightDuration">
-                                <label>Lamp On Time</label>
-                                <div class="time-display" id="nightDurationDisplay">5 min</div>
-                            </div>
-                        </div>
-
-                        <div class="setting-row mt-3">
-                            <label for="nightBrightness">Max Brightness</label>
-                            <span id="nightBrightnessVal" class="setting-val">30%</span>
-                        </div>
-                        <input type="range" id="nightBrightness" min="0" max="255" value="76" class="custom-slider">
-                        <p class="desc mt-1">Set to 0% to keep lamp off at night.</p>
-                    </div>
-                </div>
-
-                <!-- Firmware Update -->
-                <div class="settings-card">
-                    <button id="btnCheckUpdate" class="action-btn secondary-btn" onclick="triggerUpdate()">
-                        <span class="material-icons-round">system_update</span> Check for Update
-                    </button>
-                </div>
-
-                <div style="height: 80px;"></div>
-            </div>
-
-        </main>
-
-        <!-- Bottom Navigation -->
-        <nav class="bottom-nav">
-            <button class="nav-item active" id="navSend" onclick="switchTab('partner')">
-                <span class="material-icons-round">send</span>
-                <span>Send</span>
-            </button>
-            <button class="nav-item" id="navSettings" onclick="switchTab('settings')">
-                <span class="material-icons-round">tune</span>
-                <span>Settings</span>
-            </button>
-        </nav>
-    </div>
-
-    <!-- ============ Preset Full-Screen Modal ============ -->
-    <div id="presetModal" class="modal">
-        <div class="modal-content fullscreen-modal">
-            <div class="modal-header">
-                <button class="icon-btn" id="btnPresetBack" onclick="closePresetModal()">
-                    <span class="material-icons-round">arrow_back</span>
-                </button>
-                <h2 id="presetModalTitle">New Signal</h2>
-                <div style="flex:1"></div>
-            </div>
-
-            <div class="modal-body">
-                <input type="text" id="presetName" class="preset-name-input" placeholder="Signal Name (e.g. I Love You)"
-                    maxlength="20">
-                <div class="color-wheel-wrapper mt-3" id="presetColorPickerContainer"></div>
-            </div>
-
-            <div class="preset-modal-actions mt-3">
-                <button class="action-btn primary-btn" onclick="savePreset()">Save Signal</button>
-                <button class="action-btn danger-btn hidden mt-2" id="btnDeletePreset"
-                    onclick="deleteCurrentPreset()">Delete Signal</button>
+            <div class="nav-links">
+                <a href="index.html#features">Features</a>
+                <a href="faq.html">FAQ</a>
+                <a href="https://github.com/aarushmagic/Linked-Lamp" target="_blank" class="github-link">
+                    <!-- Simple SVG icon for GitHub -->
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                        <path
+                            d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
+                    </svg>
+                    GitHub
+                </a>
+                <a href="setup.html" class="nav-btn primary">Setup Guide</a>
             </div>
         </div>
-    </div>
+    </nav>
 
-    <!-- ============ Clock Time Picker Modal ============ -->
-    <div id="timePickerModal" class="modal">
-        <div class="modal-content timepicker-modal">
-            <h2 id="timePickerTitle" style="text-align: center; margin-bottom: 20px;">Select Time</h2>
-
-            <!-- Digital Display Header -->
-            <div class="timepicker-display">
-                <div id="durationDisplayGroup" style="display:none; text-align:center; flex:1;">
-                    <span id="tpDurationVal" style="font-size: 3.5rem; font-weight:700; color: #fff;">5</span>
-                    <span id="tpDurationLabel" style="font-size: 1.2rem; color: #aaa; margin-left: 5px;">min</span>
-                </div>
-                
-                <div id="timeDisplayGroup" style="display:flex; align-items:center; justify-content:center; flex:1;">
-                    <span id="tpHour" class="tp-part active">10</span>
-                    <span id="tpColon">:</span>
-                    <span id="tpMinute" class="tp-part">00</span>
-                    <div class="tp-ampm" id="tpAmPmContainer">
-                        <div id="tpAM" class="am-pm-btn">AM</div>
-                        <div id="tpPM" class="am-pm-btn active">PM</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Analog Clock Face -->
-            <div class="clock-container" id="clockContainer">
-                <div class="clock-face" id="clockFace">
-                    <!-- Numbers injected by JS -->
-                    <div class="clock-center"></div>
-                    <div class="clock-hand" id="clockHand"></div>
-                </div>
-            </div>
-
-            <!-- Rotary Dial (Used for Duration) -->
-            <div class="dial-container" id="dialContainer" style="display: none;">
-                <svg viewBox="0 0 200 200" class="dial-svg" id="durationDial">
-                    <!-- Background Track -->
-                    <circle cx="100" cy="100" r="80" class="dial-track"></circle>
-                    <!-- Progress Arc -->
-                    <path d="" class="dial-progress" id="dialProgress"></path>
-                    <!-- Knob -->
-                    <circle cx="100" cy="20" r="14" class="dial-knob" id="dialKnob"></circle>
-                </svg>
-            </div>
-
-            <!-- Modal Actions -->
-            <div class="preset-modal-actions" style="flex-direction: row; gap: 10px; margin-top: 30px;">
-                <button class="action-btn secondary-btn" style="flex: 1;"
-                    onclick="closeTimePickerModal()">Cancel</button>
-                <button class="action-btn primary-btn" style="flex: 1;" onclick="saveTimePickerModal()">OK</button>
+    <!-- Hero Section -->
+    <header class="hero">
+        <div class="hero-content max-w">
+            <div class="hero-badge">100% Open Source & Free Software*</div>
+            <h1 class="hero-title">Lighting the Distance Between You.</h1>
+            <p class="hero-subtitle">
+                Designed for Friends, Family, and Significant Others.<br>
+                When you tap your lamp, theirs lights up with your chosen color. Anywhere in the world.
+            </p>
+            <div class="hero-cta">
+                <a href="setup.html" class="btn primary-btn pulse-hover">Get Started</a>
+                <a href="#how-it-works" class="btn outline-btn">See How It Works</a>
             </div>
         </div>
-    </div>
 
-    <!-- We reuse the timePickerModal for durations by toggling visibility of the display elements -->
+        <!-- Interactive 3D Mockup Container (Glassmorphism card for visual flair) -->
+        <div class="hero-visual">
+            <div class="glass-card visual-card">
+                <div class="lamp-illustration">
+                    <div class="lamp-base"></div>
+                    <div class="lamp-body"></div>
+                    <!-- The light that animates -->
+                    <div class="lamp-light pulse-light"></div>
+                </div>
+                <div class="visual-text">
+                    <h3>Tap to send a hug.</h3>
+                    <p>Instant synchronization over AWS / HiveMQ (free tier).</p>
+                </div>
+            </div>
+        </div>
+    </header>
 
-    <script src="script.js"></script>
+    <!-- Features Section -->
+    <section id="features" class="features-section max-w">
+        <div class="section-header">
+            <h2>Crafted for Connection.</h2>
+            <p>Every detail of the Linked Lamp is designed to feel magical, personal, and profoundly simple.</p>
+        </div>
+
+        <div class="feature-grid">
+            <div class="feature-card glass-card">
+                <div class="feature-icon" style="color: #ff4757;"><span class="material-icons-round">palette</span>
+                </div>
+                <h3>Infinite Colors</h3>
+                <p>Choose any color to represent your mood. Send a vibrant yellow for joy, or a peaceful blue for
+                    thinking of you.</p>
+            </div>
+
+            <div class="feature-card glass-card">
+                <div class="feature-icon" style="color: #2ed573;"><span class="material-icons-round">language</span>
+                </div>
+                <h3>Global Range</h3>
+                <p>Powered by ultra-fast, secure MQTT brokers. If both lamps have Wi-Fi, distance doesn't matter.</p>
+            </div>
+
+            <div class="feature-card glass-card">
+                <div class="feature-icon" style="color: #6b4cff;"><span class="material-icons-round">app_shortcut</span>
+                </div>
+                <h3>Powerful Web App</h3>
+                <p>Control durations, night modes, colors, and save your favorite "signals" (presets) via a sleek web
+                    app—open on any device with a browser.</p>
+            </div>
+
+            <div class="feature-card glass-card">
+                <div class="feature-icon" style="color: #ffa502;"><span class="material-icons-round">nights_stay</span>
+                </div>
+                <h3>Smart Night Mode</h3>
+                <p>Set a sleep schedule. Taps received during night mode will illuminate the lamp dimly (or keep it off)
+                    so you never get woken up.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Call to Action Section -->
+    <section class="cta-section">
+        <div class="cta-container max-w">
+            <h2>Ready to build your Linked Lamp?</h2>
+            <p>We provide the 3D files, the PCB schematics, and the software absolutely free.</p>
+            <div class="cta-buttons mt-3">
+                <a href="setup.html" class="btn primary-btn">Launch Setup Guide</a>
+                <a href="faq.html" class="btn secondary-btn">Read the FAQ</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-content max-w">
+            <div class="footer-brand">
+                <span class="material-icons-round">lightbulb</span> Linked Lamp
+            </div>
+            <p>&copy; 2026 Aarush Magic. An Open Source Project.</p>
+            <div class="footer-links">
+                <a href="privacy.html">Privacy</a>
+                <a href="terms.html">Terms</a>
+                <a href="https://github.com/aarushmagic/Linked-Lamp">GitHub Repostory</a>
+                <a href="https://github.com/aarushmagic/Linked-Lamp/issues">Report an Issue</a>
+            </div>
+        </div>
+        <div class="max-w mt-3" style="text-align: center; font-size: 0.8rem; color: var(--text-dim); padding: 0 20px;">
+            * The Linked Lamp software and hardware designs are open source. Third-party services required for
+            connectivity (such as HiveMQ or AWS) are proprietary and governed by their respective owners.
+        </div>
+    </footer>
+
+    <script>
+        // Optional JS for scroll effects
+        window.addEventListener("scroll", () => {
+            const nav = document.querySelector(".navbar");
+            if (window.scrollY > 50) {
+                nav.classList.add("scrolled");
+            } else {
+                nav.classList.remove("scrolled");
+            }
+        });
+    </script>
 </body>
 
 </html>

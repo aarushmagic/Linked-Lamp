@@ -60,7 +60,7 @@ let presetColorPicker = null;
 // ==========================================================================
 window.addEventListener("load", () => {
     if (!loadCredentials()) {
-        alert("Connection details missing.\nPlease open this page via your Lamp's NFC tag or setup link.");
+        document.getElementById("missingCredentialsModal").style.display = "flex"; // Use flex to center the content using modal's built in styling
         return;
     }
 
@@ -86,7 +86,15 @@ window.addEventListener("beforeunload", () => {
 // Credential Loading (URL params or localStorage)
 // ==========================================================================
 function loadCredentials() {
-    const params = new URLSearchParams(window.location.search);
+    // Try query params first (?key=val), then fall back to hash params (#key=val)
+    let params = new URLSearchParams(window.location.search);
+    if (!(params.has("s") && params.has("u") && params.has("p") && params.has("id"))) {
+        // Try hash params (e.g. #s=broker&u=user&p=pass&id=A)
+        const hash = window.location.hash;
+        if (hash && hash.length > 1) {
+            params = new URLSearchParams(hash.substring(1));
+        }
+    }
 
     if (params.has("s") && params.has("u") && params.has("p") && params.has("id")) {
         mqtt_server = params.get("s");
@@ -95,9 +103,10 @@ function loadCredentials() {
         myDeviceId = params.get("id").toUpperCase() === "B" ? "B" : "A";
         partnerDeviceId = myDeviceId === "A" ? "B" : "A";
 
-        // Partner name from URL
-        if (params.has("name")) {
-            partnerName = decodeURIComponent(params.get("name"));
+        // Partner name from URL (accept both "name" and "partner")
+        const nameVal = params.get("name") || params.get("partner");
+        if (nameVal) {
+            partnerName = decodeURIComponent(nameVal);
             localStorage.setItem("ll_name", partnerName);
         }
 

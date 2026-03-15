@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Page Not Found | Linked Lamp</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <link rel="stylesheet" href="landing.css">
+    <style>
+        .error-container {
+            min-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .cat-lamp-svg {
+            width: 300px;
+            max-width: 100%;
+            margin-bottom: 30px;
+        }
+
+        /* SVG Animations */
+        .lamp-light-anim {
+            animation: flipSwitch 3s infinite;
+        }
+
+        .cat-paw-anim {
+            transform-origin: 180px 150px;
+            animation: pawSwat 3s infinite;
+        }
+
+        .error-title {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            color: var(--text);
+        }
+
+        .error-desc {
+            color: var(--text-dim);
+            font-size: 1.1rem;
+            margin-bottom: 30px;
+            max-width: 400px;
+        }
+
+        @keyframes flipSwitch {
+
+            0%,
+            45% {
+                opacity: 0;
+            }
+
+            50%,
+            95% {
+                opacity: 1;
+            }
+
+            100% {
+                opacity: 0;
+            }
+        }
+
+        @keyframes pawSwat {
+
+            0%,
+            40% {
+                transform: rotate(0deg);
+            }
+
+            45% {
+                transform: rotate(-25deg);
+            }
+
+            50%,
+            90% {
+                transform: rotate(0deg);
+            }
+
+            95% {
+                transform: rotate(-25deg);
+            }
+
+            100% {
+                transform: rotate(0deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Navigation -->
+    <nav class="navbar scrolled">
+        <div class="nav-content max-w">
+            <div class="logo">
+                <a href="index.html" style="color:inherit; text-decoration:none; display:flex; align-items:center; gap:10px;">
+                    <span class="material-icons-round">lightbulb</span>
+                    <span class="logo-text">Linked Lamp</span>
+                </a>
+            </div>
+            <div class="nav-links">
+                <a href="index.html#features">Features</a>
+                <a href="faq.html">FAQ</a>
+                <a href="https://github.com/aarushmagic/Linked-Lamp" target="_blank" class="github-link">
+                    <!-- Simple SVG icon for GitHub -->
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                        <path
+                            d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
+                    </svg>
+                    GitHub
+                </a>
+                <a href="setup.html" class="nav-btn primary">Setup Guide</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="error-container max-w">
+
+        <svg class="cat-lamp-svg" viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg">
+            <!-- Lamp Base & Stand -->
+            <rect x="250" y="240" width="80" height="20" rx="5" fill="#333" />
+            <rect x="285" y="100" width="10" height="140" fill="#444" />
+            <!-- Lamp Shade -->
+            <path d="M260 100 L320 100 L340 40 L240 40 Z" fill="#2a2d35" stroke="#444" stroke-width="3" />
+
+            <!-- Dynamic Light Glow -->
+            <g class="lamp-light-anim">
+                <polygon points="260,100 320,100 380,240 200,240" fill="url(#lightGradient)" />
+                <circle cx="290" cy="90" r="15" fill="#f1c40f" filter="blur(4px)" />
+            </g>
+
+            <!-- Table -->
+            <rect x="50" y="260" width="350" height="10" fill="#222" />
+
+            <!-- Cute Cat Silhouette -->
+            <!-- Body -->
+            <path d="M100 260 C100 180, 180 180, 200 260 Z" fill="#111" />
+            <!-- Head -->
+            <circle cx="150" cy="180" r="35" fill="#111" />
+            <!-- Ears -->
+            <polygon points="120,165 130,120 150,150" fill="#111" />
+            <polygon points="180,165 170,120 150,150" fill="#111" />
+            <!-- Eyes -->
+            <g class="lamp-light-anim">
+                <!-- Eyes only reflect light when the lamp is ON -->
+                <circle cx="140" cy="175" r="4" fill="#f1c40f" />
+                <circle cx="160" cy="175" r="4" fill="#f1c40f" />
+            </g>
+            <!-- Tail -->
+            <path d="M110 250 C70 240, 60 180, 80 160" fill="none" stroke="#111" stroke-width="12"
+                stroke-linecap="round" />
+
+            <!-- Animating Paw -->
+            <g class="cat-paw-anim">
+                <path d="M175 220 Q220 190 270 230" fill="none" stroke="#111" stroke-width="14"
+                    stroke-linecap="round" />
+            </g>
+
+            <!-- Gradient Def -->
+            <defs>
+                <linearGradient id="lightGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="rgba(241, 196, 15, 0.4)" />
+                    <stop offset="100%" stop-color="rgba(241, 196, 15, 0)" />
+                </linearGradient>
+            </defs>
+        </svg>
+
+        <h1 class="error-title">404 Page Not Found</h1>
+        <p class="error-desc">We couldn't find the page you were looking for. The cat might have played with the wires.
+        </p>
+
+        <a href="index.html" class="btn primary-btn">Return to Home</a>
+    </div>
+
+    <!-- Footer -->
+    <footer style="margin-top: 0; border-top: none; padding-top: 0;">
+        <div class="footer-content max-w">
+            <div class="footer-brand">
+                <span class="material-icons-round">lightbulb</span> Linked Lamp
+            </div>
+            <p>&copy; 2026 Aarush Magic. An Open Source Project.</p>
+            <div class="footer-links">
+                <a href="privacy.html">Privacy</a>
+                <a href="terms.html">Terms</a>
+                <a href="https://github.com/aarushmagic/Linked-Lamp">GitHub Repostory</a>
+            </div>
+        </div>
+        <div class="max-w mt-3" style="text-align: center; font-size: 0.8rem; color: var(--text-dim); padding: 0 20px;">
+            * The Linked Lamp software and hardware designs are open source. Third-party services required for
+            connectivity (such as HiveMQ or AWS) are proprietary and governed by their respective owners.
+        </div>
+    </footer>
+
+</body>
+
+</html>

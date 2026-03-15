@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linked Lamp | Setup Guide</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <link rel="stylesheet" href="landing.css">
+    <style>
+        .setup-container {
+            max-width: 800px;
+            margin: 12vh auto 10vh;
+        }
+
+        /* Stepper UI */
+        .stepper {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 40px;
+            position: relative;
+        }
+
+        .stepper::before {
+            content: '';
+            position: absolute;
+            top: 20px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--border);
+            z-index: 0;
+        }
+
+        .step-indicator {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            background: var(--bg-dark);
+            padding: 0 10px;
+        }
+
+        .step-circle {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--bg-card);
+            border: 2px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            transition: var(--transition);
+        }
+
+        .step-indicator.active .step-circle {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: white;
+            box-shadow: 0 0 15px rgba(107, 76, 255, 0.4);
+        }
+
+        .step-indicator.completed .step-circle {
+            background: #2ed573;
+            border-color: #2ed573;
+            color: var(--bg-dark);
+        }
+
+        .step-label {
+            font-size: 0.85rem;
+            color: var(--text-dim);
+            font-weight: 500;
+        }
+
+        .step-indicator.active .step-label {
+            color: var(--text);
+        }
+
+        .step-indicator.completed .step-label {
+            color: #2ed573;
+        }
+
+        /* Setup Content area */
+        .setup-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 40px;
+            backdrop-filter: blur(20px);
+            display: none;
+            /* hidden by default */
+        }
+
+        .setup-card.active {
+            display: block;
+        }
+
+        .setup-card h2 {
+            font-size: 2rem;
+            margin-bottom: 15px;
+        }
+
+        .setup-card p {
+            color: var(--text-dim);
+            margin-bottom: 25px;
+            line-height: 1.6;
+        }
+
+        /* Forms */
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--text);
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border-radius: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border);
+            color: white;
+            font-family: var(--font);
+            font-size: 1rem;
+            outline: none;
+            transition: border 0.3s;
+        }
+
+        .form-group input:focus {
+            border-color: var(--accent);
+        }
+
+        .hint {
+            font-size: 0.85rem;
+            color: #888;
+            margin-top: 5px;
+            display: block;
+        }
+
+        /* Code Blocks */
+        pre {
+            background: #111420;
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            overflow-x: auto;
+            color: #a5b1c2;
+            font-family: monospace;
+            font-size: 0.9rem;
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: var(--font);
+            font-size: 0.8rem;
+            transition: var(--transition);
+        }
+
+        .copy-btn:hover {
+            background: var(--accent);
+        }
+
+        /* Actions */
+        .step-actions {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 40px;
+            border-top: 1px solid var(--border);
+            padding-top: 25px;
+        }
+
+        /* Skip Link */
+        .skip-wrapper {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .skip-link {
+            color: var(--accent);
+            text-decoration: underline;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        /* Alert Box */
+        .alert-box {
+            background: rgba(107, 76, 255, 0.1);
+            border-left: 4px solid var(--accent);
+            padding: 15px 20px;
+            border-radius: 4px 10px 10px 4px;
+            margin-bottom: 20px;
+        }
+
+        /* Custom URL display */
+        .url-display {
+            background: rgba(46, 213, 115, 0.1);
+            border: 1px solid rgba(46, 213, 115, 0.3);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            word-break: break-all;
+            font-size: 1.1rem;
+            color: #2ed573;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Navigation -->
+    <nav class="navbar scrolled">
+        <div class="nav-content max-w">
+            <div class="logo">
+                <a href="index.html" style="color:inherit; text-decoration:none; display:flex; align-items:center; gap:10px;">
+                    <span class="material-icons-round">lightbulb</span>
+                    <span class="logo-text">Linked Lamp</span>
+                </a>
+            </div>
+            <div class="nav-links">
+                <a href="index.html#features">Features</a>
+                <a href="faq.html">FAQ</a>
+                <a href="https://github.com/aarushmagic/Linked-Lamp" target="_blank" class="github-link">
+                    <!-- Simple SVG icon for GitHub -->
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                        <path
+                            d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
+                    </svg>
+                    GitHub
+                </a>
+                <a href="setup.html" class="nav-btn primary">Setup Guide</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="setup-container max-w">
+
+        <!-- Stepper Header -->
+        <div class="stepper" id="stepperContainer">
+            <div class="step-indicator active" id="ind-1">
+                <div class="step-circle">1</div>
+                <div class="step-label">Details</div>
+            </div>
+            <div class="step-indicator" id="ind-2">
+                <div class="step-circle">2</div>
+                <div class="step-label">Config A</div>
+            </div>
+            <div class="step-indicator" id="ind-3">
+                <div class="step-circle">3</div>
+                <div class="step-label">Config B</div>
+            </div>
+            <div class="step-indicator" id="ind-4">
+                <div class="step-circle">4</div>
+                <div class="step-label">Flashing</div>
+            </div>
+            <div class="step-indicator" id="ind-5">
+                <div class="step-circle">5</div>
+                <div class="step-label">Assembly</div>
+            </div>
+            <div class="step-indicator" id="ind-6">
+                <div class="step-circle"><span class="material-icons-round" style="font-size: 1rem;">link</span></div>
+                <div class="step-label">Finish</div>
+            </div>
+        </div>
+
+        <!-- STEP 1: Details -->
+        <div class="setup-card active" id="step-1">
+            <h2>Welcome to the Linked Lamp Setup</h2>
+            <p>First, we need some details to generate your unique configuration files. Don't worry, none of this data
+                leaves your browser. It is processed locally to generate your files.</p>
+
+            <div class="form-group">
+                <label>Your Name</label>
+                <input type="text" id="in_name1" placeholder="e.g. Alice" required>
+            </div>
+            <div class="form-group">
+                <label>Their Name (Partner / Friend / Family)</label>
+                <input type="text" id="in_name2" placeholder="e.g. Bob" required>
+            </div>
+
+            <div class="alert-box mt-3"
+                style="margin-top: 40px; background: rgba(255, 165, 2, 0.1); border-color: #ffa502;">
+                <strong style="color: #ffa502;">Are you an Advanced User?</strong><br>
+                <span style="font-size: 0.9rem; color: #ccc;">
+                    If you are using a different MQTT provider than HiveMQ, running a custom Mosquitto broker on a
+                    Raspberry Pi, or want to customize the source code, you are encouraged to do so! Simply open the
+                    project in VS Code and edit <code>config.json</code> and <code>main.cpp</code> manually. <strong>You
+                        do not need to proceed with this setup generator.</strong>
+                </span>
+            </div>
+
+            <div class="alert-box mt-3" style="margin-top: 20px;">
+                <strong>HiveMQ Details</strong><br>
+                <span style="font-size: 0.9rem; color: #ccc;">
+                    You need a free MQTT broker to let the lamps talk to each other. Go to <a
+                        href="https://www.hivemq.com/mqtt-cloud-broker/" target="_blank"
+                        style="color:var(--accent);">HiveMQ Cloud</a>, sign up for a free "Serverless Multi-tenant"
+                    cluster, create credentials, and paste them here.
+                </span>
+            </div>
+
+            <div class="form-group">
+                <label>HiveMQ Cluster URL</label>
+                <input type="text" id="in_mqtt_url" placeholder="e.g. xxxxxx.s2.eu.hivemq.cloud">
+            </div>
+            <div class="form-group">
+                <label>HiveMQ Username</label>
+                <input type="text" id="in_mqtt_user" placeholder="Your created broker username">
+            </div>
+            <div class="form-group">
+                <label>HiveMQ Password</label>
+                <input type="text" id="in_mqtt_pw" placeholder="Your created broker password">
+            </div>
+
+            <div class="step-actions" style="justify-content: flex-end;">
+                <button class="btn primary-btn" onclick="goToStep(2)">Generate Configs <span
+                        class="material-icons-round" style="margin-left:5px;">arrow_forward</span></button>
+            </div>
+
+            <div class="skip-wrapper">
+                <span class="skip-link" onclick="skipToUrls()">I already flashed my lamps! Just give me my Web App
+                    URLs.</span>
+            </div>
+        </div>
+
+        <!-- STEP 2: Config A -->
+        <div class="setup-card" id="step-2">
+            <h2>Configuration for <span id="display_name1" style="color:var(--accent);">Device A</span></h2>
+            <p>Below is the exact `config.json` file for your lamp. In VS Code, open the folder
+                <code>Linked Lamp/firmware/data/</code>, rename <code>config.example.json</code> to
+                <code>config.json</code>, and paste this text inside it.
+            </p>
+
+            <pre><button class="copy-btn" onclick="copyCode('codeA', this)">Copy</button><code id="codeA"></code></pre>
+
+            <div class="step-actions">
+                <button class="btn outline-btn" onclick="goToStep(1)">Back</button>
+                <button class="btn primary-btn" onclick="goToStep(3)">I've Finished This Step</button>
+            </div>
+        </div>
+
+        <!-- STEP 3: Config B -->
+        <div class="setup-card" id="step-3">
+            <h2>Configuration for <span id="display_name2" style="color:var(--accent);">Device B</span></h2>
+            <p>If you are flashing both lamps right now, save this second `config.json`. Note that it leaves the Wi-Fi
+                credentials blank because they will need to input it themselves via SmartConfig, or you can fill it in
+                if you know their Wi-Fi.</p>
+
+            <pre><button class="copy-btn" onclick="copyCode('codeB', this)">Copy</button><code id="codeB"></code></pre>
+
+            <div class="step-actions">
+                <button class="btn outline-btn" onclick="goToStep(2)">Back</button>
+                <button class="btn primary-btn" onclick="goToStep(4)">I've Finished This Step</button>
+            </div>
+        </div>
+
+        <!-- STEP 4: Flashing -->
+        <div class="setup-card" id="step-4">
+            <h2>Flashing the Firmware</h2>
+            <p>Now that your `config.json` is ready, it's time to upload the software to the ESP32.</p>
+
+            <div class="alert-box">
+                <h3 style="margin-bottom: 10px; font-size: 1.1rem; color: white;">Important: 2-Step Process</h3>
+                <p style="margin-bottom: 5px;">In PlatformIO (VS Code), you must do two separate uploads:</p>
+                <p><strong>1. Build & Upload:</strong> Click the main right-arrow at the bottom to flash
+                    <code>main.cpp</code>.
+                </p>
+                <p><strong>2. Upload File System Image:</strong> Click the PlatformIO Ant head icon on the left sidebar,
+                    open `esp32dev` > `Platform`, and click `Upload File System Image`. This uploads your `config.json`.
+                </p>
+            </div>
+
+            <p>If you don't do step 2, your lamp will turn on but it will not connect to Wi-Fi because it won't have the
+                config file!</p>
+
+            <div class="step-actions">
+                <button class="btn outline-btn" onclick="goToStep(3)">Back</button>
+                <button class="btn primary-btn" onclick="goToStep(5)">Flashed! Next Step</button>
+            </div>
+        </div>
+
+        <!-- STEP 5: Assembly -->
+        <div class="setup-card" id="step-5">
+            <h2>Hardware Assembly</h2>
+            <p>Now that the brains are programmed, put it all together!</p>
+
+            <ul style="color: var(--text-dim); margin-bottom: 20px; line-height: 1.8; margin-left: 20px;">
+                <li><strong>3D Printing:</strong> Download the STL files from the <a
+                        href="https://github.com/aarushmagic/Linked-Lamp" target="_blank"
+                        style="color:var(--accent);">GitHub Repo</a>. Print the Base in a solid color, and the Shade in
+                    White PLA/PETG for good light diffusion.</li>
+                <li><strong>PCB & Soldering:</strong> Order the provided Gerber files from a PCB manufacturer. Solder
+                    your components, including the through-hole RGB Common Anode LEDs (diffused/frosted 5mm recommended)
+                    into the board.</li>
+                <li><strong>Touch Sensor:</strong> Connect the TTP223 module to 3.3V, GND, and GPIO Pin 4. Paste it
+                    underneath the top of the lamp shade.</li>
+                <li><strong>Power:</strong> Plug a micro-USB or USB-C cable into the ESP32 to power the entire rig.</li>
+            </ul>
+
+            <div class="step-actions">
+                <button class="btn outline-btn" onclick="goToStep(4)">Back</button>
+                <button class="btn primary-btn" onclick="goToStep(6, true)">Reveal My Web Apps!</button>
+            </div>
+        </div>
+
+        <!-- STEP 6: URLs -->
+        <div class="setup-card" id="step-6">
+            <div style="text-align: center; margin-bottom: 30px;">
+                <span class="material-icons-round" style="font-size: 4rem; color: #2ed573;">celebration</span>
+                <h2 style="margin-top: 10px;">Setup Complete!</h2>
+                <p>Here are the private Web App URLs used to control the lamps. <br><strong>Save these! Send the second
+                        one to your partner.</strong></p>
+            </div>
+
+            <label style="color: white; font-weight: 500; display: block; margin-bottom: 8px;">URL for <span
+                    id="res_name1" style="color:var(--accent);">Device A</span></label>
+            <div class="url-display" id="url_out1"></div>
+
+            <label style="color: white; font-weight: 500; display: block; margin-bottom: 8px; margin-top:20px;">URL for
+                <span id="res_name2" style="color:var(--accent);">Device B</span></label>
+            <div class="url-display" id="url_out2"></div>
+
+            <p style="text-align: center; margin-top: 30px;">
+                <a href="index.html" class="btn outline-btn">Return Home</a>
+            </p>
+        </div>
+
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-content max-w">
+            <div class="footer-brand">
+                <span class="material-icons-round">lightbulb</span> Linked Lamp
+            </div>
+            <p>&copy; 2026 Aarush Magic. An Open Source Project.</p>
+            <div class="footer-links">
+                <a href="privacy.html">Privacy</a>
+                <a href="terms.html">Terms</a>
+                <a href="https://github.com/aarushmagic/Linked-Lamp">GitHub Repostory</a>
+            </div>
+        </div>
+        <div class="max-w mt-3" style="text-align: center; font-size: 0.8rem; color: var(--text-dim); padding: 0 20px;">
+            * The Linked Lamp software and hardware designs are open source. Third-party services required for
+            connectivity (such as HiveMQ or AWS) are proprietary and governed by their respective owners.
+        </div>
+    </footer>
+
+    <!-- Script generating configs and URLs locally -->
+    <script>
+        let currentStep = 1;
+
+        // Base domain from current location (so it works on localhost or github pages)
+        const baseDomain = window.location.origin + window.location.pathname.replace("setup.html", "my/index.html");
+
+        function goToStep(step, generateURLs = false) {
+            // Basic validation
+            if (step === 2 && currentStep === 1) {
+                const n1 = document.getElementById("in_name1").value.trim();
+                const n2 = document.getElementById("in_name2").value.trim();
+                const broker = document.getElementById("in_mqtt_url").value.trim();
+                if (!n1 || !n2 || !broker) {
+                    alert("Please fill in the names and MQTT Broker URL to proceed.");
+                    return;
+                }
+                generateConfigs();
+            }
+
+            if (generateURLs) {
+                calcURLs();
+            }
+
+            // Hide all
+            document.querySelectorAll('.setup-card').forEach(el => el.classList.remove('active'));
+            // Show target
+            document.getElementById(`step-${step}`).classList.add('active');
+
+            // Update Stepper UI
+            for (let i = 1; i <= 6; i++) {
+                const ind = document.getElementById(`ind-${i}`);
+                ind.classList.remove('active', 'completed');
+                if (i < step) ind.classList.add('completed');
+                if (i === step) ind.classList.add('active');
+            }
+
+            currentStep = step;
+            window.scrollTo(0, 0);
+        }
+
+        function skipToUrls() {
+            const n1 = document.getElementById("in_name1").value.trim();
+            const n2 = document.getElementById("in_name2").value.trim();
+            const broker = document.getElementById("in_mqtt_url").value.trim();
+
+            if (!n1 || !n2 || !broker) {
+                alert("Please fill in the Names and HiveMQ URL to skip to the URL generator. We need these to build the link.");
+                return;
+            }
+
+            goToStep(6, true);
+        }
+
+        function generateConfigs() {
+            const n1 = document.getElementById("in_name1").value.trim();
+            const n2 = document.getElementById("in_name2").value.trim();
+            const url = document.getElementById("in_mqtt_url").value.trim();
+            const mUser = document.getElementById("in_mqtt_user").value.trim();
+            const mPw = document.getElementById("in_mqtt_pw").value.trim();
+
+            document.getElementById("display_name1").innerText = n1 + "'s Lamp";
+            document.getElementById("display_name2").innerText = n2 + "'s Lamp";
+
+            const configA = {
+                "device_id": "A",
+                "mqtt_server": url,
+                "mqtt_port": 8883,
+                "mqtt_user": mUser,
+                "mqtt_pass": mPw,
+                "ota_url": "https://aarushmagic.github.io/Linked-Lamp"
+            };
+
+            const configB = {
+                "device_id": "B",
+                "mqtt_server": url,
+                "mqtt_port": 8883,
+                "mqtt_user": mUser,
+                "mqtt_pass": mPw,
+                "ota_url": "https://aarushmagic.github.io/Linked-Lamp"
+            };
+
+            document.getElementById("codeA").innerText = JSON.stringify(configA, null, 4);
+            document.getElementById("codeB").innerText = JSON.stringify(configB, null, 4);
+        }
+
+        function calcURLs() {
+            const n1 = document.getElementById("in_name1").value.trim() || 'A';
+            const n2 = document.getElementById("in_name2").value.trim() || 'B';
+            const url = document.getElementById("in_mqtt_url").value.trim();
+            const mUser = document.getElementById("in_mqtt_user").value.trim();
+            const mPw = document.getElementById("in_mqtt_pw").value.trim();
+
+            // URL format matches README:
+            // ?s=BROKER_URL&u=USERNAME&p=PASSWORD&id=A&name=PartnerName
+            const paramsA = new URLSearchParams({ s: url, u: mUser, p: mPw, id: 'A', name: n2 });
+            const paramsB = new URLSearchParams({ s: url, u: mUser, p: mPw, id: 'B', name: n1 });
+
+            const fullUrlA = `${baseDomain}?${paramsA.toString()}`;
+            const fullUrlB = `${baseDomain}?${paramsB.toString()}`;
+
+            document.getElementById("res_name1").innerText = n1 + "'s Link";
+            document.getElementById("res_name2").innerText = n2 + "'s Link";
+
+            document.getElementById("url_out1").innerHTML = `<a href="${fullUrlA}" target="_blank" style="color:#2ed573; text-decoration:none;">${fullUrlA}</a>`;
+            document.getElementById("url_out2").innerHTML = `<a href="${fullUrlB}" target="_blank" style="color:#2ed573; text-decoration:none;">${fullUrlB}</a>`;
+        }
+
+        function copyCode(elementId, btnEle) {
+            const textToCopy = document.getElementById(elementId).innerText;
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                btnEle.innerText = "Copied!";
+                btnEle.style.background = "#2ed573";
+                setTimeout(() => {
+                    btnEle.innerText = "Copy";
+                    btnEle.style.background = "rgba(255,255,255,0.1)";
+                }, 2000);
+            });
+        }
+    </script>
+</body>
+
+</html>
