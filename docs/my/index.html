@@ -8,6 +8,14 @@
     <meta name="description"
         content="Control your Linked Friendship Lamp - send signals, manage settings, and customize your lamp experience.">
 
+    <script>
+        // Force trailing slash to fix relative paths for style.css and script.js 
+        // when accessed via http://localhost:3000/my instead of /my/ or /my/index.html
+        if (window.location.pathname.endsWith('/my')) {
+            window.location.replace(window.location.pathname + '/' + window.location.search + window.location.hash);
+        }
+    </script>
+
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -20,7 +28,7 @@
     <!-- MQTT.js Library -->
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=2">
 </head>
 
 <body>

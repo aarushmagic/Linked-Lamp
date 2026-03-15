@@ -92,7 +92,6 @@
             padding: 40px;
             backdrop-filter: blur(20px);
             display: none;
-            /* hidden by default */
         }
 
         .setup-card.active {
@@ -223,6 +222,167 @@
             color: #2ed573;
             text-align: center;
         }
+
+        /* Chrome/Browser Banner */
+        .browser-banner {
+            background: rgba(255, 165, 2, 0.1);
+            border: 1px solid rgba(255, 165, 2, 0.3);
+            border-radius: var(--radius);
+            padding: 20px 25px;
+            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .browser-banner .material-icons-round {
+            font-size: 2rem;
+            color: #ffa502;
+        }
+
+        .browser-banner p {
+            margin: 0;
+            color: var(--text-dim);
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .browser-banner strong {
+            color: #ffa502;
+        }
+
+        /* Flash UI */
+        .flash-section {
+            text-align: center;
+        }
+
+        .flash-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: linear-gradient(135deg, var(--accent), #8b5cf6);
+            color: white;
+            border: none;
+            padding: 16px 40px;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            font-family: var(--font);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 20px rgba(107, 76, 255, 0.4);
+        }
+
+        .flash-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 30px rgba(107, 76, 255, 0.5);
+        }
+
+        .flash-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .flash-progress {
+            margin-top: 30px;
+            display: none;
+        }
+
+        .flash-progress.active {
+            display: block;
+        }
+
+        .progress-bar-track {
+            width: 100%;
+            height: 12px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            overflow: hidden;
+            margin-bottom: 15px;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--accent), #2ed573);
+            border-radius: 6px;
+            transition: width 0.3s ease;
+        }
+
+        .progress-percent {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 10px;
+        }
+
+        .flash-log {
+            background: #0a0c14;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+            scrollbar-width: none;
+            text-align: left;
+            font-family: monospace;
+            font-size: 0.8rem;
+            color: #a5b1c2;
+        }
+
+        .flash-log::-webkit-scrollbar {
+            display: none;
+        }
+
+        .flash-log .log-entry {
+            margin-bottom: 4px;
+        }
+
+        .flash-log .log-entry.success {
+            color: #2ed573;
+        }
+
+        .flash-log .log-entry.error {
+            color: #ff4757;
+        }
+
+        .flash-success {
+            color: #2ed573;
+            display: none;
+        }
+
+        .flash-success.active {
+            display: block;
+        }
+
+        .flash-success .material-icons-round {
+            font-size: 4rem;
+            margin-bottom: 10px;
+        }
+
+        /* Lamp icon animation */
+        @keyframes plugPulse {
+
+            0%,
+            100% {
+                transform: scale(1);
+                opacity: 0.8;
+            }
+
+            50% {
+                transform: scale(1.1);
+                opacity: 1;
+            }
+        }
+
+        .plug-icon {
+            font-size: 5rem !important;
+            color: var(--accent);
+            animation: plugPulse 2s ease infinite;
+            margin-bottom: 20px;
+        }
     </style>
 </head>
 
@@ -232,7 +392,8 @@
     <nav class="navbar scrolled">
         <div class="nav-content max-w">
             <div class="logo">
-                <a href="index.html" style="color:inherit; text-decoration:none; display:flex; align-items:center; gap:10px;">
+                <a href="index.html"
+                    style="color:inherit; text-decoration:none; display:flex; align-items:center; gap:10px;">
                     <span class="material-icons-round">lightbulb</span>
                     <span class="logo-text">Linked Lamp</span>
                 </a>
@@ -241,7 +402,6 @@
                 <a href="index.html#features">Features</a>
                 <a href="faq.html">FAQ</a>
                 <a href="https://github.com/aarushmagic/Linked-Lamp" target="_blank" class="github-link">
-                    <!-- Simple SVG icon for GitHub -->
                     <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
                         <path
                             d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
@@ -255,39 +415,26 @@
 
     <div class="setup-container max-w">
 
-        <!-- Stepper Header -->
-        <div class="stepper" id="stepperContainer">
-            <div class="step-indicator active" id="ind-1">
-                <div class="step-circle">1</div>
-                <div class="step-label">Details</div>
-            </div>
-            <div class="step-indicator" id="ind-2">
-                <div class="step-circle">2</div>
-                <div class="step-label">Config A</div>
-            </div>
-            <div class="step-indicator" id="ind-3">
-                <div class="step-circle">3</div>
-                <div class="step-label">Config B</div>
-            </div>
-            <div class="step-indicator" id="ind-4">
-                <div class="step-circle">4</div>
-                <div class="step-label">Flashing</div>
-            </div>
-            <div class="step-indicator" id="ind-5">
-                <div class="step-circle">5</div>
-                <div class="step-label">Assembly</div>
-            </div>
-            <div class="step-indicator" id="ind-6">
-                <div class="step-circle"><span class="material-icons-round" style="font-size: 1rem;">link</span></div>
-                <div class="step-label">Finish</div>
+        <!-- Browser compatibility banner (shown for non-Chrome browsers) -->
+        <div class="browser-banner" id="browserBanner" style="display: none;">
+            <span class="material-icons-round">info</span>
+            <div>
+                <strong>Use Google Chrome for the best experience!</strong>
+                <p>Chrome and Edge support one-click flashing directly from this page. You're using a browser that
+                    doesn't support Web Serial, so we'll show you the manual setup instructions instead.</p>
             </div>
         </div>
 
-        <!-- STEP 1: Details -->
+        <!-- Stepper Header (Chrome path: 4 steps, Manual path: 6 steps) -->
+        <div class="stepper" id="stepperContainer">
+            <!-- Steps injected by JS based on browser support -->
+        </div>
+
+        <!-- ====== STEP 1: Details (Shared) ====== -->
         <div class="setup-card active" id="step-1">
             <h2>Welcome to the Linked Lamp Setup</h2>
-            <p>First, we need some details to generate your unique configuration files. Don't worry, none of this data
-                leaves your browser. It is processed locally to generate your files.</p>
+            <p>First, we need some details to generate your unique configuration. Don't worry, none of this data
+                leaves your browser. It is processed locally.</p>
 
             <div class="form-group">
                 <label>Your Name</label>
@@ -333,8 +480,8 @@
             </div>
 
             <div class="step-actions" style="justify-content: flex-end;">
-                <button class="btn primary-btn" onclick="goToStep(2)">Generate Configs <span
-                        class="material-icons-round" style="margin-left:5px;">arrow_forward</span></button>
+                <button class="btn primary-btn" onclick="goToNextFromDetails()">Next <span class="material-icons-round"
+                        style="margin-left:5px;">arrow_forward</span></button>
             </div>
 
             <div class="skip-wrapper">
@@ -343,11 +490,96 @@
             </div>
         </div>
 
-        <!-- STEP 2: Config A -->
-        <div class="setup-card" id="step-2">
-            <h2>Configuration for <span id="display_name1" style="color:var(--accent);">Device A</span></h2>
-            <p>Below is the exact `config.json` file for your lamp. In VS Code, open the folder
-                <code>Linked Lamp/firmware/data/</code>, rename <code>config.example.json</code> to
+        <!-- ====== CHROME PATH: Flash Lamp A (Step 2) ====== -->
+        <div class="setup-card" id="step-flash-a">
+            <div class="flash-section">
+                <span class="material-icons-round plug-icon">usb</span>
+                <h2>Flash <span id="flash_name1" style="color: var(--accent);">Lamp A</span></h2>
+                <p>Connect the first ESP32 to your computer via USB.<br>
+                    Click the button below to flash the firmware and your personal configuration in one go.</p>
+
+                <button class="flash-btn" id="btnFlashA" onclick="startFlash('A')">
+                    <span class="material-icons-round">bolt</span>
+                    Connect & Flash
+                </button>
+
+                <div class="flash-progress" id="progressA">
+                    <div class="progress-percent" id="percentA">0%</div>
+                    <div class="progress-bar-track">
+                        <div class="progress-bar-fill" id="barA"></div>
+                    </div>
+                    <div class="flash-log" id="logA"></div>
+                </div>
+
+                <div class="flash-success" id="successA">
+                    <span class="material-icons-round">check_circle</span>
+                    <h3 style="color: #2ed573; margin-bottom: 10px;">Lamp A Flashed Successfully!</h3>
+                    <p>Unplug this ESP32. Now connect the second one.</p>
+                </div>
+            </div>
+
+            <div class="step-actions">
+                <button class="btn outline-btn" onclick="goToStep(1)">Back</button>
+                <button class="btn primary-btn" id="btnNextAfterA" onclick="goToStep('flash-b')">Flash Lamp B
+                    →</button>
+            </div>
+        </div>
+
+        <!-- ====== CHROME PATH: Flash Lamp B (Step 3) ====== -->
+        <div class="setup-card" id="step-flash-b">
+            <div class="flash-section">
+                <span class="material-icons-round plug-icon">usb</span>
+                <h2>Flash <span id="flash_name2" style="color: var(--accent);">Lamp B</span></h2>
+                <p>Disconnect Lamp A's ESP32 and connect the second ESP32 via USB.<br>
+                    Click the button below to flash this lamp too.</p>
+
+                <button class="flash-btn" id="btnFlashB" onclick="startFlash('B')">
+                    <span class="material-icons-round">bolt</span>
+                    Connect & Flash
+                </button>
+
+                <div class="flash-progress" id="progressB">
+                    <div class="progress-percent" id="percentB">0%</div>
+                    <div class="progress-bar-track">
+                        <div class="progress-bar-fill" id="barB"></div>
+                    </div>
+                    <div class="flash-log" id="logB"></div>
+                </div>
+
+                <div class="flash-success" id="successB">
+                    <span class="material-icons-round">check_circle</span>
+                    <h3 style="color: #2ed573; margin-bottom: 10px;">Lamp B Flashed Successfully!</h3>
+                    <p>Both lamps are now programmed! 🎉</p>
+                </div>
+            </div>
+
+            <div class="step-actions">
+                <button class="btn outline-btn" onclick="goToStep('flash-a')">Back</button>
+                <button class="btn primary-btn" id="btnNextAfterB" onclick="goToStep('assembly')">Next
+                    →</button>
+            </div>
+        </div>
+
+        <!-- ====== MANUAL PATH: Config A (Step 2) ====== -->
+        <div class="setup-card" id="step-config-a">
+            <h2><span id="display_name1" style="color:var(--accent);">Device A</span>: Setup Config</h2>
+            <div class="alert-box">
+                <h3 style="margin-bottom: 10px; font-size: 1.1rem; color: white;">You'll Need VS Code + PlatformIO</h3>
+                <p style="margin-bottom: 5px;">Since your browser doesn't support one-click flashing, you'll use <a
+                        href="https://code.visualstudio.com/" target="_blank" style="color:var(--accent);">VS Code</a>
+                    with the <a href="https://platformio.org/" target="_blank" style="color:var(--accent);">PlatformIO
+                        extension</a> to flash the lamp.</p>
+            </div>
+
+            <p style="color:white; font-weight:600; margin-bottom:5px;">1. Download the Code</p>
+            <p style="margin-bottom: 15px;">Go to the <a href="https://github.com/aarushmagic/Linked-Lamp" target="_blank" style="color:var(--accent);">GitHub Repository</a>, click the green <strong>"<> Code"</strong> button, and select <strong>Download ZIP</strong>. Extract the folder.</p>
+
+            <p style="color:white; font-weight:600; margin-bottom:5px;">2. Open the Firmware Folder</p>
+            <p style="margin-bottom: 15px;">Open VS Code. Go to <strong>File > Open Folder</strong> and select the <strong><code>firmware</code></strong> folder inside the ZIP you just extracted. (Do not open the whole Linked-Lamp folder!). Wait a minute for the PlatformIO extension to install its tools.</p>
+
+            <p style="color:white; font-weight:600; margin-bottom:5px;">3. Create your Config</p>
+            <p>Below is the exact <code>config.json</code> file for your first lamp. In VS Code, open the folder
+                <code>data/</code>, rename <code>config.example.json</code> to
                 <code>config.json</code>, and paste this text inside it.
             </p>
 
@@ -355,52 +587,70 @@
 
             <div class="step-actions">
                 <button class="btn outline-btn" onclick="goToStep(1)">Back</button>
-                <button class="btn primary-btn" onclick="goToStep(3)">I've Finished This Step</button>
+                <button class="btn primary-btn" onclick="goToStep('flash-a-manual')">Config Saved! Next Step</button>
             </div>
         </div>
 
-        <!-- STEP 3: Config B -->
-        <div class="setup-card" id="step-3">
-            <h2>Configuration for <span id="display_name2" style="color:var(--accent);">Device B</span></h2>
-            <p>If you are flashing both lamps right now, save this second `config.json`. Note that it leaves the Wi-Fi
-                credentials blank because they will need to input it themselves via SmartConfig, or you can fill it in
-                if you know their Wi-Fi.</p>
+        <!-- ====== MANUAL PATH: Flash A (Step 3) ====== -->
+        <div class="setup-card" id="step-flash-a-manual">
+            <h2><span style="color:var(--accent);">Device A</span>: Flash Firmware</h2>
+
+            <p>Now that your config file is saved, plug <strong>Lamp A's ESP32</strong> into your computer via USB.</p>
+
+            <div class="alert-box">
+                <p style="margin-bottom: 5px;">In PlatformIO (VS Code), do these two steps:</p>
+                <p><strong>1. Upload File System Image:</strong> Click the PlatformIO Ant head icon on the left sidebar,
+                    open <code>esp32dev</code> > <code>Platform</code>, and click <strong>Upload Filesystem
+                        Image</strong>.
+                    *(This pushes your config info into the lamp's storage).*</p>
+                <p style="margin-bottom: 0;"><strong>2. Upload Code:</strong> Click the <strong>Upload</strong> button
+                    (→ arrow in the bottom blue bar) to flash the main firmware.</p>
+            </div>
+
+            <p>Wait for both to say <strong>SUCCESS</strong>. If they do, Lamp A is fully programmed!</p>
+
+            <div class="step-actions">
+                <button class="btn outline-btn" onclick="goToStep('config-a')">Back</button>
+                <button class="btn primary-btn" onclick="goToStep('config-b')">Lamp A is Flashed! Next</button>
+            </div>
+        </div>
+
+        <!-- ====== MANUAL PATH: Config B (Step 4) ====== -->
+        <div class="setup-card" id="step-config-b">
+            <h2><span id="display_name2" style="color:var(--accent);">Device B</span>: Setup Config</h2>
+            <p>Now unplug Lamp A and plug in <strong>Lamp B's ESP32</strong>.</p>
+
+            <p>Here is the second config. Replace the contents of your <code>config.json</code> file with this new text.
+                Notice the <code>device_id</code> is now <code>"B"</code>.</p>
 
             <pre><button class="copy-btn" onclick="copyCode('codeB', this)">Copy</button><code id="codeB"></code></pre>
 
             <div class="step-actions">
-                <button class="btn outline-btn" onclick="goToStep(2)">Back</button>
-                <button class="btn primary-btn" onclick="goToStep(4)">I've Finished This Step</button>
+                <button class="btn outline-btn" onclick="goToStep('flash-a-manual')">Back</button>
+                <button class="btn primary-btn" onclick="goToStep('manual-flash-b')">Config Saved! Next Step</button>
             </div>
         </div>
 
-        <!-- STEP 4: Flashing -->
-        <div class="setup-card" id="step-4">
-            <h2>Flashing the Firmware</h2>
-            <p>Now that your `config.json` is ready, it's time to upload the software to the ESP32.</p>
+        <!-- ====== MANUAL PATH: Flash B (Step 5) ====== -->
+        <div class="setup-card" id="step-manual-flash-b">
+            <h2><span style="color:var(--accent);">Device B</span>: Flash Firmware</h2>
+            <p>Same as before, upload the new config and firmware to Lamp B.</p>
 
             <div class="alert-box">
-                <h3 style="margin-bottom: 10px; font-size: 1.1rem; color: white;">Important: 2-Step Process</h3>
-                <p style="margin-bottom: 5px;">In PlatformIO (VS Code), you must do two separate uploads:</p>
-                <p><strong>1. Build & Upload:</strong> Click the main right-arrow at the bottom to flash
-                    <code>main.cpp</code>.
-                </p>
-                <p><strong>2. Upload File System Image:</strong> Click the PlatformIO Ant head icon on the left sidebar,
-                    open `esp32dev` > `Platform`, and click `Upload File System Image`. This uploads your `config.json`.
-                </p>
+                <p><strong>1. Upload Filesystem Image</strong> (Pushes the new "B" config)</p>
+                <p style="margin-bottom: 0;"><strong>2. Upload</strong> (Flashes the firmware)</p>
             </div>
 
-            <p>If you don't do step 2, your lamp will turn on but it will not connect to Wi-Fi because it won't have the
-                config file!</p>
+            <p>Wait for both to say <strong>SUCCESS</strong>. You're done programming!</p>
 
             <div class="step-actions">
-                <button class="btn outline-btn" onclick="goToStep(3)">Back</button>
-                <button class="btn primary-btn" onclick="goToStep(5)">Flashed! Next Step</button>
+                <button class="btn outline-btn" onclick="goToStep('config-b')">Back</button>
+                <button class="btn primary-btn" onclick="goToStep('assembly')">Lamp B is Flashed! Next</button>
             </div>
         </div>
 
-        <!-- STEP 5: Assembly -->
-        <div class="setup-card" id="step-5">
+        <!-- ====== SHARED: Assembly (Step 5 manual / Step 4 chrome) ====== -->
+        <div class="setup-card" id="step-assembly">
             <h2>Hardware Assembly</h2>
             <p>Now that the brains are programmed, put it all together!</p>
 
@@ -418,13 +668,13 @@
             </ul>
 
             <div class="step-actions">
-                <button class="btn outline-btn" onclick="goToStep(4)">Back</button>
-                <button class="btn primary-btn" onclick="goToStep(6, true)">Reveal My Web Apps!</button>
+                <button class="btn outline-btn" id="btnAssemblyBack" onclick="goToStep('manual-flash-b')">Back</button>
+                <button class="btn primary-btn" onclick="goToStep('finish')">Reveal My Web Apps!</button>
             </div>
         </div>
 
-        <!-- STEP 6: URLs -->
-        <div class="setup-card" id="step-6">
+        <!-- ====== SHARED: URLs / Finish (Last step) ====== -->
+        <div class="setup-card" id="step-finish">
             <div style="text-align: center; margin-bottom: 30px;">
                 <span class="material-icons-round" style="font-size: 4rem; color: #2ed573;">celebration</span>
                 <h2 style="margin-top: 10px;">Setup Complete!</h2>
@@ -457,7 +707,7 @@
             <div class="footer-links">
                 <a href="privacy.html">Privacy</a>
                 <a href="terms.html">Terms</a>
-                <a href="https://github.com/aarushmagic/Linked-Lamp">GitHub Repostory</a>
+                <a href="https://github.com/aarushmagic/Linked-Lamp">GitHub Repository</a>
             </div>
         </div>
         <div class="max-w mt-3" style="text-align: center; font-size: 0.8rem; color: var(--text-dim); padding: 0 20px;">
@@ -466,16 +716,98 @@
         </div>
     </footer>
 
-    <!-- Script generating configs and URLs locally -->
+    <!-- Flasher Module (esptool-js integration) -->
+    <script src="flash/flasher.js"></script>
+
     <script>
-        let currentStep = 1;
+        // =====================================================================
+        // Browser Detection & Step Management
+        // =====================================================================
+        const supportsWebSerial = "serial" in navigator;
+        let currentStep = '1';
 
-        // Base domain from current location (so it works on localhost or github pages)
-        const baseDomain = window.location.origin + window.location.pathname.replace("setup.html", "my/index.html");
+        // Step definitions depend on browser support
+        const CHROME_STEPS = [
+            { id: '1', label: 'Details' },
+            { id: 'flash-a', label: 'Flash A' },
+            { id: 'flash-b', label: 'Flash B' },
+            { id: 'assembly', label: 'Assembly' },
+            { id: 'finish', label: 'Finish' },
+        ];
 
-        function goToStep(step, generateURLs = false) {
-            // Basic validation
-            if (step === 2 && currentStep === 1) {
+        const MANUAL_STEPS = [
+            { id: '1', label: 'Details' },
+            { id: 'config-a', label: 'Config A' },
+            { id: 'flash-a-manual', label: 'Flash A' },
+            { id: 'config-b', label: 'Config B' },
+            { id: 'manual-flash-b', label: 'Flash B' },
+            { id: 'assembly', label: 'Assembly' },
+            { id: 'finish', label: 'Finish' },
+        ];
+
+        const activeSteps = supportsWebSerial ? CHROME_STEPS : MANUAL_STEPS;
+
+        // Base domain from current location (handles both /setup.html and /setup extensionless URLs)
+        const basePath = window.location.pathname.replace(/\/setup(\.html)?\/?$/, '');
+        const baseDomain = window.location.origin + basePath + "/my/index.html";
+
+        // =====================================================================
+        // Initialization
+        // =====================================================================
+        window.addEventListener('load', () => {
+            if (!supportsWebSerial) {
+                document.getElementById('browserBanner').style.display = 'flex';
+            }
+
+            // Build stepper UI
+            buildStepper();
+
+            // Set assembly "Back" button based on path
+            if (supportsWebSerial) {
+                document.getElementById('btnAssemblyBack').onclick = () => goToStep('flash-b');
+            }
+        });
+
+        function buildStepper() {
+            const container = document.getElementById('stepperContainer');
+            container.innerHTML = '';
+            activeSteps.forEach((step, idx) => {
+                const div = document.createElement('div');
+                div.className = 'step-indicator' + (idx === 0 ? ' active' : '');
+                div.id = 'ind-' + step.id;
+
+                const circle = document.createElement('div');
+                circle.className = 'step-circle';
+                if (step.id === 'finish') {
+                    circle.innerHTML = '<span class="material-icons-round" style="font-size: 1rem;">link</span>';
+                } else {
+                    circle.textContent = idx + 1;
+                }
+
+                const label = document.createElement('div');
+                label.className = 'step-label';
+                label.textContent = step.label;
+
+                div.appendChild(circle);
+                div.appendChild(label);
+                container.appendChild(div);
+            });
+        }
+
+        // =====================================================================
+        // Step Navigation
+        // =====================================================================
+        function goToNextFromDetails() {
+            // Route to the correct step 2 based on browser capability
+            const nextStep = supportsWebSerial ? 'flash-a' : 'config-a';
+            goToStep(nextStep);
+        }
+
+        function goToStep(stepId) {
+            stepId = String(stepId);
+
+            // Validate step 1
+            if (currentStep === '1' && stepId !== '1') {
                 const n1 = document.getElementById("in_name1").value.trim();
                 const n2 = document.getElementById("in_name2").value.trim();
                 const broker = document.getElementById("in_mqtt_url").value.trim();
@@ -483,27 +815,34 @@
                     alert("Please fill in the names and MQTT Broker URL to proceed.");
                     return;
                 }
+                // Generate configs for manual path
                 generateConfigs();
+                // Update flash names for chrome path
+                document.getElementById('flash_name1').innerText = n1 + "'s Lamp";
+                document.getElementById('flash_name2').innerText = n2 + "'s Lamp";
             }
 
-            if (generateURLs) {
+            // Calculate URLs on finish step
+            if (stepId === 'finish') {
                 calcURLs();
             }
 
-            // Hide all
+            // Hide all cards
             document.querySelectorAll('.setup-card').forEach(el => el.classList.remove('active'));
-            // Show target
-            document.getElementById(`step-${step}`).classList.add('active');
+            // Show target card
+            document.getElementById(`step-${stepId}`).classList.add('active');
 
-            // Update Stepper UI
-            for (let i = 1; i <= 6; i++) {
-                const ind = document.getElementById(`ind-${i}`);
+            // Update stepper indicators
+            const stepIdx = activeSteps.findIndex(s => s.id === stepId);
+            activeSteps.forEach((step, idx) => {
+                const ind = document.getElementById('ind-' + step.id);
+                if (!ind) return;
                 ind.classList.remove('active', 'completed');
-                if (i < step) ind.classList.add('completed');
-                if (i === step) ind.classList.add('active');
-            }
+                if (idx < stepIdx) ind.classList.add('completed');
+                if (idx === stepIdx) ind.classList.add('active');
+            });
 
-            currentStep = step;
+            currentStep = stepId;
             window.scrollTo(0, 0);
         }
 
@@ -513,13 +852,15 @@
             const broker = document.getElementById("in_mqtt_url").value.trim();
 
             if (!n1 || !n2 || !broker) {
-                alert("Please fill in the Names and HiveMQ URL to skip to the URL generator. We need these to build the link.");
+                alert("Please fill in the Names and HiveMQ URL. We need these to build the link.");
                 return;
             }
-
-            goToStep(6, true);
+            goToStep('finish');
         }
 
+        // =====================================================================
+        // Config Generation (shared by both paths)
+        // =====================================================================
         function generateConfigs() {
             const n1 = document.getElementById("in_name1").value.trim();
             const n2 = document.getElementById("in_name2").value.trim();
@@ -527,8 +868,11 @@
             const mUser = document.getElementById("in_mqtt_user").value.trim();
             const mPw = document.getElementById("in_mqtt_pw").value.trim();
 
-            document.getElementById("display_name1").innerText = n1 + "'s Lamp";
-            document.getElementById("display_name2").innerText = n2 + "'s Lamp";
+            // Update display names for manual path
+            const dn1 = document.getElementById("display_name1");
+            const dn2 = document.getElementById("display_name2");
+            if (dn1) dn1.innerText = n1 + "'s Lamp";
+            if (dn2) dn2.innerText = n2 + "'s Lamp";
 
             const configA = {
                 "device_id": "A",
@@ -548,8 +892,10 @@
                 "ota_url": "https://aarushmagic.github.io/Linked-Lamp"
             };
 
-            document.getElementById("codeA").innerText = JSON.stringify(configA, null, 4);
-            document.getElementById("codeB").innerText = JSON.stringify(configB, null, 4);
+            const codeA = document.getElementById("codeA");
+            const codeB = document.getElementById("codeB");
+            if (codeA) codeA.innerText = JSON.stringify(configA, null, 4);
+            if (codeB) codeB.innerText = JSON.stringify(configB, null, 4);
         }
 
         function calcURLs() {
@@ -559,8 +905,6 @@
             const mUser = document.getElementById("in_mqtt_user").value.trim();
             const mPw = document.getElementById("in_mqtt_pw").value.trim();
 
-            // URL format matches README:
-            // ?s=BROKER_URL&u=USERNAME&p=PASSWORD&id=A&name=PartnerName
             const paramsA = new URLSearchParams({ s: url, u: mUser, p: mPw, id: 'A', name: n2 });
             const paramsB = new URLSearchParams({ s: url, u: mUser, p: mPw, id: 'B', name: n1 });
 
@@ -574,6 +918,78 @@
             document.getElementById("url_out2").innerHTML = `<a href="${fullUrlB}" target="_blank" style="color:#2ed573; text-decoration:none;">${fullUrlB}</a>`;
         }
 
+        // =====================================================================
+        // Browser Flashing (Chrome/Edge only)
+        // =====================================================================
+        let flashInProgress = false;
+
+        async function startFlash(lampId) {
+            if (flashInProgress) return;
+            flashInProgress = true;
+
+            const btnId = lampId === 'A' ? 'btnFlashA' : 'btnFlashB';
+            const progressId = lampId === 'A' ? 'progressA' : 'progressB';
+            const percentId = lampId === 'A' ? 'percentA' : 'percentB';
+            const barId = lampId === 'A' ? 'barA' : 'barB';
+            const logId = lampId === 'A' ? 'logA' : 'logB';
+            const successId = lampId === 'A' ? 'successA' : 'successB';
+            const nextBtnId = lampId === 'A' ? 'btnNextAfterA' : 'btnNextAfterB';
+
+            const btn = document.getElementById(btnId);
+            const progressEl = document.getElementById(progressId);
+            const percentEl = document.getElementById(percentId);
+            const barEl = document.getElementById(barId);
+            const logEl = document.getElementById(logId);
+            const successEl = document.getElementById(successId);
+            const nextBtn = document.getElementById(nextBtnId);
+
+            btn.disabled = true;
+            progressEl.classList.add('active');
+            logEl.innerHTML = '';
+
+            const config = {
+                deviceId: lampId,
+                mqttServer: document.getElementById("in_mqtt_url").value.trim(),
+                mqttUser: document.getElementById("in_mqtt_user").value.trim(),
+                mqttPass: document.getElementById("in_mqtt_pw").value.trim(),
+            };
+
+            function onLog(msg) {
+                const div = document.createElement('div');
+                div.className = 'log-entry';
+                div.textContent = msg;
+                if (msg.startsWith('✓') || msg.includes('Successfully') || msg.includes('Done')) {
+                    div.className = 'log-entry success';
+                }
+                logEl.appendChild(div);
+                logEl.scrollTop = logEl.scrollHeight;
+            }
+
+            function onProgress(pct) {
+                percentEl.textContent = pct + '%';
+                barEl.style.width = pct + '%';
+            }
+
+            try {
+                await window.LinkedLampFlasher.flashESP32(config, onLog, onProgress);
+                successEl.classList.add('active');
+                btn.style.display = 'none';
+                nextBtn.disabled = false;
+            } catch (err) {
+                const div = document.createElement('div');
+                div.className = 'log-entry error';
+                div.textContent = 'ERROR: ' + err.message;
+                logEl.appendChild(div);
+                btn.disabled = false;
+                btn.innerHTML = '<span class="material-icons-round">refresh</span> Retry';
+            } finally {
+                flashInProgress = false;
+            }
+        }
+
+        // =====================================================================
+        // Utilities
+        // =====================================================================
         function copyCode(elementId, btnEle) {
             const textToCopy = document.getElementById(elementId).innerText;
             navigator.clipboard.writeText(textToCopy).then(() => {

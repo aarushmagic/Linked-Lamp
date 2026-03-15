@@ -133,14 +133,13 @@
             website? <span class="material-icons-round icon">expand_more</span></button>
         <div class="panel">
             <p style="padding: 15px 0;">
-                This almost always means the ESP32 doesn't have your <code>config.json</code> file loaded yet.
+                This almost always means the ESP32 doesn't have your <code>config.json</code> settings yet.
                 <br><br>
-                When you flash the main code (<code>main.cpp</code>), it only writes the program itself. The lamp needs
-                your Wi-Fi credentials and HiveMQ details to actually connect to the internet and talk to the website.
+                If you used the <strong>one-click browser flash</strong> (Chrome/Edge), the config is sent automatically after flashing — check the log output for a "✓ Done" confirmation. If it shows a warning, try re-flashing.
                 <br><br>
-                <strong>The Fix:</strong> In PlatformIO, you must run the <strong>"Upload File System image"</strong>
-                task explicitly. This takes your `data/config.json` file and uploads it into the ESP32's LittleFS
-                memory. Once that's done, restart the lamp, and it will connect instantly!
+                If you used <strong>PlatformIO manually</strong>, make sure you ran <strong>"Upload Filesystem Image"</strong>
+                in addition to the regular Upload. This pushes your <code>data/config.json</code> into the ESP32's storage.
+                Once that's done, restart the lamp and it will connect!
             </p>
         </div>
 
@@ -162,12 +161,10 @@
                 class="material-icons-round icon">expand_more</span></button>
         <div class="panel">
             <p style="padding: 15px 0;">
-                Yes! We have built an incredibly detailed, step-by-step Setup Guide.
+                Yes! If you use <strong>Google Chrome</strong> or <strong>Microsoft Edge</strong>, our <a href="setup.html" style="color:var(--accent);">Setup Wizard</a> flashes the firmware directly from your browser in a few clicks — no coding, no VS Code, no command line.
                 <br><br>
-                You do not need to know how to write code. You simply fill out a form on our website with your Wi-Fi
-                name and password, and we will generate the exact configuration files you need to copy and paste. The
-                guide holds your hand through installing VS Code, copying the code over, clicking the "Upload" button,
-                and snapping the 3D printed parts together. If you can follow a recipe, you can build a Linked Lamp.
+                For other browsers, you'll need to install VS Code with PlatformIO, but the
+                guide walks you through every step. If you can follow a recipe, you can build a Linked Lamp.
             </p>
         </div>
 

@@ -170,13 +170,14 @@ void setup() {
 
   setupPins();
 
-  // Mount LittleFS and load device config + saved state
-  if (!LittleFS.begin(false)) { // DO NOT auto-format if mount fails
-    Serial.println("FATAL: LittleFS Mount Failed!");
-  } else {
-    loadConfig();
-    loadState();
+  // Mount LittleFS (auto-format if mount fails, e.g. fresh flash or corrupted partition)
+  if (!LittleFS.begin(true)) {
+    Serial.println("LittleFS mount failed even with format. Trying manual format...");
+    LittleFS.format();
+    LittleFS.begin(true);
   }
+  loadConfig();
+  loadState();
 
   // Determine Target ID
   target_id = (device_id == "A") ? "B" : "A";
@@ -338,27 +339,72 @@ void setupPins() {
 }
 
 void loadConfig() {
-  if (!LittleFS.exists("/config.json")) {
-    Serial.println("config.json not found! Upload LittleFS image first.");
-    return;
-  }
-  File f = LittleFS.open("/config.json", "r");
-  if (!f) return;
+  bool configValid = false;
 
-  JsonDocument doc;
-  if (!deserializeJson(doc, f)) {
-    device_id    = doc["device_id"]   | "A";
-    mqtt_server  = doc["mqtt_server"] | "";
-    mqtt_port    = doc["mqtt_port"]   | 8883;
-    mqtt_user    = doc["mqtt_user"]   | "";
-    mqtt_pass    = doc["mqtt_pass"]   | "";
-    ota_url      = doc["ota_url"]     | "";
-    Serial.println("Config loaded from /config.json");
-    Serial.println("MQTT Server: " + mqtt_server);
-  } else {
-    Serial.println("Failed to parse config.json!");
+  if (LittleFS.exists("/config.json")) {
+    File f = LittleFS.open("/config.json", "r");
+    if (f) {
+      JsonDocument doc;
+      if (!deserializeJson(doc, f)) {
+        device_id    = doc["device_id"]   | "A";
+        mqtt_server  = doc["mqtt_server"] | "";
+        mqtt_port    = doc["mqtt_port"]   | 8883;
+        mqtt_user    = doc["mqtt_user"]   | "";
+        mqtt_pass    = doc["mqtt_pass"]   | "";
+        ota_url      = doc["ota_url"]     | "";
+        if (mqtt_server.length() > 0) {
+          configValid = true;
+          Serial.println("Config loaded from /config.json");
+          Serial.println("MQTT Server: " + mqtt_server);
+        }
+      }
+      f.close();
+    }
   }
-  f.close();
+
+  // If no valid config, wait for JSON config via Serial (browser flasher)
+  if (!configValid) {
+    Serial.println("SEND_CONFIG");  // Signal to browser flasher
+    Serial.println("Waiting for config via Serial (30s timeout)...");
+    unsigned long waitStart = millis();
+    String serialBuffer = "";
+
+    while (millis() - waitStart < 30000) {
+      if (Serial.available()) {
+        char c = Serial.read();
+        serialBuffer += c;
+        if (c == '\n' || c == '\r') {
+          serialBuffer.trim();
+          if (serialBuffer.startsWith("{") && serialBuffer.endsWith("}")) {
+            JsonDocument doc;
+            if (!deserializeJson(doc, serialBuffer)) {
+              device_id    = doc["device_id"]   | "A";
+              mqtt_server  = doc["mqtt_server"] | "";
+              mqtt_port    = doc["mqtt_port"]   | 8883;
+              mqtt_user    = doc["mqtt_user"]   | "";
+              mqtt_pass    = doc["mqtt_pass"]   | "";
+              ota_url      = doc["ota_url"]     | "";
+
+              // Save to LittleFS so we don't need Serial next boot
+              if (!LittleFS.begin(true)) { LittleFS.format(); LittleFS.begin(true); }
+              File wf = LittleFS.open("/config.json", "w");
+              if (wf) {
+                serializeJsonPretty(doc, wf);
+                wf.close();
+              }
+              Serial.println("CONFIG_SAVED");
+              Serial.println("Config received and saved to /config.json");
+              Serial.println("MQTT Server: " + mqtt_server);
+              return;
+            }
+          }
+          serialBuffer = "";
+        }
+      }
+      delay(10);
+    }
+    Serial.println("No config received. Continuing with defaults.");
+  }
 }
 
 void loadState() {

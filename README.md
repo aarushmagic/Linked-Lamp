@@ -34,12 +34,24 @@ Schematic and PCB files are in `Circuit/`. 3D printable enclosure files are in `
 
 ## 🚀 Setup
 
-### What You Need
+### Easy Way: Browser-Based Setup Wizard
+
+If you just want to build and use the lamp without modifying the code:
+
+1. Go to the [Setup Wizard](https://aarushmagic.github.io/Linked-Lamp/setup.html) in **Google Chrome** or **Microsoft Edge**
+2. Enter your HiveMQ credentials and names
+3. Connect each ESP32 via USB and click **Flash** — the wizard handles everything
+
+### Advanced Way: PlatformIO (for developers who want to customize)
+
+If you want to modify the firmware, use a different MQTT provider, or have full control:
+
+#### What You Need
 
 - [VS Code](https://code.visualstudio.com/) with [PlatformIO](https://platformio.org/) extension installed
 - An MQTT broker account (e.g., free [HiveMQ Cloud](https://www.hivemq.com/mqtt-cloud-broker/))
 
-### Step 1: Configure Your Lamp
+#### Step 1: Configure Your Lamp
 
 1. In the `firmware/data/` folder, copy `config.example.json` and rename it to `config.json`
 2. Open `config.json` and fill in your details:
@@ -58,9 +70,7 @@ Schematic and PCB files are in `Circuit/`. 3D printable enclosure files are in `
    - Don't edit `ota_url` unless you have a custom domain and want to make personal changes to the firmware
       - If you do choose to do this, you would also have to update the `triggerUpdate()` function in `docs/script.js`
 
-### Step 2: Flash the Firmware & Config
-
-There are **two separate things** that need to be flashed to the lamp for it to work: the codebase, and the `data/` folder containing your `config.json` settings.
+#### Step 2: Flash the Firmware & Config
 
 1. Open the `firmware/` folder in VS Code with PlatformIO.
 2. **Flash the Config (LittleFS)**:
@@ -106,7 +116,7 @@ After the first visit, credentials are saved — you can just open the page norm
 After making code changes, you can push OTA updates to all lamps without plugging them in:
 
 1. Compile in PlatformIO — the binary is at `firmware/.pio/build/esp32dev/firmware.bin`
-2. Copy that file into `docs/firmware.bin`
+2. Run the build helper: `python docs/flash/build_template.py` — this copies the binary to both `docs/flash/` (for browser flashing) and `docs/firmware.bin` (for OTA updates)
 3. Commit and push to GitHub — GitHub Pages will serve the `.bin` files
 4. The ESP32 auto-checks for updates every 7 days, or users can tap "Check for Update" in the web app
 
