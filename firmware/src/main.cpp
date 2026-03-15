@@ -20,7 +20,6 @@
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
 #include <Update.h>
-#include <HTTPUpdate.h>
 #include <LittleFS.h>
 #include <ArduinoJson.h>
 #include <lwip/dns.h>
@@ -855,6 +854,7 @@ void performOTA(String url) {
   }
 
   const int MAX_RETRIES = 3;
+  const unsigned long INACTIVITY_TIMEOUT = 30000;
 
   for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     Serial.printf("\n=== OTA Attempt %d of %d ===\n", attempt, MAX_RETRIES);
@@ -867,22 +867,73 @@ void performOTA(String url) {
 
     WiFiClientSecure secureClient;
     secureClient.setInsecure();
-    
-    httpUpdate.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
-    httpUpdate.rebootOnUpdate(false); // We handle reboot manually to send MQTT message
-    
-    t_httpUpdate_return ret = httpUpdate.update(secureClient, url);
+    HTTPClient http;
+    http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+    http.setTimeout(15000);
 
-    switch (ret) {
-      case HTTP_UPDATE_FAILED:
-        Serial.printf("HTTP_UPDATE_FAILED Error (%d): %s\n", httpUpdate.getLastError(), httpUpdate.getLastErrorString().c_str());
-        break;
+    if (!http.begin(secureClient, url)) {
+      Serial.println("Error: Cannot connect to OTA URL.");
+      if (attempt < MAX_RETRIES) { delay(5000); continue; }
+      break;
+    }
 
-      case HTTP_UPDATE_NO_UPDATES:
-        Serial.println("HTTP_UPDATE_NO_UPDATES");
-        break;
+    int httpCode = http.GET();
+    if (httpCode != HTTP_CODE_OK) {
+      Serial.printf("HTTP error: %d\n", httpCode);
+      http.end();
+      if (attempt < MAX_RETRIES) { delay(5000); continue; }
+      break;
+    }
 
-      case HTTP_UPDATE_OK:
+    int totalSize = http.getSize();
+    size_t updateSize = (totalSize > 0) ? totalSize : UPDATE_SIZE_UNKNOWN;
+
+    if (totalSize <= 0) {
+      Serial.println("Using UPDATE_SIZE_UNKNOWN (likely chunked transfer).");
+    } else {
+      Serial.printf("Firmware size: %d bytes\n", totalSize);
+    }
+
+    if (!Update.begin(updateSize)) {
+      Serial.println("Error: Not enough space for OTA!");
+      http.end();
+      if (attempt < MAX_RETRIES) { delay(5000); continue; }
+      break;
+    }
+
+    WiFiClient* stream = http.getStreamPtr();
+    size_t written = 0;
+    uint8_t buff[1024];
+    unsigned long lastDataTime = millis();
+    bool downloadOk = true;
+
+    while (http.connected() || stream->available() > 0) {
+      // Break if we already reached known size
+      if (totalSize > 0 && written >= (size_t)totalSize) break;
+
+      size_t available = stream->available();
+      if (available) {
+        int bytesRead = stream->readBytes(buff, min(available, sizeof(buff)));
+        size_t bytesWritten = Update.write(buff, bytesRead);
+        if (bytesWritten != (size_t)bytesRead) {
+          downloadOk = false;
+          Serial.println("\nOTA Write Failed.");
+          break;
+        }
+        written += bytesWritten;
+        lastDataTime = millis();
+      } else {
+        if (millis() - lastDataTime > INACTIVITY_TIMEOUT) {
+          Serial.println("\nOTA stalled (timeout).");
+          downloadOk = false;
+          break;
+        }
+        delay(1); // Yield to watchdog
+      }
+    }
+
+    if (downloadOk) { 
+      if (Update.end(true)) {
         Serial.println("\nOTA Success! Rebooting...");
         if (mqttClient.connected()) {
           mqttClient.publish(statusTopicPub.c_str(), "OTA_SUCCESS");
@@ -891,9 +942,15 @@ void performOTA(String url) {
         }
         delay(1000);
         ESP.restart();
-        return;
+      } else {
+        Serial.printf("OTA verify failed. Error: %d\n", Update.getError());
+      }
+    } else {
+      Update.abort();
+      Serial.println("OTA download failed.");
     }
 
+    http.end();
     if (attempt < MAX_RETRIES) { delay(5000); }
   }
 
