@@ -128,4 +128,4 @@ GNU General Public License v3.0 — see [LICENSE](https://www.gnu.org/licenses/g
 
 ## 🙏 Credits
 
-[WiFiManager](https://github.com/tzapu/WiFiManager) · [PubSubClient](https://github.com/knolleary/pubsubclient) · [ArduinoJson](https://github.com/bblanchon/ArduinoJson) · [iro.js](https://iro.js.org/) · [MQTT.js](https://github.com/mqttjs/MQTT.js)
+[WiFiManager](https://github.com/tzapu/WiFiManager) · [PubSubClient](https://github.com/knolleary/pubsubclient) · [ArduinoJson](https://github.com/bblanchon/ArduinoJson) · [iro.js](https://iro.js.org/) · [MQTT.js](https://github.com/mqttjs/MQTT.js) · [esptool-js](https://github.com/espressif/esptool-js)
