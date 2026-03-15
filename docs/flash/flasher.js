@@ -328,12 +328,13 @@ async function flashESP32(config, onLog, onProgress) {
     onLog("Fetching firmware binaries...");
     onProgress(5);
 
-    // Fetch all binaries in parallel (no LittleFS image needed)
-    const [bootloader, partitions, bootApp0, firmware] = await Promise.all([
+    // Fetch all binaries in parallel
+    const [bootloader, partitions, bootApp0, firmware, littlefs] = await Promise.all([
         fetchBinary(BINARY_FILES.bootloader),
         fetchBinary(BINARY_FILES.partitions),
         fetchBinary(BINARY_FILES.boot_app0),
         fetchBinary(BINARY_FILES.firmware),
+        fetchBinary(BINARY_FILES.littlefs),
     ]);
 
     onProgress(15);
@@ -364,12 +365,13 @@ async function flashESP32(config, onLog, onProgress) {
         onLog("Flashing firmware (no LittleFS — config sent via Serial after boot)...");
         onProgress(25);
 
-        // Flash firmware only — no LittleFS partition
+        // Flash firmware and overwrite LittleFS
         const fileArray = [
             { data: binaryToString(bootloader), address: FLASH_OFFSETS.BOOTLOADER },
             { data: binaryToString(partitions), address: FLASH_OFFSETS.PARTITIONS },
             { data: binaryToString(bootApp0), address: FLASH_OFFSETS.BOOT_APP0 },
             { data: binaryToString(firmware), address: FLASH_OFFSETS.FIRMWARE },
+            { data: binaryToString(littlefs), address: FLASH_OFFSETS.LITTLEFS },
         ];
 
         const totalSize = bootloader.length + partitions.length + bootApp0.length + firmware.length;
