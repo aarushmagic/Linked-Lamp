@@ -489,7 +489,7 @@ void handleMqttReconnect() {
     mqttClient.subscribe(otaTopicSub.c_str());
 
     // OTA Rollback Protection: mark this firmware as valid once we've proven we can connect
-    esp_ota_mark_app_valid_cancel_rollback();
+    //esp_ota_mark_app_valid_cancel_rollback();
     Serial.println("Firmware marked as valid (rollback cancelled).");
 
   } else {
