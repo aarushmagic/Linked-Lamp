@@ -520,8 +520,10 @@
 
             <div class="step-actions">
                 <button class="btn outline-btn" onclick="goToStep(1)">Back</button>
-                <button class="btn primary-btn" id="btnNextAfterA" onclick="goToStep('flash-b')">Flash Lamp B
-                    →</button>
+                <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 10px;">
+                    <button class="btn primary-btn" id="btnNextAfterA" onclick="goToStep('flash-b')">Flash Lamp B →</button>
+                    <span class="skip-link" onclick="switchToManualPath('flash-a')" style="font-size: 0.8rem;">Switch to manual setup instead</span>
+                </div>
             </div>
         </div>
 
@@ -555,8 +557,10 @@
 
             <div class="step-actions">
                 <button class="btn outline-btn" onclick="goToStep('flash-a')">Back</button>
-                <button class="btn primary-btn" id="btnNextAfterB" onclick="goToStep('assembly')">Next
-                    →</button>
+                <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 10px;">
+                    <button class="btn primary-btn" id="btnNextAfterB" onclick="goToStep('assembly')">Next →</button>
+                    <span class="skip-link" onclick="switchToManualPath('flash-b')" style="font-size: 0.8rem;">Switch to manual setup instead</span>
+                </div>
             </div>
         </div>
 
@@ -745,7 +749,7 @@
             { id: 'finish', label: 'Finish' },
         ];
 
-        const activeSteps = supportsWebSerial ? CHROME_STEPS : MANUAL_STEPS;
+        let activeSteps = supportsWebSerial ? CHROME_STEPS : MANUAL_STEPS;
 
         // Base domain from current location (handles both /setup.html and /setup extensionless URLs)
         const basePath = window.location.pathname.replace(/\/setup(\.html)?\/?$/, '');
@@ -830,7 +834,13 @@
             // Hide all cards
             document.querySelectorAll('.setup-card').forEach(el => el.classList.remove('active'));
             // Show target card
-            document.getElementById(`step-${stepId}`).classList.add('active');
+            const targetEl = document.getElementById(`step-${stepId}`);
+            if (targetEl) {
+                targetEl.classList.add('active');
+            } else {
+                console.error("Step element not found:", `step-${stepId}`);
+                return;
+            }
 
             // Update stepper indicators
             const stepIdx = activeSteps.findIndex(s => s.id === stepId);
@@ -844,6 +854,22 @@
 
             currentStep = stepId;
             window.scrollTo(0, 0);
+        }
+
+        function switchToManualPath(fromStep) {
+            activeSteps = MANUAL_STEPS;
+            buildStepper();
+            
+            // Adjust the Back button on assembly step since it might have been set for Chrome path
+            document.getElementById('btnAssemblyBack').onclick = () => goToStep('manual-flash-b');
+
+            if (fromStep === 'flash-a') {
+                goToStep('config-a');
+            } else if (fromStep === 'flash-b') {
+                goToStep('config-b');
+            } else {
+                goToStep('config-a');
+            }
         }
 
         function skipToUrls() {
