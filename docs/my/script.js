@@ -375,7 +375,7 @@ function triggerUpdate() {
     if (!confirm("Push a firmware update to your lamp? It will restart briefly.")) return;
     if (mqttClient && mqttClient.connected) {
         // OTA binary hosted on the same GitHub Pages site
-        const baseUrl = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '');
+        const baseUrl = window.location.origin.replace(/\/[^/]*$/, '');
         const otaUrl = baseUrl + "/firmware.bin";
         mqttClient.publish(`linkedlamp/${myDeviceId}/system/ota`, otaUrl);
         alert("Update command sent! Your lamp will restart shortly.");
@@ -762,10 +762,10 @@ function initDial() {
     if (!dialSvg) return;
 
     dialSvg.addEventListener("mousedown", startDialDrag);
-    dialSvg.addEventListener("touchstart", startDialDrag, {passive: false});
+    dialSvg.addEventListener("touchstart", startDialDrag, { passive: false });
 
     document.addEventListener("mousemove", doDialDrag);
-    document.addEventListener("touchmove", doDialDrag, {passive: false});
+    document.addEventListener("touchmove", doDialDrag, { passive: false });
 
     document.addEventListener("mouseup", stopDialDrag);
     document.addEventListener("touchend", stopDialDrag);
@@ -790,27 +790,27 @@ function stopDialDrag() {
 function updateDialFromEvent(e) {
     const dialSvg = document.getElementById("durationDial");
     const rect = dialSvg.getBoundingClientRect();
-    
+
     // Get mouse/touch relative to SVG center (which is 100, 100 in viewbox but we need screen px)
     const centerX = rect.left + rect.width / 2;
     const centerY = rect.top + rect.height / 2;
-    
+
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    
+
     let dx = clientX - centerX;
     let dy = clientY - centerY;
-    
+
     // Calculate angle in radians
     let angleRad = Math.atan2(dy, dx);
-    
+
     // Convert to degrees (0 to 360, where 0 is 3 o'clock natively)
     let angleDeg = angleRad * (180 / Math.PI);
-    
+
     // Because we rotated the SVG by -90deg in CSS, visually top is 0deg.
     // The visual top corresponds to dx=0, dy=-radius relative to screen.
     // Let's map it so Top = 0deg, Right = 90deg, Bottom = 180deg, Left = 270deg.
-    angleDeg += 90; 
+    angleDeg += 90;
     if (angleDeg < 0) angleDeg += 360;
 
     // Map 0-360 degrees to 1-30 minutes
@@ -830,33 +830,33 @@ function renderDial() {
     const maxVal = 30;
     const radius = 80;
     const center = 100;
-    
+
     // Calculate progress fraction (0.0 to 1.0)
     let fraction = tpTempDuration / maxVal;
-    
+
     // Circumference of the circle
     const circumference = 2 * Math.PI * radius;
     // Stroke dasharray creates the filled arc and empty remainder
     const dashVal = fraction * circumference;
-    
+
     const progressArc = document.getElementById("dialProgress");
     if (progressArc) {
         // We use a clean circle path instead of arc logic for stroke-dasharray
-        progressArc.setAttribute("d", `M 100, 20 A 80,80 0 1,1 99.9,20`); 
+        progressArc.setAttribute("d", `M 100, 20 A 80,80 0 1,1 99.9,20`);
         progressArc.style.strokeDasharray = `${dashVal} ${circumference}`;
         progressArc.style.stroke = "var(--accent)"; // fallback
         // Add purple glow dynamically based on our primary var
-        progressArc.style.stroke = "#6b4cff"; 
+        progressArc.style.stroke = "#6b4cff";
     }
-    
+
     // Position the knob
     // Angle: 0 fraction = 0deg (top), 1.0 fraction = 360deg
     const angleDeg = fraction * 360;
     const angleRad = (angleDeg - 90) * (Math.PI / 180); // -90 because 0deg is naturally 3 o'clock in trig
-    
+
     const knobX = center + radius * Math.cos(angleRad);
     const knobY = center + radius * Math.sin(angleRad);
-    
+
     const knob = document.getElementById("dialKnob");
     if (knob) {
         knob.setAttribute("cx", knobX);
