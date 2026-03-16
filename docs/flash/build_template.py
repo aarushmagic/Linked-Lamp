@@ -80,18 +80,8 @@ def main():
     else:
         print(f"  ✗ littlefs.bin — not found. Run 'pio run -t buildfs' first.")
 
-    # Also copy firmware.bin to docs/ root for OTA updates
-    ota_dest = os.path.join(SCRIPT_DIR, "..", "firmware.bin")
-    firmware_src = FILES_TO_COPY["firmware.bin"]
-    if os.path.isfile(firmware_src):
-        shutil.copy2(firmware_src, ota_dest)
-        size_kb = os.path.getsize(ota_dest) / 1024
-        print(f"  ✓ firmware.bin → docs/ for OTA ({size_kb:.1f} KB)")
-    else:
-        print(f"  ✗ Could not copy firmware.bin to docs/ for OTA — source not found.")
-
     print()
-    print("Done! Files are ready in docs/flash/ and docs/firmware.bin (OTA)")
+    print("Done! Files are ready in docs/flash/")
     print("Commit these files to your repository.")
 
 

@@ -141,7 +141,6 @@ void handleMqttReconnect();
 void handleTouch();
 void doActionBasedOnTaps();
 void handleLEDs();
-void handleAutoOTA();
 void mqttCallback(char* topic, byte* payload, unsigned int length);
 void parseSettings(String payload);
 void setColor(String hexColor);
@@ -245,7 +244,6 @@ void loop() {
   handleWifi();
   handleTouch();
   handleLEDs();
-  handleAutoOTA();
 }
 
 // =============================================================================
@@ -818,32 +816,6 @@ float hexToHue(String hexColor) {
 }
 
 // =============================================================================
-// Auto OTA Check (every 7 days)
-// =============================================================================
-void handleAutoOTA() {
-  if (ota_url.length() == 0) return; // No OTA URL configured
-  if (!wifiConnected) return;
-
-  // Initial check shortly after boot (after 1 min)
-  static bool firstCheckDone = false;
-  if (!firstCheckDone && millis() > 60000) {
-    firstCheckDone = true;
-    lastOtaCheckMs = millis();
-    Serial.println("Initial boot-up OTA check triggered.");
-    String fullUrl = ota_url + "/firmware.bin";
-    performOTA(fullUrl);
-    return;
-  }
-
-  if (millis() - lastOtaCheckMs >= OTA_CHECK_INTERVAL) {
-    lastOtaCheckMs = millis();
-    Serial.println("7-day auto OTA check triggered.");
-    String fullUrl = ota_url + "/firmware.bin";
-    performOTA(fullUrl);
-  }
-}
-
-// =============================================================================
 // OTA Update (blocking by necessity — flash access)
 // =============================================================================
 void performOTA(String url) {
@@ -854,7 +826,6 @@ void performOTA(String url) {
   }
 
   const int MAX_RETRIES = 3;
-  const unsigned long INACTIVITY_TIMEOUT = 30000;
 
   for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     Serial.printf("\n=== OTA Attempt %d of %d ===\n", attempt, MAX_RETRIES);
@@ -867,17 +838,31 @@ void performOTA(String url) {
 
     WiFiClientSecure secureClient;
     secureClient.setInsecure();
+    WiFiClient insecureClient;
     HTTPClient http;
+    http.useHTTP10(true); // Force HTTP/1.0 — prevents chunked encoding so stream is raw firmware bytes
     http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
     http.setTimeout(15000);
 
-    if (!http.begin(secureClient, url)) {
+    bool isHttps = url.startsWith("https");
+    bool beginOk = isHttps ? http.begin(secureClient, url) : http.begin(insecureClient, url);
+
+    if (!beginOk) {
       Serial.println("Error: Cannot connect to OTA URL.");
       if (attempt < MAX_RETRIES) { delay(5000); continue; }
       break;
     }
 
     int httpCode = http.GET();
+    if (httpCode == HTTP_CODE_MOVED_PERMANENTLY || httpCode == HTTP_CODE_FOUND || httpCode == 307 || httpCode == 308) {
+      String newUrl = http.getLocation();
+      Serial.println("Redirected to: " + newUrl);
+      http.end();
+      url = newUrl;
+      // Do not decrement attempt so it consumes one retry, preventing infinite loops.
+      continue;
+    }
+
     if (httpCode != HTTP_CODE_OK) {
       Serial.printf("HTTP error: %d\n", httpCode);
       http.end();
@@ -889,7 +874,7 @@ void performOTA(String url) {
     size_t updateSize = (totalSize > 0) ? totalSize : UPDATE_SIZE_UNKNOWN;
 
     if (totalSize <= 0) {
-      Serial.println("Using UPDATE_SIZE_UNKNOWN (likely chunked transfer).");
+      Serial.println("Using UPDATE_SIZE_UNKNOWN for chunked transfer.");
     } else {
       Serial.printf("Firmware size: %d bytes\n", totalSize);
     }
@@ -905,6 +890,7 @@ void performOTA(String url) {
     size_t written = 0;
     uint8_t buff[1024];
     unsigned long lastDataTime = millis();
+    const unsigned long INACTIVITY_TIMEOUT = 30000;
     bool downloadOk = true;
 
     while (http.connected() || stream->available() > 0) {
@@ -922,9 +908,14 @@ void performOTA(String url) {
         }
         written += bytesWritten;
         lastDataTime = millis();
+
+        // Progress every ~100KB
+        if (written % 102400 < 1024) {
+          Serial.printf("  OTA progress: %d bytes written...\n", written);
+        }
       } else {
         if (millis() - lastDataTime > INACTIVITY_TIMEOUT) {
-          Serial.println("\nOTA stalled (timeout).");
+          Serial.println("\nOTA stalled (30s timeout).");
           downloadOk = false;
           break;
         }
@@ -932,9 +923,9 @@ void performOTA(String url) {
       }
     }
 
-    if (downloadOk) { 
+    if (downloadOk && written > 0) {
       if (Update.end(true)) {
-        Serial.println("\nOTA Success! Rebooting...");
+        Serial.printf("\nOTA Success! %d bytes written. Rebooting...\n", written);
         if (mqttClient.connected()) {
           mqttClient.publish(statusTopicPub.c_str(), "OTA_SUCCESS");
           mqttClient.loop();
@@ -947,7 +938,7 @@ void performOTA(String url) {
       }
     } else {
       Update.abort();
-      Serial.println("OTA download failed.");
+      Serial.printf("OTA download failed. Written: %d bytes\n", written);
     }
 
     http.end();
