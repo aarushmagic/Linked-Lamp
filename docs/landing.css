@@ -17,7 +17,9 @@
     --transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
-*, *::before, *::after {
+*,
+*::before,
+*::after {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
@@ -39,7 +41,9 @@ body {
     padding: 0 5%;
 }
 
-.mt-3 { margin-top: 1.5rem; }
+.mt-3 {
+    margin-top: 1.5rem;
+}
 
 /* --- Ambient Background Glows --- */
 .ambient-glow {
@@ -99,7 +103,9 @@ body {
     letter-spacing: -0.5px;
 }
 
-.logo .material-icons-round { color: var(--accent); }
+.logo .material-icons-round {
+    color: var(--accent);
+}
 
 .nav-links {
     display: flex;
@@ -128,7 +134,7 @@ body {
 .nav-btn {
     padding: 10px 20px;
     border-radius: 30px;
-    background: rgba(255,255,255,0.05);
+    background: rgba(255, 255, 255, 0.05);
     border: 1px solid var(--border);
     color: white !important;
 }
@@ -225,8 +231,8 @@ body {
 }
 
 .outline-btn:hover {
-    border-color: rgba(255,255,255,0.3);
-    background: rgba(255,255,255,0.05);
+    border-color: rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.05);
 }
 
 .pulse-hover:hover {
@@ -234,9 +240,17 @@ body {
 }
 
 @keyframes gentlePulse {
-    0% { box-shadow: 0 0 0 0 rgba(107, 76, 255, 0.4); }
-    70% { box-shadow: 0 0 0 15px rgba(107, 76, 255, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(107, 76, 255, 0); }
+    0% {
+        box-shadow: 0 0 0 0 rgba(107, 76, 255, 0.4);
+    }
+
+    70% {
+        box-shadow: 0 0 0 15px rgba(107, 76, 255, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(107, 76, 255, 0);
+    }
 }
 
 /* Glassmorphism Card styling */
@@ -288,8 +302,8 @@ body {
 .lamp-body {
     width: 80px;
     height: 100px;
-    background: rgba(255,255,255,0.1);
-    border: 2px solid rgba(255,255,255,0.2);
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.2);
     border-radius: 40px 40px 10px 10px;
     position: absolute;
     bottom: 20px;
@@ -309,23 +323,55 @@ body {
 }
 
 .pulse-light {
-    animation: lampCycle 4s infinite ;
+    animation: lampCycle 4s infinite;
 }
 
 @keyframes lampCycle {
-    0% { opacity: 0; background: var(--accent); box-shadow: 0 0 0px var(--accent); }
-    20% { opacity: 0.8; background: var(--accent); box-shadow: 0 0 40px var(--accent); }
-    45% { opacity: 0; background: var(--accent); }
-    50% { opacity: 0; background: #2ed573; box-shadow: 0 0 0px #2ed573; }
-    70% { opacity: 0.8; background: #2ed573; box-shadow: 0 0 40px #2ed573; }
-    95% { opacity: 0; background: #2ed573; }
-    100% { opacity: 0; background: var(--accent); }
+    0% {
+        opacity: 0;
+        background: var(--accent);
+        box-shadow: 0 0 0px var(--accent);
+    }
+
+    20% {
+        opacity: 0.8;
+        background: var(--accent);
+        box-shadow: 0 0 40px var(--accent);
+    }
+
+    45% {
+        opacity: 0;
+        background: var(--accent);
+    }
+
+    50% {
+        opacity: 0;
+        background: #2ed573;
+        box-shadow: 0 0 0px #2ed573;
+    }
+
+    70% {
+        opacity: 0.8;
+        background: #2ed573;
+        box-shadow: 0 0 40px #2ed573;
+    }
+
+    95% {
+        opacity: 0;
+        background: #2ed573;
+    }
+
+    100% {
+        opacity: 0;
+        background: var(--accent);
+    }
 }
 
 .visual-text h3 {
     font-size: 1.5rem;
     margin-bottom: 8px;
 }
+
 .visual-text p {
     color: var(--text-dim);
     font-size: 0.95rem;
@@ -367,7 +413,7 @@ body {
 
 .feature-card:hover {
     transform: translateY(-5px);
-    border-color: rgba(255,255,255,0.15);
+    border-color: rgba(255, 255, 255, 0.15);
 }
 
 .feature-icon {
@@ -448,8 +494,33 @@ footer {
 
 /* Mobile Responsiveness */
 @media (max-width: 768px) {
-    .hero-title { font-size: 2.8rem; }
-    .nav-links { display: none; } /* Could add hamburger menu later, hiding for simplicity now */
-    .visual-card { flex-direction: column; align-items: center; text-align: center; }
-    .footer-content { flex-direction: column; text-align: center; }
+    .hero {
+        min-height: auto;
+        padding-top: 10vh;
+        padding-bottom: 0vh;
+    }
+
+    .hero-title {
+        font-size: 2.8rem;
+    }
+
+    .nav-links {
+        display: none;
+    }
+
+    /* Could add hamburger menu later, hiding for simplicity now */
+    .visual-card {
+        display: none;
+    }
+
+    /* Hide the animated lamp visual on mobile */
+    .footer-content {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .feature-grid {
+        display: flex;
+        flex-direction: column;
+    }
 }
