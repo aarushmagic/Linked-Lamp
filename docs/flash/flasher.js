@@ -49,7 +49,7 @@ function generateConfigJSON(deviceId, mqttServer, mqttUser, mqttPass) {
         mqtt_port: 8883,
         mqtt_user: mqttUser,
         mqtt_pass: mqttPass,
-        ota_url: "https://aarushmagic.github.io/Linked-Lamp"
+        ota_url: "https://www.linkedlamp.com"
     };
     return JSON.stringify(config, null, 2);
 }

@@ -4,5 +4,5 @@
   "mqtt_port": 8883,
   "mqtt_user": "your_mqtt_username",
   "mqtt_pass": "your_mqtt_password",
-  "ota_url": "https://aarushmagic.github.io/Linked-Lamp"
+  "ota_url": "https://www.linkedlamp.com"
 }

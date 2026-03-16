@@ -62,7 +62,7 @@ If you want to modify the firmware, use a different MQTT provider, or have full 
      "mqtt_port": 8883,
      "mqtt_user": "your_username",
      "mqtt_pass": "your_password",
-     "ota_url": "https://aarushmagic.github.io/Linked-Lamp"
+     "ota_url": "https://www.linkedlamp.com"
    }
    ```
    - Set `device_id` to `"A"` for the first lamp and `"B"` for the second
