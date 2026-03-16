@@ -227,9 +227,8 @@ void setup() {
   // MQTT Setup
   setupMQTT();
 
-  // OTA Rollback Protection: removed from here, moved to MQTT connect
-  // esp_ota_mark_app_valid_cancel_rollback();
-  Serial.println("Firmware marked as valid (rollback cancelled).");
+  // OTA Rollback Protection: firmware is NOT marked valid until MQTT connects successfully.
+  // If this firmware can't reach MQTT, the bootloader will auto-revert on next boot.
 
   // Configure NTP with user timezone
   configTzTime(userTimezone.c_str(), "pool.ntp.org", "time.nist.gov");
@@ -487,7 +486,7 @@ void handleMqttReconnect() {
     mqttClient.subscribe(otaTopicSub.c_str());
 
     // OTA Rollback Protection: mark this firmware as valid once we've proven we can connect
-    //esp_ota_mark_app_valid_cancel_rollback();
+    esp_ota_mark_app_valid_cancel_rollback();
     Serial.println("Firmware marked as valid (rollback cancelled).");
 
   } else {
