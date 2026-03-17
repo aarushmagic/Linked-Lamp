@@ -120,12 +120,21 @@
                 You'll need a few common components for each lamp:
                 <br><br>
                 1. An ESP32 development board (the brain).<br>
-                2. Through-hole RGB Common Anode LEDs (diffused/frosted recommended, like Chanzon 5mm).<br>
-                3. A TTP223 capacitive touch sensor module.<br>
-                4. The custom Linked Lamp PCB (Gerber files provided in our setup guide).<br>
-                5. A 3D-printed enclosure (STLs provided).<br>
-                6. Some wire and a 5V USB power supply.<br><br>
+                2. A TTP223 capacitive touch sensor module.<br>
+                3. A 3D-printed enclosure (STLs provided).<br>
+                4. Some wire and a 5V USB power supply.<br><br>
+                Then you have two choices for the lights:<br>
+                <strong>Option A:</strong> The custom Linked Lamp PCB + Through-hole RGB Common Anode LEDs.<br>
+                <strong>Option B:</strong> A 16-LED WS2812B NeoPixel Ring.<br><br>
                 Because everything is open-source, you can source these parts yourself for just a few dollars each!
+            </p>
+        </div>
+
+        <button class="accordion">Can I use a NeoPixel ring instead of the custom PCB? <span
+                class="material-icons-round icon">expand_more</span></button>
+        <div class="panel">
+            <p style="padding: 15px 0;">
+                Absolutely! We added support for WS2812B individually addressable LED rings. A 16-LED ring is the perfect size for the 3D printed shell. Just connect its Data In pin to GPIO 27 on the ESP32, and select the "NeoPixel Ring" option during the setup wizard to flash the correct firmware.
             </p>
         </div>
 
@@ -152,7 +161,7 @@
                 <br><br>
                 If we release a new feature or bug fix on our GitHub, you can navigate to your personalized Web App
                 (`/my/` link), go to Settings, and tap "Check for Update". Your lamp will automatically download the
-                latest <code>firmware.bin</code> from our public repository and restart itself—no plugging back into a
+                latest <code>firmware.bin</code> or <code>firmware-neo.bin</code> (depending on your hardware) from our public repository and restart itself—no plugging back into a
                 computer required!
             </p>
         </div>

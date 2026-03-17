@@ -495,8 +495,19 @@
             <div class="flash-section">
                 <span class="material-icons-round plug-icon">usb</span>
                 <h2>Flash <span id="flash_name1" style="color: var(--accent);">Lamp A</span></h2>
-                <p>Connect the first ESP32 to your computer via USB.<br>
-                    Click the button below to flash the firmware and your personal configuration in one go.</p>
+                <p>Connect the first ESP32 to your computer via USB.</p>
+
+                <div class="alert-box mb-3" style="text-align: left;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Hardware Type</label>
+                    <div style="display: flex; gap: 15px;">
+                        <label style="cursor: pointer;"><input type="radio" name="hwTypeA" value="pcb" checked> PCB
+                            (Individual LEDs)</label>
+                        <label style="cursor: pointer;"><input type="radio" name="hwTypeA" value="neopixel"> NeoPixel
+                            Ring</label>
+                    </div>
+                </div>
+
+                <p>Click the button below to flash the firmware and your personal configuration in one go.</p>
 
                 <button class="flash-btn" id="btnFlashA" onclick="startFlash('A')">
                     <span class="material-icons-round">bolt</span>
@@ -521,8 +532,10 @@
             <div class="step-actions">
                 <button class="btn outline-btn" onclick="goToStep(1)">Back</button>
                 <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 10px;">
-                    <button class="btn primary-btn" id="btnNextAfterA" onclick="goToStep('flash-b')">Flash Lamp B →</button>
-                    <span class="skip-link" onclick="switchToManualPath('flash-a')" style="font-size: 0.8rem;">Switch to manual setup instead</span>
+                    <button class="btn primary-btn" id="btnNextAfterA" onclick="goToStep('flash-b')">Flash Lamp B
+                        →</button>
+                    <span class="skip-link" onclick="switchToManualPath('flash-a')" style="font-size: 0.8rem;">Switch to
+                        manual setup instead</span>
                 </div>
             </div>
         </div>
@@ -532,8 +545,19 @@
             <div class="flash-section">
                 <span class="material-icons-round plug-icon">usb</span>
                 <h2>Flash <span id="flash_name2" style="color: var(--accent);">Lamp B</span></h2>
-                <p>Disconnect Lamp A's ESP32 and connect the second ESP32 via USB.<br>
-                    Click the button below to flash this lamp too.</p>
+                <p>Disconnect Lamp A's ESP32 and connect the second ESP32 via USB.</p>
+
+                <div class="alert-box mb-3" style="text-align: left;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Hardware Type</label>
+                    <div style="display: flex; gap: 15px;">
+                        <label style="cursor: pointer;"><input type="radio" name="hwTypeB" value="pcb" checked> PCB
+                            (Individual LEDs)</label>
+                        <label style="cursor: pointer;"><input type="radio" name="hwTypeB" value="neopixel"> NeoPixel
+                            Ring</label>
+                    </div>
+                </div>
+
+                <p>Click the button below to flash this lamp too.</p>
 
                 <button class="flash-btn" id="btnFlashB" onclick="startFlash('B')">
                     <span class="material-icons-round">bolt</span>
@@ -559,7 +583,8 @@
                 <button class="btn outline-btn" onclick="goToStep('flash-a')">Back</button>
                 <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 10px;">
                     <button class="btn primary-btn" id="btnNextAfterB" onclick="goToStep('assembly')">Next →</button>
-                    <span class="skip-link" onclick="switchToManualPath('flash-b')" style="font-size: 0.8rem;">Switch to manual setup instead</span>
+                    <span class="skip-link" onclick="switchToManualPath('flash-b')" style="font-size: 0.8rem;">Switch to
+                        manual setup instead</span>
                 </div>
             </div>
         </div>
@@ -576,10 +601,16 @@
             </div>
 
             <p style="color:white; font-weight:600; margin-bottom:5px;">1. Download the Code</p>
-            <p style="margin-bottom: 15px;">Go to the <a href="https://github.com/aarushmagic/Linked-Lamp" target="_blank" style="color:var(--accent);">GitHub Repository</a>, click the green <strong>"<> Code"</strong> button, and select <strong>Download ZIP</strong>. Extract the folder.</p>
+            <p style="margin-bottom: 15px;">Go to the <a href="https://github.com/aarushmagic/Linked-Lamp"
+                    target="_blank" style="color:var(--accent);">GitHub Repository</a>, click the green <strong>"<>
+                        Code"</strong> button, and select <strong>Download ZIP</strong>. Extract the folder.</p>
 
             <p style="color:white; font-weight:600; margin-bottom:5px;">2. Open the Firmware Folder</p>
-            <p style="margin-bottom: 15px;">Open VS Code. Go to <strong>File > Open Folder</strong> and select the <strong><code>firmware</code></strong> folder inside the ZIP you just extracted. (Do not open the whole Linked-Lamp folder!). Wait a minute for the PlatformIO extension to install its tools.</p>
+            <p style="margin-bottom: 15px;">Open VS Code. Go to <strong>File > Open Folder</strong> and select either
+                the <strong><code>firmware/pcb</code></strong> folder OR the
+                <strong><code>firmware/neopixel</code></strong> folder depending on what hardware you built. Wait a
+                minute for the PlatformIO extension to install its tools.
+            </p>
 
             <p style="color:white; font-weight:600; margin-bottom:5px;">3. Create your Config</p>
             <p>Below is the exact <code>config.json</code> file for your first lamp. In VS Code, open the folder
@@ -663,18 +694,26 @@
                         href="https://github.com/aarushmagic/Linked-Lamp" target="_blank"
                         style="color:var(--accent);">GitHub Repo</a>. Print the Base in a solid color, and the Shade in
                     White PLA/PETG for good light diffusion.</li>
-                <li><strong>PCB & Soldering:</strong> Order the provided Gerber files from a PCB manufacturer. Solder
-                    your components, including the through-hole RGB Common Anode LEDs (diffused/frosted 5mm recommended)
-                    into the board.</li>
-                <li><strong>Touch Sensor:</strong> Connect the TTP223 module to 3.3V, GND, and GPIO Pin 4. Paste it
-                    underneath the top of the lamp shade.</li>
-                <li><strong>Power:</strong> Plug a micro-USB or USB-C cable into the ESP32 to power the entire rig.</li>
-            </ul>
+                <ul style="color: var(--text-dim); margin-bottom: 20px; line-height: 1.8; margin-left: 20px;">
+                    <li><strong>3D Printing:</strong> Download the STL files from the <a
+                            href="https://github.com/aarushmagic/Linked-Lamp" target="_blank"
+                            style="color:var(--accent);">GitHub Repo</a>. Print the Base in a solid color, and the Shade
+                        in
+                        White PLA/PETG for good light diffusion.</li>
+                    <li><strong>LEDs:</strong> Solder your components into the provided PCB (use 5mm frosted RGB LEDs)
+                        <strong>OR</strong> use a 16-LED WS2812B NeoPixel Ring connected to GPIO 27.
+                    </li>
+                    <li><strong>Touch Sensor:</strong> Connect the TTP223 module to 3.3V, GND, and GPIO Pin 4. Paste it
+                        underneath the top of the lamp shade.</li>
+                    <li><strong>Power:</strong> Plug a micro-USB or USB-C cable into the ESP32 to power the entire rig.
+                    </li>
+                </ul>
 
-            <div class="step-actions">
-                <button class="btn outline-btn" id="btnAssemblyBack" onclick="goToStep('manual-flash-b')">Back</button>
-                <button class="btn primary-btn" onclick="goToStep('finish')">Reveal My Web Apps!</button>
-            </div>
+                <div class="step-actions">
+                    <button class="btn outline-btn" id="btnAssemblyBack"
+                        onclick="goToStep('manual-flash-b')">Back</button>
+                    <button class="btn primary-btn" onclick="goToStep('finish')">Reveal My Web Apps!</button>
+                </div>
         </div>
 
         <!-- ====== SHARED: URLs / Finish (Last step) ====== -->
@@ -859,7 +898,7 @@
         function switchToManualPath(fromStep) {
             activeSteps = MANUAL_STEPS;
             buildStepper();
-            
+
             // Adjust the Back button on assembly step since it might have been set for Chrome path
             document.getElementById('btnAssemblyBack').onclick = () => goToStep('manual-flash-b');
 
@@ -906,7 +945,7 @@
                 "mqtt_port": 8883,
                 "mqtt_user": mUser,
                 "mqtt_pass": mPw,
-                "ota_url": "https://aarushmagic.github.io/Linked-Lamp"
+                "ota_url": "https://www.linkedlamp.com"
             };
 
             const configB = {
@@ -915,7 +954,7 @@
                 "mqtt_port": 8883,
                 "mqtt_user": mUser,
                 "mqtt_pass": mPw,
-                "ota_url": "https://aarushmagic.github.io/Linked-Lamp"
+                "ota_url": "https://www.linkedlamp.com"
             };
 
             const codeA = document.getElementById("codeA");
@@ -975,6 +1014,7 @@
 
             const config = {
                 deviceId: lampId,
+                hwType: document.querySelector(`input[name="hwType${lampId}"]:checked`).value,
                 mqttServer: document.getElementById("in_mqtt_url").value.trim(),
                 mqttUser: document.getElementById("in_mqtt_user").value.trim(),
                 mqttPass: document.getElementById("in_mqtt_pw").value.trim(),

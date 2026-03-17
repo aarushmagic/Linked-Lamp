@@ -181,11 +181,23 @@ function connectMQTT() {
         const msg = message.toString();
 
         if (topic === `linkedlamp/${myDeviceId}/status`) {
-            myLampOnline = (msg === "ONLINE");
+            if (msg.startsWith("ONLINE")) {
+                myLampOnline = true;
+                const parts = msg.split(":");
+                if (parts.length > 1) {
+                    localStorage.setItem("ll_hwtype_" + myDeviceId, parts[1]);
+                }
+            } else {
+                myLampOnline = false;
+            }
             updateStatusUI();
 
         } else if (topic === `linkedlamp/${partnerDeviceId}/status`) {
-            partnerLampOnline = (msg === "ONLINE");
+            if (msg.startsWith("ONLINE")) {
+                partnerLampOnline = true;
+            } else {
+                partnerLampOnline = false;
+            }
             updateStatusUI();
 
         } else if (topic === `linkedlamp/${myDeviceId}/settings`) {
@@ -374,11 +386,13 @@ function applySettingsToUI() {
 function triggerUpdate() {
     if (!confirm("Push a firmware update to your lamp? It will restart briefly.")) return;
     if (mqttClient && mqttClient.connected) {
-        // OTA binary hosted on the same GitHub Pages site
-        // Using relative path to support both custom domains and GitHub Pages subpaths
-        const otaUrl = new URL("../flash/firmware.bin", window.location.href).href;
+        // Construct correct firmware URL based on detected hardware type
+        const hwType = localStorage.getItem("ll_hwtype_" + myDeviceId) || "pcb";
+        const fwFile = (hwType === "neopixel") ? "firmware-neo.bin" : "firmware.bin";
+        const otaUrl = new URL("../flash/" + fwFile, window.location.href).href;
+        
         mqttClient.publish(`linkedlamp/${myDeviceId}/system/ota`, otaUrl);
-        alert("Update command sent! Your lamp will restart shortly.");
+        alert("Update command sent! Your lamp will restart shortly. This could take upto 5 minutes. Please do not restart your device in the meantime even if it goes offline.");
     } else {
         alert("Not connected to your lamp network.");
     }

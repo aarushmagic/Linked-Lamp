@@ -18,19 +18,25 @@ An open-source Wi-Fi connected **Friendship Lamp**. Tap your lamp to let someone
 |---|---|
 | ESP32-WROOM Dev Board | USB-C powered |
 | TTP223 Touch Sensor | Capacitive, Active HIGH |
+| **Option A (Custom PCB):** | |
 | 7× RGB LEDs | Common Anode, wired in parallel |
 | 3× 2N2222 NPN Transistors | + 330Ω base resistors each |
+| **Option B (NeoPixel):** | |
+| 16-LED WS2812B Ring | 5V Individually Addressable |
 
 ### Wiring
 
 | Signal | GPIO |
 |---|---|
 | Touch Sensor | 4 |
+| **Option A (PCB)** | |
 | Red LED Channel | 13 |
 | Green LED Channel | 14 |
 | Blue LED Channel | 27 |
+| **Option B (NeoPixel)** | |
+| Data IN (Din) | 27 |
 
-Schematic and PCB files are in `Circuit/`. 3D printable enclosure files are in `3D Models/`.
+Schematic and PCB files are in `Circuit/`. 3D printable enclosure files are in `3D Models/`. Both hardware options fit in the same 3D printed shell.
 
 ## 🚀 Setup
 
@@ -53,8 +59,9 @@ If you want to modify the firmware, use a different MQTT provider, or have full 
 
 #### Step 1: Configure Your Lamp
 
-1. In the `firmware/data/` folder, copy `config.example.json` and rename it to `config.json`
-2. Open `config.json` and fill in your details:
+1. Choose your firmware directory based on your hardware: `firmware/pcb/` or `firmware/neopixel/`
+2. In the `data/` folder of that directory, copy `config.example.json` and rename it to `config.json`
+3. Open `config.json` and fill in your details:
    ```json
    {
      "device_id": "A",
@@ -72,7 +79,7 @@ If you want to modify the firmware, use a different MQTT provider, or have full 
 
 #### Step 2: Flash the Firmware & Config
 
-1. Open the `firmware/` folder in VS Code with PlatformIO.
+1. Open the project folder (`firmware/pcb/` OR `firmware/neopixel/`) in VS Code with PlatformIO.
 2. **Flash the Config (LittleFS)**:
    - In the PlatformIO sidebar (Alien icon), go to **Project Tasks → esp32dev → Platform**.
    - Click **Build Filesystem Image** and wait for SUCCESS.
@@ -90,7 +97,7 @@ On first power-up, each lamp creates a WiFi network called **"Linked Lamp Setup"
 The web app is already hosted. Open this URL on your phone (bookmark it!):
 
 ```
-https://aarushmagic.github.io/Linked-Lamp/?s=BROKER_URL&u=USERNAME&p=PASSWORD&id=A&name=Sarah
+https://linkedlamp.com/my/?s=BROKER_URL&u=USERNAME&p=PASSWORD&id=A&name=Sarah
 ```
 
 Replace the values:
@@ -115,10 +122,10 @@ After the first visit, credentials are saved — you can just open the page norm
 
 After making code changes, you can push OTA updates to all lamps without plugging them in:
 
-1. Compile in PlatformIO — the binary is at `firmware/.pio/build/esp32dev/firmware.bin`
-2. Run the build helper: `python docs/flash/build_template.py` — this copies the binary to both `docs/flash/` (for browser flashing) and `docs/firmware.bin` (for OTA updates)
-3. Commit and push to GitHub — GitHub Pages will serve the `.bin` files
-4. The ESP32 auto-checks for updates every 7 days, or users can tap "Check for Update" in the web app
+1. Compile in PlatformIO — the binary is at `firmware/[type]/.pio/build/esp32dev/firmware.bin`
+2. Run the build helper: `python docs/flash/build_template.py` (this automatically copies both `firmware.bin` and `firmware-neo.bin`).
+3. Commit and push these binaries and the `littlefs_template.bin` to GitHub — GitHub Pages will host them.
+4. The ESP32 auto-checks for updates every 7 days, or users can tap "Check for Update" in the web app. The web app automatically detects the lamp's hardware type from MQTT and downloads the correct .bin file.
 
 The ESP32 downloads the binary, flashes it, and reboots. If the new firmware crashes before reaching `setup()`, it automatically rolls back to the previous working version.
 

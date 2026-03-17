@@ -27,6 +27,11 @@
 #include <time.h>
 
 // =============================================================================
+// Hardware Type Definition
+// =============================================================================
+#define HW_TYPE "pcb"
+
+// =============================================================================
 // Pin Definitions
 // =============================================================================
 #define TOUCH_SENSOR_PIN 4   // Input, Active HIGH
@@ -477,8 +482,9 @@ void handleMqttReconnect() {
     mqttFailCount = 0;
 
     // Announce ONLINE with retained message
-    mqttClient.publish(statusTopicPub.c_str(), "ONLINE", true);
-    Serial.println("Published ONLINE status.");
+    String onlineMsg = String("ONLINE:") + HW_TYPE;
+    mqttClient.publish(statusTopicPub.c_str(), onlineMsg.c_str(), true);
+    Serial.println("Published " + onlineMsg + " status.");
 
     // Subscribe to all topics
     mqttClient.subscribe(triggerTopicSub.c_str());
@@ -581,6 +587,10 @@ void handleTouch() {
 
   // --- Finger just pressed down ---
   if (isTouching && !wasTouching) {
+    if (millis() - lastTouchTime < 100) {
+      wasTouching = isTouching;
+      return;
+    }
     touchStartTime = millis();
     longPressTriggered = false;
     isCyclingColors = false;
@@ -635,9 +645,11 @@ void handleTouch() {
       saveState();
       setRGB(0, 0, 0); // Turn off after selection
     } else {
-      // Register as a tap
-      tapCount++;
-      lastTouchTime = millis();
+      // Register as a tap ONLY if held for >75ms (debounce/false trigger prevention)
+      if (millis() - touchStartTime > 75) {
+        tapCount++;
+        lastTouchTime = millis();
+      }
     }
   }
 
@@ -818,6 +830,12 @@ float hexToHue(String hexColor) {
 // OTA Update (blocking by necessity — flash access)
 // =============================================================================
 void performOTA(String url) {
+  // If a base URL is provided without the path, auto-append the correct firmware path
+  if (!url.endsWith(".bin")) {
+    if (!url.endsWith("/")) url += "/";
+    url += "flash/firmware.bin"; 
+  }
+  
   Serial.println("Starting OTA from: " + url);
 
   if (!url.startsWith("http://") && !url.startsWith("https://")) {

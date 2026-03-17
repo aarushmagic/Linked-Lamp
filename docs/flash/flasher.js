@@ -22,7 +22,8 @@ const BINARY_FILES = {
     bootloader: BINARY_BASE + "bootloader.bin",
     partitions: BINARY_BASE + "partitions.bin",
     boot_app0: BINARY_BASE + "boot_app0.bin",
-    firmware: BINARY_BASE + "firmware.bin",
+    firmware_pcb: BINARY_BASE + "firmware.bin",
+    firmware_neopixel: BINARY_BASE + "firmware-neo.bin",
     littlefs: BINARY_BASE + "littlefs_template.bin",
 };
 
@@ -76,11 +77,13 @@ async function flashESP32(config, onLog, onProgress) {
     onLog("Fetching firmware binaries...");
     onProgress(5);
 
+    const firmwareUrl = (config.hwType === "neopixel") ? BINARY_FILES.firmware_neopixel : BINARY_FILES.firmware_pcb;
+
     const [bootloader, partitions, bootApp0, firmware] = await Promise.all([
         fetchBinary(BINARY_FILES.bootloader),
         fetchBinary(BINARY_FILES.partitions),
         fetchBinary(BINARY_FILES.boot_app0),
-        fetchBinary(BINARY_FILES.firmware),
+        fetchBinary(firmwareUrl),
     ]);
 
     // --- THE MAGIC FIX ---
