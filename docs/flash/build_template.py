@@ -1,21 +1,17 @@
 """
 Linked Lamp — Build Helper Script
 
-Copies PlatformIO build artifacts into docs/flash/ for browser-based flashing.
+Compiles both firmware variants (PCB and NeoPixel) using PlatformIO,
+then copies build artifacts into docs/flash/ for browser-based flashing.
 Also generates a LittleFS template image with a padded placeholder config.json.
 
 Usage:
-   cd firmware
-   pio run                   # Build the firmware
-   pio run -t buildfs        # Build the filesystem image
-   python ../docs/flash/build_template.py
+   python docs/flash/build_template.py
 
-This script copies:
-  - bootloader.bin
-  - partitions.bin
-  - boot_app0.bin
-  - firmware.bin
-  - littlefs.bin (as littlefs_template.bin, with placeholder patched in)
+This script:
+  1. Runs 'pio run' and 'pio run -t buildfs' for both pcb and neopixel firmware
+  2. Copies bootloader.bin, partitions.bin, boot_app0.bin, firmware.bin/firmware-neo.bin
+  3. Copies littlefs.bin as littlefs_template.bin
 """
 
 import shutil
@@ -23,6 +19,7 @@ import os
 import sys
 import struct
 import argparse
+import subprocess
 
 # Paths relative to this script's location
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -34,9 +31,65 @@ FRAMEWORK_DIR = os.path.join(
     ".platformio", "packages", "framework-arduinoespressif32"
 )
 
+def compile_firmware():
+    """Compile both PCB and NeoPixel firmware using PlatformIO."""
+    # Resolve PlatformIO CLI path (not always on system PATH, especially on Windows)
+    pio_cmd = os.path.join(
+        os.path.expanduser("~"),
+        ".platformio", "penv", "Scripts", "platformio.exe"
+    )
+    if not os.path.isfile(pio_cmd):
+        # Fallback: try bare 'pio' in case it's on PATH
+        pio_cmd = "pio"
+
+    hw_types = ["pcb", "neopixel"]
+
+    for hw in hw_types:
+        fw_dir = os.path.join(SCRIPT_DIR, "..", "..", "firmware", hw)
+        fw_dir = os.path.abspath(fw_dir)
+
+        if not os.path.isfile(os.path.join(fw_dir, "platformio.ini")):
+            print(f"  ✗ ERROR: platformio.ini not found in {fw_dir}")
+            sys.exit(1)
+
+        # Build firmware
+        print(f"\n  Building firmware ({hw})...")
+        result = subprocess.run(
+            [pio_cmd, "run"],
+            cwd=fw_dir,
+            capture_output=False,
+            shell=True
+        )
+        if result.returncode != 0:
+            print(f"  ✗ ERROR: Firmware build failed for {hw}")
+            sys.exit(1)
+        print(f"  ✓ Firmware compiled ({hw})")
+
+        # Build filesystem image
+        print(f"  Building filesystem image ({hw})...")
+        result = subprocess.run(
+            [pio_cmd, "run", "-t", "buildfs"],
+            cwd=fw_dir,
+            capture_output=False,
+            shell=True
+        )
+        if result.returncode != 0:
+            print(f"  ✗ ERROR: Filesystem build failed for {hw}")
+            sys.exit(1)
+        print(f"  ✓ Filesystem image built ({hw})")
+
 def main():
     print("Linked Lamp — Build Helper")
     print("=" * 40)
+
+    # Step 1: Compile both firmware variants
+    print("\n📦 Step 1: Compiling firmware...")
+    print("-" * 30)
+    compile_firmware()
+
+    # Step 2: Copy build artifacts
+    print("\n📋 Step 2: Copying build artifacts...")
+    print("-" * 30)
 
     hw_types = ["pcb", "neopixel"]
     

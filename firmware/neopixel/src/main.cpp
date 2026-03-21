@@ -37,7 +37,7 @@
 // =============================================================================
 #define TOUCH_SENSOR_PIN 4   // Input, Active HIGH
 #define NEOPIXEL_PIN     27  // Output to NeoPixel Data In (Din)
-#define NEOPIXEL_COUNT   16  // Number of LEDs in the ring
+#define NEOPIXEL_COUNT   24  // Number of LEDs in the ring
 
 Adafruit_NeoPixel strip(NEOPIXEL_COUNT, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
 
@@ -88,9 +88,33 @@ bool          wasTouching       = false;
 const unsigned long TAP_TIMEOUT = 400; // ms window for multi-taps
 bool          longPressTriggered = false;
 
-// Color Cycling
+// Color Cycling (time-based, ~6 seconds per full rotation)
 float hue              = 0.0;
 bool  isCyclingColors  = false;
+unsigned long cycleStartTimeMs = 0;
+float cycleStartHue = 0.0;
+const float CYCLE_PERIOD_MS = 6000.0; // 6 seconds per full hue rotation
+
+// Color Transition (gradual fade between colors, ~5 seconds)
+bool isTransitioning = false;
+unsigned long transitionStartMs = 0;
+const unsigned long TRANSITION_DURATION = 5000; // 5 seconds
+uint8_t transFromR = 0, transFromG = 0, transFromB = 0;
+uint8_t transToR = 0, transToG = 0, transToB = 0;
+
+// Send Flash (single tap: flash sent color briefly, then revert)
+bool isSendFlashing = false;
+unsigned long sendFlashStart = 0;
+const unsigned long SEND_FLASH_DURATION = 1000; // 1 second confirmation flash
+uint8_t preSendR = 0, preSendG = 0, preSendB = 0;
+bool wasLampOnBeforeSend = false;
+
+// Color Pick Flash (hold-release: flash selected color, then revert)
+bool isColorPickFlashing = false;
+unsigned long colorPickFlashStart = 0;
+const unsigned long COLOR_PICK_FLASH_DURATION = 3000; // 3 seconds
+uint8_t prePickR = 0, prePickG = 0, prePickB = 0;
+bool wasLampOnBeforePick = false;
 
 // =============================================================================
 // WiFi State (modeled after sample.cpp)
@@ -123,10 +147,6 @@ String settingsTopicSub;
 String otaTopicSub;
 String statusTopicPub;
 
-// Auto-OTA (every 7 days)
-unsigned long lastOtaCheckMs       = 0;
-const unsigned long OTA_CHECK_INTERVAL = 7UL * 24UL * 3600UL * 1000UL; // 7 days
-
 // =============================================================================
 // Function Prototypes
 // =============================================================================
@@ -148,6 +168,8 @@ void setRGB(uint8_t r, uint8_t g, uint8_t b);
 void performOTA(String url);
 float hexToHue(String hexColor);
 bool isNighttime();
+void publishSettingsViaMQTT();
+void startColorTransition(uint8_t toR, uint8_t toG, uint8_t toB);
 
 // =============================================================================
 // Setup
@@ -509,7 +531,13 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
 
   if (topicStr == triggerTopicSub) {
     // --- Incoming Color Trigger ---
-    setColor(msg);
+    // Parse the target color
+    String hexColor = msg;
+    if (hexColor.startsWith("#")) hexColor.remove(0, 1);
+    long number = strtol(hexColor.c_str(), NULL, 16);
+    uint8_t newR = (number >> 16) & 0xFF;
+    uint8_t newG = (number >> 8)  & 0xFF;
+    uint8_t newB =  number        & 0xFF;
 
     // Determine if nighttime
     bool isNight = nightModeEnabled && isNighttime();
@@ -529,11 +557,14 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       lampDurationMs = (unsigned long)lampOnTimeMinutes * 60000UL;
     }
 
+    // Start gradual color transition (fade from current color to new color)
+    startColorTransition(newR, newG, newB);
+
     isLampOn = true;
     lampOnStartTime = millis();
     isPulsing = true;
     pulseStartTime = millis();
-    Serial.println("Trigger received! Lamp ON.");
+    Serial.println("Trigger received! Lamp ON with gradual transition.");
 
   } else if (topicStr == settingsTopicSub) {
     parseSettings(msg);
@@ -569,6 +600,51 @@ void parseSettings(String payload) {
 }
 
 // =============================================================================
+// Publish settings via MQTT (e.g. after color pick from lamp)
+// =============================================================================
+void publishSettingsViaMQTT() {
+  if (!mqttClient.connected()) return;
+
+  JsonDocument doc;
+  doc["defaultColor"] = defaultColor;
+  doc["dayTimeMin"]   = lampOnTimeMinutes;
+  doc["dayBright"]    = dayMaxBrightness;
+  doc["nightMode"]    = nightModeEnabled;
+  doc["nightStart"]   = nightStartTime;
+  doc["nightEnd"]     = nightEndTime;
+  doc["nightTimeMin"] = nightLampOnTimeMinutes;
+  doc["nightBright"]  = nightMaxBrightness;
+  doc["timezone"]     = userTimezone;
+
+  String payload;
+  serializeJson(doc, payload);
+  mqttClient.publish(settingsTopicSub.c_str(), payload.c_str(), true); // retained
+  Serial.println("Settings published to MQTT: " + payload);
+}
+
+// =============================================================================
+// Color Transition Helper
+// =============================================================================
+void startColorTransition(uint8_t toR, uint8_t toG, uint8_t toB) {
+  transFromR = currentR;
+  transFromG = currentG;
+  transFromB = currentB;
+  transToR = toR;
+  transToG = toG;
+  transToB = toB;
+  transitionStartMs = millis();
+  isTransitioning = true;
+
+  // Set target as current (for after transition completes)
+  currentR = toR;
+  currentG = toG;
+  currentB = toB;
+
+  Serial.printf("Color transition: (%d,%d,%d) -> (%d,%d,%d) over %dms\n",
+                transFromR, transFromG, transFromB, toR, toG, toB, TRANSITION_DURATION);
+}
+
+// =============================================================================
 // Touch Sensor Logic
 // =============================================================================
 void handleTouch() {
@@ -592,15 +668,24 @@ void handleTouch() {
     if (holdTime > 1500 && !longPressTriggered) {
       // Start cycling from current default color's hue
       hue = hexToHue(defaultColor);
+      cycleStartHue = hue;
+      cycleStartTimeMs = millis();
       longPressTriggered = true;
+
+      // Save lamp state before cycling
+      prePickR = currentR;
+      prePickG = currentG;
+      prePickB = currentB;
+      wasLampOnBeforePick = isLampOn;
     }
 
     if (longPressTriggered) {
       isCyclingColors = true;
 
-      // Advance hue smoothly
-      hue += 0.5;
-      if (hue >= 360.0) hue -= 360.0;
+      // Time-based hue advancement (~6 seconds per full rotation)
+      unsigned long elapsed = millis() - cycleStartTimeMs;
+      hue = cycleStartHue + (elapsed / CYCLE_PERIOD_MS) * 360.0;
+      while (hue >= 360.0) hue -= 360.0;
 
       // HSV to RGB (S=1, V=1)
       float c = 1.0;
@@ -632,10 +717,18 @@ void handleTouch() {
       defaultColor = String(hexBuf);
       Serial.println("New default color: " + defaultColor);
       saveState();
-      setRGB(0, 0, 0); // Turn off after selection
+
+      // Publish updated settings to MQTT so web page updates instantly
+      publishSettingsViaMQTT();
+
+      // Start 3-second flash of the picked color, then revert
+      isColorPickFlashing = true;
+      colorPickFlashStart = millis();
+      // currentR/G/B already has the picked color, setRGB will be handled by handleLEDs
+      setRGB(currentR, currentG, currentB);
     } else {
-      // Register as a tap ONLY if held for >75ms (debounce/false trigger prevention)
-      if (millis() - touchStartTime > 75) {
+      // Register as a tap ONLY if held for >50ms (debounce/false trigger prevention)
+      if (millis() - touchStartTime > 50) {
         tapCount++;
         lastTouchTime = millis();
       }
@@ -656,20 +749,31 @@ void doActionBasedOnTaps() {
 
   if (tapCount == 1) {
     // --- Single Tap: Send signal to partner ---
+    // Maintain current lamp state, flash sent color briefly, then revert
     Serial.println("Single Tap: Sending Signal!");
 
-    bool isNight = nightModeEnabled && isNighttime();
-    lampDurationMs       = isNight ? (unsigned long)nightLampOnTimeMinutes * 60000UL
-                                   : (unsigned long)lampOnTimeMinutes * 60000UL;
-    currentMaxBrightness = isNight ? nightMaxBrightness : dayMaxBrightness;
+    // Save current state before flash
+    preSendR = currentR;
+    preSendG = currentG;
+    preSendB = currentB;
+    wasLampOnBeforeSend = isLampOn;
 
-    isLampOn = true;
-    lampOnStartTime = millis();
-    isPulsing = true;
-    pulseStartTime = millis();
+    // Parse default color for flash
+    String hexColor = defaultColor;
+    if (hexColor.startsWith("#")) hexColor.remove(0, 1);
+    long number = strtol(hexColor.c_str(), NULL, 16);
+    uint8_t flashR = (number >> 16) & 0xFF;
+    uint8_t flashG = (number >> 8)  & 0xFF;
+    uint8_t flashB =  number        & 0xFF;
 
-    setColor(defaultColor);
+    // Show the sent color immediately
+    setRGB(flashR, flashG, flashB);
 
+    // Start send flash timer
+    isSendFlashing = true;
+    sendFlashStart = millis();
+
+    // Publish to partner
     if (mqttClient.connected()) {
       mqttClient.publish(triggerTopicPub.c_str(), defaultColor.c_str());
     } else {
@@ -677,19 +781,29 @@ void doActionBasedOnTaps() {
     }
 
   } else if (tapCount == 2) {
-    // --- Double Tap: Turn OFF (only if lamp is on) ---
+    // --- Double Tap ---
     if (isLampOn) {
+      // Turn off lamp
       Serial.println("Double Tap: Turning OFF.");
       isLampOn = false;
       isPulsing = false;
+      isTransitioning = false;
       setRGB(0, 0, 0);
     } else {
       Serial.println("Double Tap ignored: lamp already off.");
     }
 
   } else if (tapCount >= 3) {
-    // --- Triple Tap: Reset WiFi (only from OFF state) ---
-    if (!isLampOn) {
+    // --- Triple+ Tap ---
+    if (isLampOn) {
+      // Turn off lamp (same as double tap when ON)
+      Serial.println("Triple Tap: Turning OFF (lamp was on).");
+      isLampOn = false;
+      isPulsing = false;
+      isTransitioning = false;
+      setRGB(0, 0, 0);
+    } else {
+      // Reset WiFi (only from OFF state)
       Serial.println("Triple Tap: Resetting WiFi credentials...");
       // Visual feedback: flash red
       setRGB(255, 0, 0);
@@ -704,8 +818,6 @@ void doActionBasedOnTaps() {
       rtcBootMarker = 0; // Force cold boot for config portal
       delay(500);
       ESP.restart();
-    } else {
-      Serial.println("Triple Tap ignored: lamp is ON.");
     }
   }
 }
@@ -716,15 +828,102 @@ void doActionBasedOnTaps() {
 void handleLEDs() {
   if (isCyclingColors) return; // Touch sensor has direct control
 
+  // Handle send flash (single tap confirmation)
+  if (isSendFlashing) {
+    if (millis() - sendFlashStart >= SEND_FLASH_DURATION) {
+      isSendFlashing = false;
+      // Revert to previous state
+      if (wasLampOnBeforeSend) {
+        currentR = preSendR;
+        currentG = preSendG;
+        currentB = preSendB;
+        setRGB((currentR * currentMaxBrightness) / 255,
+               (currentG * currentMaxBrightness) / 255,
+               (currentB * currentMaxBrightness) / 255);
+      } else {
+        setRGB(0, 0, 0);
+      }
+      Serial.println("Send flash ended. Reverted to previous state.");
+    }
+    return; // Don't run other LED logic during flash
+  }
+
+  // Handle color pick flash (hold-release confirmation)
+  if (isColorPickFlashing) {
+    if (millis() - colorPickFlashStart >= COLOR_PICK_FLASH_DURATION) {
+      isColorPickFlashing = false;
+      // Revert to previous state
+      if (wasLampOnBeforePick) {
+        currentR = prePickR;
+        currentG = prePickG;
+        currentB = prePickB;
+        setRGB((currentR * currentMaxBrightness) / 255,
+               (currentG * currentMaxBrightness) / 255,
+               (currentB * currentMaxBrightness) / 255);
+        // Restore lamp on state
+        isLampOn = true;
+      } else {
+        currentR = 0;
+        currentG = 0;
+        currentB = 0;
+        setRGB(0, 0, 0);
+        isLampOn = false;
+      }
+      Serial.println("Color pick flash ended. Reverted to previous state.");
+    }
+    return; // Don't run other LED logic during flash
+  }
+
   if (!isLampOn) return; // Nothing to do
 
   // Check auto-off timer
   if (millis() - lampOnStartTime >= lampDurationMs) {
     isLampOn = false;
     isPulsing = false;
+    isTransitioning = false;
     setRGB(0, 0, 0);
     Serial.println("Timer expired. Lamp OFF.");
     return;
+  }
+
+  // Handle gradual color transition
+  if (isTransitioning) {
+    unsigned long elapsed = millis() - transitionStartMs;
+    if (elapsed < TRANSITION_DURATION) {
+      float t = (float)elapsed / (float)TRANSITION_DURATION;
+
+      uint8_t r = transFromR + (int)((transToR - transFromR) * t);
+      uint8_t g = transFromG + (int)((transToG - transFromG) * t);
+      uint8_t b = transFromB + (int)((transToB - transFromB) * t);
+
+      // Apply brightness and pulsing if active
+      if (isPulsing) {
+        unsigned long pulseElapsed = millis() - pulseStartTime;
+        if (pulseElapsed < PULSE_DURATION_MS) {
+          float phase = (float)(pulseElapsed % 2000) / 2000.0 * 2.0 * PI;
+          float pulseFactor = 0.3 + 0.7 * ((sin(phase) + 1.0) / 2.0);
+          r = (uint8_t)(r * pulseFactor * currentMaxBrightness / 255);
+          g = (uint8_t)(g * pulseFactor * currentMaxBrightness / 255);
+          b = (uint8_t)(b * pulseFactor * currentMaxBrightness / 255);
+        } else {
+          isPulsing = false;
+          r = (r * currentMaxBrightness) / 255;
+          g = (g * currentMaxBrightness) / 255;
+          b = (b * currentMaxBrightness) / 255;
+        }
+      } else {
+        r = (r * currentMaxBrightness) / 255;
+        g = (g * currentMaxBrightness) / 255;
+        b = (b * currentMaxBrightness) / 255;
+      }
+
+      setRGB(r, g, b);
+    } else {
+      isTransitioning = false;
+      Serial.println("Color transition complete.");
+      // Fall through to normal LED handling below
+    }
+    if (isTransitioning) return;
   }
 
   if (isPulsing) {
