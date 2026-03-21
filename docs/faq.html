@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="index" />
     <title>Linked Lamp | FAQ</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
@@ -86,7 +87,8 @@
     <nav class="navbar scrolled">
         <div class="nav-content max-w">
             <div class="logo">
-                <a href="index.html" style="color:inherit; text-decoration:none; display:flex; align-items:center; gap:10px;">
+                <a href="index.html"
+                    style="color:inherit; text-decoration:none; display:flex; align-items:center; gap:10px;">
                     <img src="logo.png" alt="Linked Lamp" style="height: 28px; width: 28px; object-fit: contain;">
                     <span class="logo-text">Linked Lamp</span>
                 </a>
@@ -135,7 +137,9 @@
                 class="material-icons-round icon">expand_more</span></button>
         <div class="panel">
             <p style="padding: 15px 0;">
-                Absolutely! We added support for WS2812B individually addressable LED rings. A 16-LED ring is the perfect size for the 3D printed shell. Just connect its Data In pin to GPIO 27 on the ESP32, and select the "NeoPixel Ring" option during the setup wizard to flash the correct firmware.
+                Absolutely! We added support for WS2812B individually addressable LED rings. A 16-LED ring is the
+                perfect size for the 3D printed shell. Just connect its Data In pin to GPIO 27 on the ESP32, and select
+                the "NeoPixel Ring" option during the setup wizard to flash the correct firmware.
             </p>
         </div>
 
@@ -145,10 +149,14 @@
             <p style="padding: 15px 0;">
                 This almost always means the ESP32 doesn't have your <code>config.json</code> settings yet.
                 <br><br>
-                If you used the <strong>one-click browser flash</strong> (Chrome/Edge), the config is sent automatically after flashing — check the log output for a "✓ Done" confirmation. If it shows a warning, try re-flashing.
+                If you used the <strong>one-click browser flash</strong> (Chrome/Edge), the config is sent automatically
+                after flashing — check the log output for a "✓ Done" confirmation. If it shows a warning, try
+                re-flashing.
                 <br><br>
-                If you used <strong>PlatformIO manually</strong>, make sure you ran <strong>"Upload Filesystem Image"</strong>
-                in addition to the regular Upload. This pushes your <code>data/config.json</code> into the ESP32's storage.
+                If you used <strong>PlatformIO manually</strong>, make sure you ran <strong>"Upload Filesystem
+                    Image"</strong>
+                in addition to the regular Upload. This pushes your <code>data/config.json</code> into the ESP32's
+                storage.
                 Once that's done, restart the lamp and it will connect!
             </p>
         </div>
@@ -162,7 +170,8 @@
                 <br><br>
                 If we release a new feature or bug fix on our GitHub, you can navigate to your personalized Web App
                 (`/my/` link), go to Settings, and tap "Check for Update". Your lamp will automatically download the
-                latest <code>firmware.bin</code> or <code>firmware-neo.bin</code> (depending on your hardware) from our public repository and restart itself—no plugging back into a
+                latest <code>firmware.bin</code> or <code>firmware-neo.bin</code> (depending on your hardware) from our
+                public repository and restart itself—no plugging back into a
                 computer required!
             </p>
         </div>
@@ -171,7 +180,9 @@
                 class="material-icons-round icon">expand_more</span></button>
         <div class="panel">
             <p style="padding: 15px 0;">
-                Yes! If you use <strong>Google Chrome</strong> or <strong>Microsoft Edge</strong>, our <a href="setup.html" style="color:var(--accent);">Setup Wizard</a> flashes the firmware directly from your browser in a few clicks — no coding, no VS Code, no command line.
+                Yes! If you use <strong>Google Chrome</strong> or <strong>Microsoft Edge</strong>, our <a
+                    href="setup.html" style="color:var(--accent);">Setup Wizard</a> flashes the firmware directly from
+                your browser in a few clicks — no coding, no VS Code, no command line.
                 <br><br>
                 For other browsers, you'll need to install VS Code with PlatformIO, but the
                 guide walks you through every step. If you can follow a recipe, you can build a Linked Lamp.
@@ -221,7 +232,8 @@
     <footer>
         <div class="footer-content max-w">
             <div class="footer-brand">
-                <img src="logo.png" alt="Linked Lamp" style="height: 24px; width: 24px; object-fit: contain;"> Linked Lamp
+                <img src="logo.png" alt="Linked Lamp" style="height: 24px; width: 24px; object-fit: contain;"> Linked
+                Lamp
             </div>
             <p>&copy; 2026 Aarush Magic. An Open Source Project.</p>
             <div class="footer-links">
