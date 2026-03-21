@@ -557,6 +557,13 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       lampDurationMs = (unsigned long)lampOnTimeMinutes * 60000UL;
     }
 
+    // If lamp is currently off, reset displayed color to black so we fade FROM black
+    if (!isLampOn) {
+      currentR = 0;
+      currentG = 0;
+      currentB = 0;
+    }
+
     // Start gradual color transition (fade from current color to new color)
     startColorTransition(newR, newG, newB);
 
