@@ -126,26 +126,10 @@
                     <span class="logo-text">Linked Lamp</span>
                 </a>
             </div>
-            <div class="nav-links">
-                <a href="index.html#features">Features</a>
-                <a href="faq.html">FAQ</a>
-                <a href="setup.html" class="nav-btn primary">Setup Guide</a>
-            </div>
-            <button class="hamburger-btn" id="hamburgerBtn" aria-label="Menu">
-                <span></span><span></span><span></span>
-            </button>
-        </div>
+</div>
     </nav>
 
-    <div class="mobile-nav-overlay" id="mobileNav">
-        <div class="mobile-nav-links">
-            <a href="index.html#features">Features</a>
-            <a href="faq.html">FAQ</a>
-            <a href="setup.html">Setup Guide</a>
-        </div>
-    </div>
-
-    <div class="setup-overview max-w">
+<div class="setup-overview max-w">
         <h1>Build Your Linked Lamp</h1>
         <p class="subtitle">
             Follow these three steps to go from a box of parts to a pair of glowing, connected lamps.
@@ -220,21 +204,7 @@
     </footer>
 
     <script>
-        const hamburgerBtn = document.getElementById('hamburgerBtn');
-        const mobileNav = document.getElementById('mobileNav');
-        hamburgerBtn.addEventListener('click', () => {
-            hamburgerBtn.classList.toggle('active');
-            mobileNav.classList.toggle('open');
-            document.body.style.overflow = mobileNav.classList.contains('open') ? 'hidden' : '';
-        });
-        mobileNav.querySelectorAll('a').forEach(link => {
-            link.addEventListener('click', () => {
-                hamburgerBtn.classList.remove('active');
-                mobileNav.classList.remove('open');
-                document.body.style.overflow = '';
-            });
-        });
-    </script>
+</script>
 </body>
 
 </html>

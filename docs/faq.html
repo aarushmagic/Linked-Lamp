@@ -92,26 +92,10 @@
                     <span class="logo-text">Linked Lamp</span>
                 </a>
             </div>
-            <div class="nav-links">
-                <a href="index.html#features">Features</a>
-                <a href="faq.html">FAQ</a>
-                <a href="setup.html" class="nav-btn primary">Setup Guide</a>
-            </div>
-            <button class="hamburger-btn" id="hamburgerBtn" aria-label="Menu">
-                <span></span><span></span><span></span>
-            </button>
-        </div>
+</div>
     </nav>
 
-    <div class="mobile-nav-overlay" id="mobileNav">
-        <div class="mobile-nav-links">
-            <a href="index.html#features">Features</a>
-            <a href="faq.html">FAQ</a>
-            <a href="setup.html">Setup Guide</a>
-        </div>
-    </div>
-
-    <header class="faq-header max-w">
+<header class="faq-header max-w">
         <h1>Frequently Asked Questions</h1>
         <p class="hero-subtitle">Everything you need to know about the Linked Lamp.</p>
     </header>
@@ -255,21 +239,7 @@
         }
 
         // Hamburger menu toggle
-        const hamburgerBtn = document.getElementById('hamburgerBtn');
-        const mobileNav = document.getElementById('mobileNav');
-        hamburgerBtn.addEventListener('click', () => {
-            hamburgerBtn.classList.toggle('active');
-            mobileNav.classList.toggle('open');
-            document.body.style.overflow = mobileNav.classList.contains('open') ? 'hidden' : '';
-        });
-        mobileNav.querySelectorAll('a').forEach(link => {
-            link.addEventListener('click', () => {
-                hamburgerBtn.classList.remove('active');
-                mobileNav.classList.remove('open');
-                document.body.style.overflow = '';
-            });
-        });
-    </script>
+</script>
 </body>
 
 </html>
