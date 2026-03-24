@@ -526,11 +526,12 @@
                 <button class="btn primary-btn" onclick="goToNextFromDetails()">Next <span class="material-icons-round"
                         style="margin-left:5px;">arrow_forward</span></button>
             </div>
-
+            <!--
             <div class="skip-wrapper">
                 <span class="skip-link" onclick="skipToUrls()">I already flashed my lamps! Just give me my Web App
                     URLs.</span>
             </div>
+            -->
         </div>
 
         <!-- ====== CHROME PATH: Flash Lamp A ====== -->
@@ -650,12 +651,14 @@
             <p style="margin-bottom: 15px;">Open VS Code. Go to <strong>File > Open Folder</strong> and select either
                 the <strong><code>firmware/pcb</code></strong> folder OR the
                 <strong><code>firmware/neopixel</code></strong> folder depending on what hardware you built. Wait a
-                minute for the PlatformIO extension to install its tools.</p>
+                minute for the PlatformIO extension to install its tools.
+            </p>
 
             <p style="color:white; font-weight:600; margin-bottom:5px;">3. Create your Config</p>
             <p>Below is the exact <code>config.json</code> file for your first lamp. In VS Code, open the folder
                 <code>data/</code>, rename <code>config.example.json</code> to <code>config.json</code>, and paste this
-                text inside it.</p>
+                text inside it.
+            </p>
 
             <pre><button class="copy-btn" onclick="copyCode('codeA', this)">Copy</button><code id="codeA"></code></pre>
 
