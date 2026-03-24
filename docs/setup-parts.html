@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="index" />
+    <title>Linked Lamp | Parts List</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <link rel="stylesheet" href="landing.css">
+    <link rel="icon" type="image/png" href="images/logo.png">
+    <style>
+        .parts-container {
+            max-width: 850px;
+            margin: 14vh auto 6vh;
+        }
+
+        .parts-container h1 {
+            font-size: 2.8rem;
+            margin-bottom: 0.8rem;
+            text-align: center;
+        }
+
+        .parts-container .subtitle {
+            color: var(--text-dim);
+            font-size: 1.05rem;
+            text-align: center;
+            max-width: 650px;
+            margin: 0 auto 2.5rem;
+            line-height: 1.7;
+        }
+
+        /* Toggle */
+        .hw-toggle {
+            display: flex;
+            justify-content: center;
+            gap: 0;
+            margin-bottom: 2.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 5px;
+            max-width: 400px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .hw-toggle button {
+            flex: 1;
+            padding: 12px 20px;
+            border: none;
+            background: transparent;
+            color: var(--text-dim);
+            font-family: var(--font);
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .hw-toggle button.active {
+            background: var(--accent);
+            color: white;
+            box-shadow: 0 4px 15px rgba(107, 76, 255, 0.3);
+        }
+
+        /* Parts list */
+        .parts-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 2rem 2.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .parts-section h2 {
+            font-size: 1.4rem;
+            margin-bottom: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .parts-section h2 .material-icons-round {
+            font-size: 1.5rem;
+        }
+
+        .parts-section h3 {
+            margin-top: 1.5rem;
+            font-size: 1.1rem;
+            margin-bottom: 0.8rem;
+        }
+
+        .parts-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .parts-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-dim);
+            line-height: 1.6;
+        }
+
+        .parts-list li:last-child {
+            border-bottom: none;
+        }
+
+        .parts-list .qty {
+            background: rgba(107, 76, 255, 0.15);
+            color: var(--accent);
+            font-weight: 700;
+            font-size: 0.85rem;
+            padding: 3px 10px;
+            border-radius: 6px;
+            white-space: nowrap;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .parts-list .part-name {
+            color: white;
+            font-weight: 500;
+        }
+
+        /* Info tooltip for ESP32 */
+        .info-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: rgba(107, 76, 255, 0.2);
+            color: var(--accent);
+            font-size: 0.75rem;
+            font-weight: 700;
+            font-style: italic;
+            cursor: help;
+            position: relative;
+            flex-shrink: 0;
+            margin-left: 4px;
+            vertical-align: middle;
+        }
+
+        .info-tooltip {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(10, 12, 20, 0.97);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+            z-index: 2000;
+            max-width: 500px;
+            width: 90vw;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+            text-align: center;
+        }
+
+        .info-tooltip.show {
+            display: block;
+        }
+
+        .info-tooltip img {
+            max-width: 100%;
+            border-radius: 10px;
+            margin-bottom: 12px;
+        }
+
+        .info-tooltip p {
+            color: var(--text-dim);
+            font-size: 0.9rem;
+            line-height: 1.5;
+            margin: 0;
+        }
+
+        .info-tooltip .close-tooltip {
+            position: absolute;
+            top: 10px;
+            right: 14px;
+            background: none;
+            border: none;
+            color: var(--text-dim);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        .info-backdrop {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 1999;
+        }
+
+        .info-backdrop.show {
+            display: block;
+        }
+
+        /* Downloads */
+        .download-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 1rem;
+        }
+
+        .download-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--text);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .download-btn:hover {
+            background: rgba(107, 76, 255, 0.15);
+            border-color: var(--accent);
+        }
+
+        .download-btn .material-icons-round {
+            font-size: 1.1rem;
+        }
+
+        /* Note banner */
+        .note-banner {
+            background: rgba(255, 165, 2, 0.08);
+            border: 1px solid rgba(255, 165, 2, 0.2);
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .note-banner .material-icons-round {
+            color: #ffa502;
+            flex-shrink: 0;
+            font-size: 1.3rem;
+            margin-top: 2px;
+        }
+
+        .note-banner p {
+            color: var(--text-dim);
+            font-size: 0.9rem;
+            line-height: 1.6;
+            margin: 0;
+        }
+
+        .note-banner strong {
+            color: #ffa502;
+        }
+
+        /* Nav buttons */
+        .page-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .page-nav .btn {
+            font-size: 0.95rem;
+        }
+
+        @media (max-width: 768px) {
+            .parts-container h1 {
+                font-size: 2rem;
+            }
+
+            .parts-section {
+                padding: 1.5rem;
+            }
+
+            .download-grid {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <nav class="navbar scrolled">
+        <div class="nav-content max-w">
+            <div class="logo">
+                <a href="index.html"
+                    style="color:inherit; text-decoration:none; display:flex; align-items:center; gap:10px;">
+                    <img src="images/logo.png" alt="Linked Lamp"
+                        style="height: 28px; width: 28px; object-fit: contain;">
+                    <span class="logo-text">Linked Lamp</span>
+                </a>
+            </div>
+            <div class="nav-links">
+                <a href="index.html#features">Features</a>
+                <a href="faq.html">FAQ</a>
+                <a href="setup.html" class="nav-btn primary">Setup Guide</a>
+            </div>
+            <button class="hamburger-btn" id="hamburgerBtn" aria-label="Menu">
+                <span></span><span></span><span></span>
+            </button>
+        </div>
+    </nav>
+
+    <div class="mobile-nav-overlay" id="mobileNav">
+        <div class="mobile-nav-links">
+            <a href="index.html#features">Features</a>
+            <a href="faq.html">FAQ</a>
+            <a href="setup.html">Setup Guide</a>
+        </div>
+    </div>
+
+    <div class="parts-container max-w">
+        <h1>Step 1: Gather Your Parts</h1>
+        <p class="subtitle">Everything you need to build <strong>one</strong> Linked Lamp. Remember, you'll need to
+            build two lamps — one for you and one for the other person.</p>
+
+        <div class="note-banner">
+            <span class="material-icons-round">lightbulb</span>
+            <p>Choose your lighting method below. <strong>Both produce nearly identical results</strong> —
+                NeoPixels are slightly brighter. It's simply a matter of convenience and part availability. Any
+                Linked Lamp can connect to any other Linked Lamp regardless of which method was used.</p>
+        </div>
+
+        <!-- Hardware toggle -->
+        <div class="hw-toggle">
+            <button id="btnPCB" class="active" onclick="selectHW('pcb')">🔧 PCB</button>
+            <button id="btnNeo" onclick="selectHW('neopixel')">💡 NeoPixel</button>
+        </div>
+
+        <!-- ===== PCB PARTS (single merged section) ===== -->
+        <div id="pcbParts">
+            <div class="parts-section">
+                <h2><span class="material-icons-round" style="color: #ff6b81;">developer_board</span> PCB Parts List</h2>
+                <ul class="parts-list">
+                    <li>
+                        <span class="qty">1×</span>
+                        <div>
+                            <span class="part-name">ESP32 ESP-WROOM-32 V1 Dev Board w/ USB-C</span>
+                            <span class="info-icon" onclick="showPinout()" title="View pinout requirements">i</span>
+                            <br>Make sure the pinout matches the required layout.
+                        </div>
+                    </li>
+                    <li>
+                        <span class="qty">1×</span>
+                        <div>
+                            <span class="part-name">Custom Linked Lamp PCB (100mm)</span>
+                            <br>Order from any PCB manufacturer using the Gerber files below.
+                        </div>
+                    </li>
+                    <li>
+                        <span class="qty">6×</span>
+                        <div><span class="part-name">Common Anode RGB LEDs</span><br>Diffused/frosted preferred for better
+                            light spread.</div>
+                    </li>
+                    <li>
+                        <span class="qty">3×</span>
+                        <div><span class="part-name">2N2222 NPN Transistors</span></div>
+                    </li>
+                    <li>
+                        <span class="qty">3×</span>
+                        <div><span class="part-name">330Ω Resistors</span></div>
+                    </li>
+                    <li>
+                        <span class="qty">2×</span>
+                        <div><span class="part-name">15Ω Resistors</span></div>
+                    </li>
+                    <li>
+                        <span class="qty">1×</span>
+                        <div><span class="part-name">22Ω Resistor</span></div>
+                    </li>
+                    <li>
+                        <span class="qty">1×</span>
+                        <div><span class="part-name">TTP223 Capacitive Touch Sensor Module</span></div>
+                    </li>
+                    <li>
+                        <span class="qty">1×</span>
+                        <div><span class="part-name">3-Pin 90° Male Header Pins</span></div>
+                    </li>
+                    <li>
+                        <span class="qty">4×</span>
+                        <div><span class="part-name">M3 Screws</span></div>
+                    </li>
+                    <li>
+                        <span class="qty">1×</span>
+                        <div><span class="part-name">USB-C Cable</span><br>To power the ESP32.</div>
+                    </li>
+                    <li>
+                        <span class="qty">—</span>
+                        <div><span class="part-name">Basic Soldering Tools</span><br>Soldering iron, solder, etc.</div>
+                    </li>
+                </ul>
+
+                <h3>3D Printed Files</h3>
+                <p style="color: var(--text-dim); font-size: 0.9rem; margin-bottom: 0.6rem;">Print the Base in a solid
+                    color and the Diffuser in White PLA/PETG for good light diffusion.</p>
+                <div class="download-grid">
+                    <a href="https://raw.githubusercontent.com/aarushmagic/Linked-Lamp/refs/heads/main/3D%20Models/PCB%20Lamp%20-%20100mm%20Hexagon/PCB%20Lamp%20100mm%20-%20Base%20(M3).step"
+                        class="download-btn" download>
+                        <span class="material-icons-round">download</span> Base (M3)
+                    </a>
+                    <a href="https://raw.githubusercontent.com/aarushmagic/Linked-Lamp/refs/heads/main/3D%20Models/PCB%20Lamp%20-%20100mm%20Hexagon/PCB%20Lamp%20100mm%20-%203in%20Diffuser.step"
+                        class="download-btn" download>
+                        <span class="material-icons-round">download</span> Diffuser
+                    </a>
+                </div>
+
+                <h3>PCB Gerber Files</h3>
+                <p style="color: var(--text-dim); font-size: 0.9rem; margin-bottom: 0.6rem;">Download for your preferred
+                    PCB manufacturer:</p>
+                <div class="download-grid">
+                    <a href="https://raw.githubusercontent.com/aarushmagic/Linked-Lamp/refs/heads/main/Circuit/PCB%20(Gerber%20%2B%20Drill)%20Files/100mm%20Diameter%20-%20Hexagon/MagicLamp_100.0x86.60254mm_for_JLCPCB.zip"
+                        class="download-btn" download>
+                        <span class="material-icons-round">download</span> JLCPCB
+                    </a>
+                    <a href="https://raw.githubusercontent.com/aarushmagic/Linked-Lamp/refs/heads/main/Circuit/PCB%20(Gerber%20%2B%20Drill)%20Files/100mm%20Diameter%20-%20Hexagon/MagicLamp_100.0x86.60254mm_for_PCBWay.zip"
+                        class="download-btn" download>
+                        <span class="material-icons-round">download</span> PCBWay
+                    </a>
+                    <a href="https://raw.githubusercontent.com/aarushmagic/Linked-Lamp/refs/heads/main/Circuit/PCB%20(Gerber%20%2B%20Drill)%20Files/100mm%20Diameter%20-%20Hexagon/MagicLamp_100.0x86.60254mm_for_Elecrow.zip"
+                        class="download-btn" download>
+                        <span class="material-icons-round">download</span> Elecrow
+                    </a>
+                    <a href="https://raw.githubusercontent.com/aarushmagic/Linked-Lamp/refs/heads/main/Circuit/PCB%20(Gerber%20%2B%20Drill)%20Files/100mm%20Diameter%20-%20Hexagon/MagicLamp_100.0x86.60254mm_for_FusionPCB.zip"
+                        class="download-btn" download>
+                        <span class="material-icons-round">download</span> FusionPCB
+                    </a>
+                    <a href="https://raw.githubusercontent.com/aarushmagic/Linked-Lamp/refs/heads/main/Circuit/PCB%20(Gerber%20%2B%20Drill)%20Files/100mm%20Diameter%20-%20Hexagon/MagicLamp_100.0x86.60254mm_for_Default.zip"
+                        class="download-btn" download>
+                        <span class="material-icons-round">download</span> Default (Generic)
+                    </a>
+                </div>
+
+                <h3>Schematic</h3>
+                <div class="download-grid">
+                    <a href="https://raw.githubusercontent.com/aarushmagic/Linked-Lamp/refs/heads/main/Circuit/Schematics/PCB%20100mm%20Schematic.svg"
+                        class="download-btn" target="_blank">
+                        <span class="material-icons-round">schema</span> View 100mm Schematic
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== NEOPIXEL PARTS (single merged section) ===== -->
+        <div id="neoParts" style="display: none;">
+            <div class="parts-section">
+                <h2><span class="material-icons-round" style="color: #2ed573;">blur_circular</span> NeoPixel Parts List</h2>
+                <ul class="parts-list">
+                    <li>
+                        <span class="qty">1×</span>
+                        <div>
+                            <span class="part-name">ESP32 ESP-WROOM-32 V1 Dev Board w/ USB-C</span>
+                            <span class="info-icon" onclick="showPinout()" title="View pinout requirements">i</span>
+                            <br>Make sure the pinout matches the required layout.
+                        </div>
+                    </li>
+                    <li>
+                        <span class="qty">1×</span>
+                        <div>
+                            <span class="part-name">WS2812B NeoPixel Ring</span>
+                            <br>Up to 24 LEDs, 66mm outer diameter.
+                        </div>
+                    </li>
+                    <li>
+                        <span class="qty">1×</span>
+                        <div><span class="part-name">TTP223 Capacitive Touch Sensor Module</span></div>
+                    </li>
+                    <li>
+                        <span class="qty">1×</span>
+                        <div><span class="part-name">3-Pin Male Header Pins</span></div>
+                    </li>
+                    <li>
+                        <span class="qty">4×</span>
+                        <div><span class="part-name">M3 Screws</span></div>
+                    </li>
+                    <li>
+                        <span class="qty">1×</span>
+                        <div><span class="part-name">USB-C Cable</span><br>To power the ESP32.</div>
+                    </li>
+                    <li>
+                        <span class="qty">—</span>
+                        <div><span class="part-name">Wires</span><br>For connecting the NeoPixel ring and TTP223 to the
+                            ESP32.</div>
+                    </li>
+                    <li>
+                        <span class="qty">—</span>
+                        <div><span class="part-name">Heat Shrink Tubing</span><br>Optional but recommended for insulating
+                            solder joints.</div>
+                    </li>
+                    <li>
+                        <span class="qty">—</span>
+                        <div><span class="part-name">Basic Soldering Tools</span><br>Soldering iron, solder, etc.</div>
+                    </li>
+                </ul>
+
+                <h3>3D Printed Files</h3>
+                <p style="color: var(--text-dim); font-size: 0.9rem; margin-bottom: 0.6rem;">Print the Base in a solid
+                    color and the Diffuser in White PLA/PETG for good light diffusion.</p>
+                <div class="download-grid">
+                    <a href="https://raw.githubusercontent.com/aarushmagic/Linked-Lamp/refs/heads/main/3D%20Models/Neopixel%20Lamp%20-%2067mm%20Ring/Neopixel%20Lamp%20-%20Base%20(M3).step"
+                        class="download-btn" download>
+                        <span class="material-icons-round">download</span> Base (M3)
+                    </a>
+                    <a href="https://raw.githubusercontent.com/aarushmagic/Linked-Lamp/refs/heads/main/3D%20Models/Neopixel%20Lamp%20-%2067mm%20Ring/Neopixel%20Lamp%20-%203in%20Diffuser.step"
+                        class="download-btn" download>
+                        <span class="material-icons-round">download</span> Diffuser
+                    </a>
+                </div>
+
+                <h3>Schematic</h3>
+                <div class="download-grid">
+                    <a href="https://raw.githubusercontent.com/aarushmagic/Linked-Lamp/refs/heads/main/Circuit/Schematics/Neopixel%20Lamp%20Schematic.svg"
+                        class="download-btn" target="_blank">
+                        <span class="material-icons-round">schema</span> View NeoPixel Schematic
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="page-nav">
+            <a href="setup.html" class="btn outline-btn">← Back to Overview</a>
+            <a href="#" class="btn primary-btn" id="nextBtn" onclick="goToAssembly()">Next: Assembly →</a>
+        </div>
+    </div>
+
+    <!-- ESP32 Pinout Tooltip -->
+    <div class="info-backdrop" id="pinoutBackdrop" onclick="hidePinout()"></div>
+    <div class="info-tooltip" id="pinoutTooltip">
+        <button class="close-tooltip" onclick="hidePinout()">×</button>
+        <img src="images/ESP32-DevKit-Pinout-Diagram.png" alt="ESP32 Pinout Diagram">
+        <p>Your ESP32 board's pinout must match this diagram. Make sure it has <strong>30 pins (15 per side)</strong>
+            with VIN and GND in the correct positions. The USB connector should be USB-C.</p>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-content max-w">
+            <div class="footer-brand">
+                <img src="images/logo.png" alt="Linked Lamp"
+                    style="height: 24px; width: 24px; object-fit: contain;"> Linked Lamp
+            </div>
+            <p>&copy; 2026 Aarush Magic. An Open Source Project.</p>
+            <div class="footer-links">
+                <a href="privacy.html">Privacy</a>
+                <a href="terms.html">Terms</a>
+                <a href="https://github.com/aarushmagic/Linked-Lamp">GitHub Repository</a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        let currentHW = 'pcb';
+
+        function selectHW(type) {
+            currentHW = type;
+            document.getElementById('btnPCB').classList.toggle('active', type === 'pcb');
+            document.getElementById('btnNeo').classList.toggle('active', type === 'neopixel');
+            document.getElementById('pcbParts').style.display = type === 'pcb' ? 'block' : 'none';
+            document.getElementById('neoParts').style.display = type === 'neopixel' ? 'block' : 'none';
+        }
+
+        function goToAssembly() {
+            window.location.href = 'setup-assembly.html?hw=' + currentHW;
+        }
+
+        function showPinout() {
+            document.getElementById('pinoutBackdrop').classList.add('show');
+            document.getElementById('pinoutTooltip').classList.add('show');
+        }
+
+        function hidePinout() {
+            document.getElementById('pinoutBackdrop').classList.remove('show');
+            document.getElementById('pinoutTooltip').classList.remove('show');
+        }
+
+        // Hamburger menu
+        const hamburgerBtn = document.getElementById('hamburgerBtn');
+        const mobileNav = document.getElementById('mobileNav');
+        hamburgerBtn.addEventListener('click', () => {
+            hamburgerBtn.classList.toggle('active');
+            mobileNav.classList.toggle('open');
+            document.body.style.overflow = mobileNav.classList.contains('open') ? 'hidden' : '';
+        });
+        mobileNav.querySelectorAll('a').forEach(link => {
+            link.addEventListener('click', () => {
+                hamburgerBtn.classList.remove('active');
+                mobileNav.classList.remove('open');
+                document.body.style.overflow = '';
+            });
+        });
+    </script>
+</body>
+
+</html>

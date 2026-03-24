@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="index" />
+    <title>Linked Lamp | Assembly Guide</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <link rel="stylesheet" href="landing.css">
+    <link rel="icon" type="image/png" href="images/logo.png">
+    <style>
+        .assembly-container {
+            max-width: 850px;
+            margin: 14vh auto 6vh;
+        }
+
+        .assembly-container h1 {
+            font-size: 2.8rem;
+            margin-bottom: 0.8rem;
+            text-align: center;
+        }
+
+        .assembly-container .subtitle {
+            color: var(--text-dim);
+            font-size: 1.05rem;
+            text-align: center;
+            max-width: 650px;
+            margin: 0 auto 2.5rem;
+            line-height: 1.7;
+        }
+
+        /* Toggle */
+        .hw-toggle {
+            display: flex;
+            justify-content: center;
+            gap: 0;
+            margin-bottom: 2.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 5px;
+            max-width: 400px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .hw-toggle button {
+            flex: 1;
+            padding: 12px 20px;
+            border: none;
+            background: transparent;
+            color: var(--text-dim);
+            font-family: var(--font);
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .hw-toggle button.active {
+            background: var(--accent);
+            color: white;
+            box-shadow: 0 4px 15px rgba(107, 76, 255, 0.3);
+        }
+
+        /* Assembly section */
+        .assembly-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 2rem 2.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .assembly-section h2 {
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .assembly-section h2 .material-icons-round {
+            font-size: 1.5rem;
+        }
+
+        /* Step list — outer numbered steps */
+        .step-list {
+            counter-reset: step-counter;
+            list-style: none;
+            padding: 0;
+        }
+
+        .step-list > li {
+            counter-increment: step-counter;
+            position: relative;
+            padding: 16px 0 16px 52px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-dim);
+            line-height: 1.7;
+        }
+
+        .step-list > li:last-child {
+            border-bottom: none;
+        }
+
+        .step-list > li::before {
+            content: counter(step-counter);
+            position: absolute;
+            left: 0;
+            top: 18px;
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background: rgba(107, 76, 255, 0.15);
+            color: var(--accent);
+            font-weight: 700;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .step-list > li strong {
+            color: white;
+        }
+
+        /* Inner bullet lists — distinct from outer numbering */
+        .step-list .sub-list {
+            list-style: disc;
+            margin: 8px 0 0 20px;
+            padding: 0;
+        }
+
+        .step-list .sub-list li {
+            padding: 3px 0;
+            line-height: 1.8;
+            border-bottom: none;
+        }
+
+        .step-list .sub-list li::before {
+            display: none;
+        }
+
+        /* Warning/tip boxes */
+        .tip-box {
+            background: rgba(46, 213, 115, 0.08);
+            border-left: 3px solid #2ed573;
+            padding: 12px 16px;
+            border-radius: 0 8px 8px 0;
+            margin: 10px 0;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        .tip-box strong {
+            color: #2ed573;
+        }
+
+        .warning-box {
+            background: rgba(255, 165, 2, 0.08);
+            border-left: 3px solid #ffa502;
+            padding: 12px 16px;
+            border-radius: 0 8px 8px 0;
+            margin: 10px 0;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        .warning-box strong {
+            color: #ffa502;
+        }
+
+        /* Schematic embed */
+        .schematic-container {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 16px 0;
+            text-align: center;
+        }
+
+        .schematic-container img {
+            max-width: 100%;
+            max-height: 400px;
+        }
+
+        /* Info popup */
+        .info-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: rgba(107, 76, 255, 0.2);
+            color: var(--accent);
+            font-size: 0.75rem;
+            font-weight: 700;
+            font-style: italic;
+            cursor: help;
+            flex-shrink: 0;
+            margin-left: 4px;
+            vertical-align: middle;
+        }
+
+        .info-tooltip {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(10, 12, 20, 0.97);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+            z-index: 2000;
+            max-width: 500px;
+            width: 90vw;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+            text-align: center;
+        }
+
+        .info-tooltip.show { display: block; }
+
+        .info-tooltip img {
+            max-width: 100%;
+            border-radius: 10px;
+            margin-bottom: 12px;
+        }
+
+        .info-tooltip p {
+            color: var(--text-dim);
+            font-size: 0.9rem;
+            line-height: 1.5;
+            margin: 0;
+        }
+
+        .info-tooltip .close-tooltip {
+            position: absolute;
+            top: 10px;
+            right: 14px;
+            background: none;
+            border: none;
+            color: var(--text-dim);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        .info-backdrop {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 1999;
+        }
+
+        .info-backdrop.show { display: block; }
+
+        /* Nav buttons */
+        .page-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--border);
+        }
+
+        @media (max-width: 768px) {
+            .assembly-container h1 { font-size: 2rem; }
+            .assembly-section { padding: 1.5rem; }
+            .step-list > li { padding-left: 44px; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <nav class="navbar scrolled">
+        <div class="nav-content max-w">
+            <div class="logo">
+                <a href="index.html" style="color:inherit; text-decoration:none; display:flex; align-items:center; gap:10px;">
+                    <img src="images/logo.png" alt="Linked Lamp" style="height: 28px; width: 28px; object-fit: contain;">
+                    <span class="logo-text">Linked Lamp</span>
+                </a>
+            </div>
+            <div class="nav-links">
+                <a href="index.html#features">Features</a>
+                <a href="faq.html">FAQ</a>
+                <a href="setup.html" class="nav-btn primary">Setup Guide</a>
+            </div>
+            <button class="hamburger-btn" id="hamburgerBtn" aria-label="Menu"><span></span><span></span><span></span></button>
+        </div>
+    </nav>
+
+    <div class="mobile-nav-overlay" id="mobileNav">
+        <div class="mobile-nav-links">
+            <a href="index.html#features">Features</a>
+            <a href="faq.html">FAQ</a>
+            <a href="setup.html">Setup Guide</a>
+        </div>
+    </div>
+
+    <div class="assembly-container max-w">
+        <h1>Step 2: Assembly</h1>
+        <p class="subtitle">Follow the instructions below to solder, wire, and assemble your Linked Lamp. Remember to build <strong>two lamps</strong>.</p>
+
+        <div class="hw-toggle">
+            <button id="btnPCB" class="active" onclick="selectHW('pcb')">🔧 PCB</button>
+            <button id="btnNeo" onclick="selectHW('neopixel')">💡 NeoPixel</button>
+        </div>
+
+        <!-- ===== PCB ASSEMBLY ===== -->
+        <div id="pcbAssembly">
+            <div class="assembly-section">
+                <h2><span class="material-icons-round" style="color: #ff6b81;">developer_board</span> PCB Assembly</h2>
+
+                <ol class="step-list">
+                    <li>
+                        <strong>Verify your ESP32 pinout.</strong> Before soldering anything, double-check that your
+                        ESP32 dev board's pin layout matches the required diagram.
+                        <span class="info-icon" onclick="showPinout()" title="View pinout">i</span>
+                        <div class="warning-box">
+                            <strong>Important:</strong> The ESP32 is soldered onto the <strong>back</strong> of the PCB (the side without the LED silkscreen labels).
+                        </div>
+                    </li>
+
+                    <li>
+                        <strong>Solder all components onto the PCB.</strong> Everything is labeled on the PCB silkscreen — resistors, transistors, and LED positions.
+                        <div class="warning-box">
+                            <strong>LED orientation note:</strong> On 3 of the RGB LED slots, the common anode pin is the <strong>2nd pin from the left</strong>. On the other 3 slots, it is the <strong>2nd pin from the right</strong>. Check the PCB silkscreen markings carefully.
+                        </div>
+                    </li>
+
+                    <li>
+                        <strong>Solder the 90° header pins</strong> onto the <strong>reverse side</strong> of the PCB (same side as the ESP32). These will be used to connect the TTP223 touch sensor.
+                    </li>
+
+                    <li>
+                        <strong>Attach the TTP223 touch sensor.</strong> Solder it onto the 90° header pins so that:
+                        <ul class="sub-list">
+                            <li>The edges of the PCB and touch sensor line up</li>
+                            <li>The touch-sensitive side faces <strong>outwards</strong> (away from the PCB)</li>
+                            <li>It doesn't stick out from under or above the PCB</li>
+                        </ul>
+                        <div class="tip-box">
+                            <strong>Tip:</strong> After soldering, use wire cutters to cut the excess header pins flush with the TTP223's surface for a clean fit.
+                        </div>
+                    </li>
+
+                    <li>
+                        <strong>Insert the PCB into the 3D-printed base.</strong> Ensure the LEDs face upward. Align:
+                        <ul class="sub-list">
+                            <li>The ESP32's USB-C port with the dedicated hole in the base</li>
+                            <li>The TTP223 sensor with its dedicated slot</li>
+                            <li>The 4 M3 screw holes</li>
+                        </ul>
+                    </li>
+
+                    <li>
+                        <strong>Screw in the 4 M3 screws.</strong> The holes are self-tapping — no nuts needed.
+                    </li>
+
+                    <li>
+                        <strong>Attach the diffuser.</strong> Place the top diffuser over the base and apply a small amount of super glue to hold it in place.
+                    </li>
+                </ol>
+            </div>
+        </div>
+
+        <!-- ===== NEOPIXEL ASSEMBLY ===== -->
+        <div id="neoAssembly" style="display: none;">
+            <div class="assembly-section">
+                <h2><span class="material-icons-round" style="color: #2ed573;">blur_circular</span> NeoPixel Assembly</h2>
+
+                <p style="color: var(--text-dim); margin-bottom: 16px;">Reference the NeoPixel schematic while wiring:</p>
+
+                <div class="schematic-container">
+                    <img src="https://raw.githubusercontent.com/aarushmagic/Linked-Lamp/refs/heads/main/Circuit/Schematics/Neopixel%20Lamp%20Schematic.svg" alt="NeoPixel Wiring Schematic">
+                </div>
+
+                <ol class="step-list">
+                    <li>
+                        <strong>Wire the NeoPixel ring to the ESP32.</strong> Following the schematic:
+                        <ul class="sub-list">
+                            <li><strong>VIN</strong> (ESP32) → <strong>VIN</strong> (NeoPixel Ring)</li>
+                            <li><strong>GND</strong> (ESP32) → <strong>GND</strong> (NeoPixel Ring)</li>
+                            <li><strong>D27 / GPIO 27</strong> (ESP32) → <strong>DATA</strong> (NeoPixel Ring)</li>
+                        </ul>
+                    </li>
+
+                    <li>
+                        <strong>Wire the TTP223 touch sensor to the ESP32.</strong>
+                        <ul class="sub-list">
+                            <li><strong>3V3</strong> (ESP32) → <strong>VIN</strong> (TTP223)</li>
+                            <li><strong>GND</strong> (ESP32) → <strong>GND</strong> (TTP223)</li>
+                            <li><strong>D4 / GPIO 4</strong> (ESP32) → <strong>IO</strong> (TTP223)</li>
+                        </ul>
+                        <div class="tip-box">
+                            <strong>Tip:</strong> It's easier to solder header pins to the TTP223 first, then cut them flush with the surface of the TTP223, and then solder the wires onto the header pins.
+                        </div>
+                    </li>
+
+                    <li>
+                        <strong>Use heat shrink tubing</strong> (optional but recommended) to insulate all solder joints and prevent shorts.
+                    </li>
+
+                    <li>
+                        <strong>Place the ESP32 into the 3D-printed case.</strong> Align:
+                        <ul class="sub-list">
+                            <li>The 4 holes on the ESP32 board with the 4 self-tapping M3 screw holes</li>
+                            <li>The USB-C port with the dedicated hole in the case</li>
+                        </ul>
+                        Screw it down with the 4 M3 screws.
+                    </li>
+
+                    <li>
+                        <strong>Insert the TTP223 sensor</strong> into its dedicated slot in the base.
+                        <div class="tip-box">
+                            <strong>Tip:</strong> If the sensor doesn't stay in place, use a small amount of hot glue, double-sided tape, or electrical tape to keep it secure.
+                        </div>
+                    </li>
+
+                    <li>
+                        <strong>Place the NeoPixel ring</strong> on top of the ESP32 in its dedicated space. Super glue it to the base if needed.
+                    </li>
+
+                    <li>
+                        <strong>Attach the diffuser.</strong> Place the top diffuser over the base and apply a small amount of super glue to hold it in place.
+                    </li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="page-nav">
+            <a href="setup-parts.html" class="btn outline-btn">← Back to Parts</a>
+            <a href="setup-software.html" class="btn primary-btn">Next: Software →</a>
+        </div>
+    </div>
+
+    <!-- ESP32 Pinout Tooltip -->
+    <div class="info-backdrop" id="pinoutBackdrop" onclick="hidePinout()"></div>
+    <div class="info-tooltip" id="pinoutTooltip">
+        <button class="close-tooltip" onclick="hidePinout()">×</button>
+        <img src="images/ESP32-DevKit-Pinout-Diagram.png" alt="ESP32 Pinout Diagram">
+        <p>Your ESP32 board's pinout must match this diagram. Make sure it has <strong>30 pins (15 per side)</strong> with VIN and GND in the correct positions.</p>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-content max-w">
+            <div class="footer-brand">
+                <img src="images/logo.png" alt="Linked Lamp" style="height: 24px; width: 24px; object-fit: contain;"> Linked Lamp
+            </div>
+            <p>&copy; 2026 Aarush Magic. An Open Source Project.</p>
+            <div class="footer-links">
+                <a href="privacy.html">Privacy</a>
+                <a href="terms.html">Terms</a>
+                <a href="https://github.com/aarushmagic/Linked-Lamp">GitHub Repository</a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Read hw param from URL
+        const params = new URLSearchParams(window.location.search);
+        const hwParam = params.get('hw');
+
+        function selectHW(type) {
+            document.getElementById('btnPCB').classList.toggle('active', type === 'pcb');
+            document.getElementById('btnNeo').classList.toggle('active', type === 'neopixel');
+            document.getElementById('pcbAssembly').style.display = type === 'pcb' ? 'block' : 'none';
+            document.getElementById('neoAssembly').style.display = type === 'neopixel' ? 'block' : 'none';
+        }
+
+        // Auto-select based on URL param
+        if (hwParam === 'neopixel') {
+            selectHW('neopixel');
+        }
+
+        function showPinout() {
+            document.getElementById('pinoutBackdrop').classList.add('show');
+            document.getElementById('pinoutTooltip').classList.add('show');
+        }
+
+        function hidePinout() {
+            document.getElementById('pinoutBackdrop').classList.remove('show');
+            document.getElementById('pinoutTooltip').classList.remove('show');
+        }
+
+        // Hamburger menu
+        const hamburgerBtn = document.getElementById('hamburgerBtn');
+        const mobileNav = document.getElementById('mobileNav');
+        hamburgerBtn.addEventListener('click', () => {
+            hamburgerBtn.classList.toggle('active');
+            mobileNav.classList.toggle('open');
+            document.body.style.overflow = mobileNav.classList.contains('open') ? 'hidden' : '';
+        });
+        mobileNav.querySelectorAll('a').forEach(link => {
+            link.addEventListener('click', () => {
+                hamburgerBtn.classList.remove('active');
+                mobileNav.classList.remove('open');
+                document.body.style.overflow = '';
+            });
+        });
+    </script>
+</body>
+
+</html>

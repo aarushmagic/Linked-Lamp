@@ -76,8 +76,8 @@ body {
     position: fixed;
     top: 0;
     width: 100%;
-    padding: 1.5rem 0;
-    z-index: 100;
+    padding: 18px 0;
+    z-index: 1002;
     transition: var(--transition);
 }
 
@@ -492,6 +492,90 @@ footer {
     color: white;
 }
 
+/* ---- Global overflow fix ---- */
+html {
+    overflow-x: hidden;
+}
+
+/* ---- Hamburger Button ---- */
+.hamburger-btn {
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    gap: 5px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    z-index: 1001;
+}
+
+.hamburger-btn span {
+    display: block;
+    width: 24px;
+    height: 2px;
+    background: var(--text);
+    border-radius: 2px;
+    transition: all 0.3s ease;
+}
+
+.hamburger-btn.active span:nth-child(1) {
+    transform: rotate(45deg) translate(5px, 5px);
+}
+
+.hamburger-btn.active span:nth-child(2) {
+    opacity: 0;
+}
+
+.hamburger-btn.active span:nth-child(3) {
+    transform: rotate(-45deg) translate(5px, -5px);
+}
+
+/* ---- Mobile Nav Overlay ---- */
+.mobile-nav-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(7, 9, 17, 0.95);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    z-index: 1000;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+}
+
+.mobile-nav-overlay.open {
+    opacity: 1;
+    pointer-events: all;
+}
+
+.mobile-nav-links {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 28px;
+}
+
+.mobile-nav-links a {
+    color: var(--text-dim);
+    text-decoration: none;
+    font-size: 1.3rem;
+    font-weight: 500;
+    transition: color 0.3s ease;
+}
+
+.mobile-nav-links a:hover {
+    color: var(--text);
+}
+
+
+
 /* Mobile Responsiveness */
 @media (max-width: 768px) {
     .hero {
@@ -508,12 +592,18 @@ footer {
         display: none;
     }
 
-    /* Could add hamburger menu later, hiding for simplicity now */
-    .visual-card {
+    .hamburger-btn {
+        display: flex;
+    }
+
+    .mobile-nav-overlay {
+        display: block;
+    }
+
+    .hero-visual {
         display: none;
     }
 
-    /* Hide the animated lamp visual on mobile */
     .footer-content {
         flex-direction: column;
         text-align: center;
@@ -522,5 +612,23 @@ footer {
     .feature-grid {
         display: flex;
         flex-direction: column;
+    }
+
+    /* Constrain ambient glows on mobile */
+    .ambient-glow {
+        max-width: 100vw;
+        overflow: hidden;
+    }
+
+    .glow-1 {
+        right: 0;
+        width: 300px;
+        height: 300px;
+    }
+
+    .glow-2 {
+        left: 0;
+        width: 250px;
+        height: 250px;
     }
 }
