@@ -1,67 +1,69 @@
-# Linked Lamp 💡
+<p align="center">
+  <img src="docs/images/logo.png" alt="Linked Lamp" width="80">
+</p>
 
-An open-source Wi-Fi connected **Friendship Lamp**. Tap your lamp to let someone know you're thinking of them — their lamp lights up in your chosen color.
+<h1 align="center">Linked Lamp</h1>
+
+<p align="center">
+  An open-source Wi-Fi connected <strong>Friendship Lamp</strong>.<br>
+  Tap your lamp to let someone know you're thinking of them — their lamp lights up in your chosen color, anywhere in the world.
+</p>
+
+<p align="center">
+  <a href="https://linkedlamp.com">Website</a> · <a href="https://linkedlamp.com/setup.html">Setup Guide</a> · <a href="https://linkedlamp.com/faq.html">FAQ</a>
+</p>
+
+---
 
 ## ✨ Features
 
-- **Touch Gestures**: Tap to send, double-tap to turn off, hold to pick a new color
-- **Breathing Glow**: 20-second pulsing animation when a signal arrives, then steady light
-- **Customizable**: Set your default color, lamp-on duration (1–30 min), and max brightness
-- **Nighttime Mode**: Schedule quiet hours with reduced brightness or lamp fully off
-- **Web App**: Send signals, manage presets, and adjust settings from your phone
-- **Preset Signals**: Quick-send "I Love You", "I Miss You", or custom messages
-- **OTA Updates**: Firmware updates pushed wirelessly with automatic rollback protection
+- **Touch Gestures** — Tap to send, double-tap to turn off, hold to pick a new color
+- **Breathing Glow** — 20-second pulsing animation when a signal arrives, then steady light
+- **Customizable** — Set your default color, lamp-on duration (1–30 min), and max brightness
+- **Nighttime Mode** — Schedule quiet hours with reduced brightness or lamp fully off
+- **Web App** — Send signals, manage presets, and adjust settings from your phone
+- **Preset Signals** — Quick-send "I Love You", "I Miss You", or custom messages
+- **OTA Updates** — Firmware updates pushed wirelessly with automatic rollback protection
 
-## 🔧 Hardware Needed
+## 🔧 Hardware Options
 
-| Component | Details |
-|---|---|
-| ESP32-WROOM Dev Board | USB-C powered |
-| TTP223 Touch Sensor | Capacitive, Active HIGH |
-| **Option A (Custom PCB):** | |
-| 7× RGB LEDs | Common Anode, wired in parallel |
-| 3× 2N2222 NPN Transistors | + 330Ω base resistors each |
-| **Option B (NeoPixel):** | |
-| 16-LED WS2812B Ring | 5V Individually Addressable |
+You'll need an **ESP32-WROOM** dev board, a **TTP223** touch sensor, and a 3D-printed enclosure. Then choose one of two lighting methods:
+
+| | PCB | NeoPixel |
+|---|---|---|
+| **Light Source** | 6× Common Anode RGB LEDs on a custom PCB | WS2812B NeoPixel Ring (up to 24 LEDs, 66mm) |
+| **Soldering** | Through-hole components onto PCB | 3 wires to the ESP32 |
+| **Brightness** | Standard | Slightly brighter |
+
+Both options produce nearly identical lamps. Any Linked Lamp can connect to any other Linked Lamp regardless of which method was used.
 
 ### Wiring
 
 | Signal | GPIO |
 |---|---|
-| Touch Sensor | 4 |
-| **Option A (PCB)** | |
-| Red LED Channel | 13 |
-| Green LED Channel | 14 |
-| Blue LED Channel | 27 |
-| **Option B (NeoPixel)** | |
-| Data IN (Din) | 27 |
+| Touch Sensor (TTP223 IO) | 4 |
+| **PCB** — Red / Green / Blue channels | 13 / 14 / 27 |
+| **NeoPixel** — Data IN | 27 |
 
-Schematic and PCB files are in `Circuit/`. 3D printable enclosure files are in `3D Models/`. Both hardware options fit in the same 3D printed shell.
+Schematics and PCB Gerber files are in `Circuit/`. 3D-printable enclosure files are in `3D Models/`.
 
 ## 🚀 Setup
 
-### Easy Way: Browser-Based Setup Wizard
+### Browser-Based Setup (Recommended)
 
-If you just want to build and use the lamp without modifying the code:
+The [Setup Guide](https://linkedlamp.com/setup.html) walks you through the entire process:
 
-1. Go to the [Setup Wizard](https://aarushmagic.github.io/Linked-Lamp/setup.html) in **Google Chrome** or **Microsoft Edge**
-2. Enter your HiveMQ credentials and names
-3. Connect each ESP32 via USB and click **Flash** — the wizard handles everything
+1. **Parts** — Choose PCB or NeoPixel, download 3D files, and gather components
+2. **Assembly** — Solder, wire, and assemble the lamp (takes less than 30 minutes)
+3. **Software** — Flash firmware from your browser (Chrome/Edge) or via PlatformIO
 
-### Advanced Way: PlatformIO (for developers who want to customize)
+### PlatformIO (Advanced)
 
-If you want to modify the firmware, use a different MQTT provider, or have full control:
+For developers who want to modify the firmware or use a custom MQTT broker:
 
-#### What You Need
-
-- [VS Code](https://code.visualstudio.com/) with [PlatformIO](https://platformio.org/) extension installed
-- An MQTT broker account (e.g., free [HiveMQ Cloud](https://www.hivemq.com/mqtt-cloud-broker/))
-
-#### Step 1: Configure Your Lamp
-
-1. Choose your firmware directory based on your hardware: `firmware/pcb/` or `firmware/neopixel/`
-2. In the `data/` folder of that directory, copy `config.example.json` and rename it to `config.json`
-3. Open `config.json` and fill in your details:
+1. Install [VS Code](https://code.visualstudio.com/) + [PlatformIO](https://platformio.org/)
+2. Open `firmware/pcb/` or `firmware/neopixel/` depending on your hardware
+3. Copy `data/config.example.json` → `data/config.json` and fill in your details:
    ```json
    {
      "device_id": "A",
@@ -72,42 +74,18 @@ If you want to modify the firmware, use a different MQTT provider, or have full 
      "ota_url": "https://www.linkedlamp.com"
    }
    ```
-   - Set `device_id` to `"A"` for the first lamp and `"B"` for the second
-   - Use the same broker/credentials for both lamps
-   - Don't edit `ota_url` unless you have a custom domain and want to make personal changes to the firmware
-      - If you do choose to do this, you would also have to update the `triggerUpdate()` function in `docs/script.js`
+   Set `device_id` to `"A"` for the first lamp and `"B"` for the second. Use the same broker credentials for both.
+4. **Upload Filesystem Image** (PlatformIO sidebar → esp32dev → Platform) to push config
+5. **Upload** (→ arrow in the bottom bar) to flash firmware
+6. Repeat for the second lamp with `device_id` set to `"B"`
 
-#### Step 2: Flash the Firmware & Config
+### First Boot
 
-1. Open the project folder (`firmware/pcb/` OR `firmware/neopixel/`) in VS Code with PlatformIO.
-2. **Flash the Config (LittleFS)**:
-   - In the PlatformIO sidebar (Alien icon), go to **Project Tasks → esp32dev → Platform**.
-   - Click **Build Filesystem Image** and wait for SUCCESS.
-   - Click **Upload Filesystem Image** and wait for SUCCESS. *(This pushes your `config.json` info to the lamp's internal storage).*
-3. **Flash the Code**:
-   - Now, click the regular **Upload** button (the `→` arrow icon on the bottom blue bar) to flash the main `main.cpp` codebase.
-4. Repeat for the second lamp (making sure to change `device_id` to `"B"` in your `config.json` before flashing its filesystem image!)
+On first power-up, the lamp creates a Wi-Fi network called **"Linked Lamp Setup"**. Connect from your phone, select your home network, and enter the password. The lamp will remember it across restarts.
 
-### Step 3: Connect to WiFi
+### Web App
 
-On first power-up, each lamp creates a WiFi network called **"Linked Lamp Setup"**. Connect to it from your phone, select your home WiFi network, and enter the password. The lamp will remember this across restarts.
-
-### Step 4: Open the Web App
-
-The web app is already hosted. Open this URL on your phone (bookmark it!):
-
-```
-https://linkedlamp.com/my/?s=BROKER_URL&u=USERNAME&p=PASSWORD&id=A&name=Sarah
-```
-
-Replace the values:
-- `s` = your MQTT broker URL
-- `u` = MQTT username  
-- `p` = MQTT password
-- `id` = `A` or `B` (must match the lamp's `device_id`)
-- `name` = the **other** person's name (this appears as "Sarah's Lamp" in the app)
-
-After the first visit, credentials are saved — you can just open the page normally.
+The Setup Guide generates personalized Web App URLs for each lamp. Bookmark and share them — all credentials are saved after the first visit.
 
 ## 📱 How to Use
 
@@ -118,16 +96,14 @@ After the first visit, credentials are saved — you can just open the page norm
 | **Triple Tap** | Resets WiFi settings (only works when lamp is off) |
 | **Hold 1.5s+** | Cycles through colors — lift your finger to pick one |
 
-## 🔄 Pushing Firmware Updates (For Maintainers)
+## 🔄 OTA Updates (For Maintainers)
 
-After making code changes, you can push OTA updates to all lamps without plugging them in:
+1. Compile in PlatformIO — binary outputs to `firmware/[type]/.pio/build/esp32dev/firmware.bin`
+2. Run `python docs/flash/build_template.py` to copy binaries
+3. Commit and push to GitHub — GitHub Pages hosts the update files
+4. Lamps check for updates every 7 days, or users can tap "Check for Update" in the web app
 
-1. Compile in PlatformIO — the binary is at `firmware/[type]/.pio/build/esp32dev/firmware.bin`
-2. Run the build helper: `python docs/flash/build_template.py` (this automatically copies both `firmware.bin` and `firmware-neo.bin`).
-3. Commit and push these binaries and the `littlefs_template.bin` to GitHub — GitHub Pages will host them.
-4. The ESP32 auto-checks for updates every 7 days, or users can tap "Check for Update" in the web app. The web app automatically detects the lamp's hardware type from MQTT and downloads the correct .bin file.
-
-The ESP32 downloads the binary, flashes it, and reboots. If the new firmware crashes before reaching `setup()`, it automatically rolls back to the previous working version.
+The ESP32 automatically rolls back if new firmware crashes before reaching `setup()`.
 
 ## 📜 License
 

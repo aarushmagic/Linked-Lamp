@@ -118,48 +118,42 @@
 
     <section class="faq-container max-w">
 
-        <button class="accordion">What parts do I need to make this? <span
+        <button class="accordion">What do I need to build a Linked Lamp? <span
                 class="material-icons-round icon">expand_more</span></button>
         <div class="panel">
             <p style="padding: 15px 0;">
-                You'll need a few common components for each lamp:
+                Each lamp needs an <strong>ESP32 dev board</strong>, a <strong>TTP223 touch sensor</strong>,
+                a <strong>3D-printed enclosure</strong> (files provided), and a USB-C cable for power.
                 <br><br>
-                1. An ESP32 development board (the brain).<br>
-                2. A TTP223 capacitive touch sensor module.<br>
-                3. A 3D-printed enclosure (STLs provided).<br>
-                4. Some wire and a 5V USB power supply.<br><br>
-                Then you have two choices for the lights:<br>
-                <strong>Option A:</strong> The custom Linked Lamp PCB + Through-hole RGB Common Anode LEDs.<br>
-                <strong>Option B:</strong> A 16-LED WS2812B NeoPixel Ring.<br><br>
-                Because everything is open-source, you can source these parts yourself for just a few dollars each!
+                For the lights, you choose one of two options:<br>
+                <strong>PCB:</strong> A custom 100mm PCB with through-hole RGB LEDs, transistors, and resistors.<br>
+                <strong>NeoPixel:</strong> A WS2812B ring (up to 24 LEDs, 66mm) — just 3 wires to the ESP32.<br><br>
+                Both options produce nearly identical lamps. The full parts list with download links is in the
+                <a href="setup-parts.html" style="color:var(--accent);">Setup Guide</a>.
             </p>
         </div>
 
-        <button class="accordion">Can I use a NeoPixel ring instead of the custom PCB? <span
+        <button class="accordion">Can I mix PCB and NeoPixel lamps? <span
                 class="material-icons-round icon">expand_more</span></button>
         <div class="panel">
             <p style="padding: 15px 0;">
-                Absolutely! We added support for WS2812B individually addressable LED rings. A 16-LED ring is the
-                perfect size for the 3D printed shell. Just connect its Data In pin to GPIO 27 on the ESP32, and select
-                the "NeoPixel Ring" option during the setup wizard to flash the correct firmware.
+                Yes! Any Linked Lamp can connect to any other Linked Lamp, regardless of which lighting method was used.
+                One person can build a PCB version and the other can build a NeoPixel version — they'll work together perfectly.
             </p>
         </div>
 
-        <button class="accordion">I am flashing my code but the taps aren't working and it's not showing up on my
-            website? <span class="material-icons-round icon">expand_more</span></button>
+        <button class="accordion">My lamp isn't responding to taps or showing up in the web app <span
+                class="material-icons-round icon">expand_more</span></button>
         <div class="panel">
             <p style="padding: 15px 0;">
-                This almost always means the ESP32 doesn't have your <code>config.json</code> settings yet.
+                This usually means the ESP32 doesn't have your <code>config.json</code> settings yet.
                 <br><br>
-                If you used the <strong>one-click browser flash</strong> (Chrome/Edge), the config is sent automatically
-                after flashing — check the log output for a "✓ Done" confirmation. If it shows a warning, try
-                re-flashing.
+                <strong>Browser flash (Chrome/Edge):</strong> The config is sent automatically — check the
+                log output for a "✓ Done" confirmation. If it shows a warning, try re-flashing.
                 <br><br>
-                If you used <strong>PlatformIO manually</strong>, make sure you ran <strong>"Upload Filesystem
-                    Image"</strong>
+                <strong>PlatformIO:</strong> Make sure you ran <strong>"Upload Filesystem Image"</strong>
                 in addition to the regular Upload. This pushes your <code>data/config.json</code> into the ESP32's
-                storage.
-                Once that's done, restart the lamp and it will connect!
+                storage. Restart the lamp after uploading.
             </p>
         </div>
 
@@ -167,40 +161,31 @@
                 class="material-icons-round icon">expand_more</span></button>
         <div class="panel">
             <p style="padding: 15px 0;">
-                Because you are building and configuring your own lamp, updates are completely under your control via
-                OTA (Over-The-Air) updates.
-                <br><br>
-                If we release a new feature or bug fix on our GitHub, you can navigate to your personalized Web App
-                (`/my/` link), go to Settings, and tap "Check for Update". Your lamp will automatically download the
-                latest <code>firmware.bin</code> or <code>firmware-neo.bin</code> (depending on your hardware) from our
-                public repository and restart itself—no plugging back into a
-                computer required!
+                Updates are delivered over-the-air (OTA). Open your personalized Web App, go to Settings, and
+                tap "Check for Update". The lamp downloads the correct firmware from the public repository and
+                reboots itself — no computer needed.
             </p>
         </div>
 
-        <button class="accordion">I'm not tech-savvy... can I still make the lamp? <span
+        <button class="accordion">Do I need to be tech-savvy to build this? <span
                 class="material-icons-round icon">expand_more</span></button>
         <div class="panel">
             <p style="padding: 15px 0;">
-                Yes! If you use <strong>Google Chrome</strong> or <strong>Microsoft Edge</strong>, our <a
-                    href="setup.html" style="color:var(--accent);">Setup Wizard</a> flashes the firmware directly from
-                your browser in a few clicks — no coding, no VS Code, no command line.
+                Not particularly. If you use <strong>Google Chrome</strong> or <strong>Microsoft Edge</strong>,
+                the <a href="setup.html" style="color:var(--accent);">Setup Guide</a> flashes firmware directly
+                from your browser — no coding or command line needed. Each lamp takes less than 30 minutes to build.
                 <br><br>
-                For other browsers, you'll need to install VS Code with PlatformIO, but the
-                guide walks you through every step. If you can follow a recipe, you can build a Linked Lamp.
+                For other browsers, you'll need VS Code with PlatformIO, but the guide walks you through every step.
             </p>
         </div>
 
-        <button class="accordion">Do I have to pay for a HiveMQ account? <span
+        <button class="accordion">Do I have to pay for HiveMQ? <span
                 class="material-icons-round icon">expand_more</span></button>
         <div class="panel">
             <p style="padding: 15px 0;">
-                No! We use the free tier of HiveMQ, which is more than enough for personal projects.
-                <br><br>
-                However, HiveMQ is a proprietary service and is subject to change at any time.
-                <br><br>
-                If you are looking for a more permanent solution, you can host your own MQTT broker on a Raspberry Pi or
-                a VPS.
+                No — the free "Serverless Multi-tenant" tier is more than enough for a pair of lamps.
+                HiveMQ is a third-party service and could change their pricing in the future. If you want
+                full control, you can self-host an MQTT broker (e.g. Mosquitto on a Raspberry Pi).
             </p>
         </div>
 
@@ -208,10 +193,8 @@
                 class="material-icons-round icon">expand_more</span></button>
         <div class="panel">
             <p style="padding: 15px 0;">
-                The ESP32 microcontroller only supports <strong>2.4 GHz Wi-Fi networks</strong>. It will not connect to
-                a 5 GHz-only network. Fortunately, almost all modern routers dual-broadcast both 2.4 GHz and 5 GHz
-                bands, meaning as long as your router supports legacy devices, your Linked Lamp will connect perfectly
-                fine.
+                The ESP32 only supports <strong>2.4 GHz Wi-Fi</strong>. It won't connect to 5 GHz-only
+                networks. Most modern routers broadcast both bands, so this is rarely an issue.
             </p>
         </div>
 

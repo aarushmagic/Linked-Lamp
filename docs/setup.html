@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" href="images/logo.png">
     <style>
         .setup-overview {
-            max-width: 900px;
+            max-width: 750px;
             margin: 14vh auto 6vh;
             text-align: center;
         }
@@ -35,106 +35,80 @@
         }
 
         .steps-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
             margin-bottom: 4rem;
+            text-align: left;
         }
 
         .step-card {
             background: var(--bg-card);
             border: 1px solid var(--border);
             border-radius: var(--radius);
-            padding: 2.5rem 2rem;
-            text-align: center;
+            padding: 1.8rem 2rem;
             transition: all 0.3s ease;
             display: flex;
-            flex-direction: column;
             align-items: center;
+            gap: 20px;
+            text-decoration: none;
+            color: inherit;
         }
 
         .step-card:hover {
-            transform: translateY(-5px);
+            transform: translateY(-3px);
             border-color: rgba(255, 255, 255, 0.15);
         }
 
         .step-number {
-            width: 48px;
-            height: 48px;
+            width: 44px;
+            height: 44px;
+            min-width: 44px;
             border-radius: 50%;
             background: var(--accent);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.3rem;
+            font-size: 1.2rem;
             font-weight: 700;
             color: white;
-            margin-bottom: 1.2rem;
             box-shadow: 0 0 20px rgba(107, 76, 255, 0.3);
         }
 
-        .step-card .material-icons-round {
-            font-size: 2.5rem;
-            margin-bottom: 1rem;
+        .step-card-body {
+            flex: 1;
         }
 
-        .step-card h3 {
-            font-size: 1.3rem;
-            margin-bottom: 0.8rem;
+        .step-card-body h3 {
+            font-size: 1.15rem;
+            margin: 0 0 0.3rem;
         }
 
-        .step-card p {
+        .step-card-body p {
             color: var(--text-dim);
-            font-size: 0.95rem;
-            line-height: 1.6;
-            margin-bottom: 1.5rem;
-            flex-grow: 1;
-        }
-
-        .step-card .btn {
-            width: 100%;
-            font-size: 0.95rem;
-            padding: 12px 20px;
-        }
-
-        .info-banner {
-            background: rgba(107, 76, 255, 0.08);
-            border: 1px solid rgba(107, 76, 255, 0.2);
-            border-radius: var(--radius);
-            padding: 24px 30px;
-            max-width: 700px;
-            margin: 0 auto 3rem;
-            text-align: left;
-            display: flex;
-            align-items: flex-start;
-            gap: 16px;
-        }
-
-        .info-banner .material-icons-round {
-            color: var(--accent);
-            font-size: 1.5rem;
-            flex-shrink: 0;
-            margin-top: 2px;
-        }
-
-        .info-banner p {
-            color: var(--text-dim);
-            font-size: 0.95rem;
-            line-height: 1.6;
+            font-size: 0.92rem;
+            line-height: 1.5;
             margin: 0;
         }
 
-        .info-banner strong {
-            color: white;
+        .step-card .arrow {
+            color: var(--text-dim);
+            font-size: 1.3rem;
+            transition: transform 0.3s ease;
+        }
+
+        .step-card:hover .arrow {
+            transform: translateX(4px);
+            color: var(--accent);
         }
 
         @media (max-width: 768px) {
-            .steps-grid {
-                grid-template-columns: 1fr;
-            }
-
             .setup-overview h1 {
                 font-size: 2.2rem;
+            }
+
+            .step-card {
+                padding: 1.4rem 1.2rem;
             }
         }
     </style>
@@ -175,45 +149,53 @@
         <h1>Build Your Linked Lamp</h1>
         <p class="subtitle">
             Follow these three steps to go from a box of parts to a pair of glowing, connected lamps.
-            Each lamp takes about an hour to build. You'll need to build <strong>two lamps</strong> — one for you
+            Each lamp takes less than 30 minutes to build! You'll need to build <strong>two lamps</strong> — one for you
             and one for the person you want to stay connected with.
         </p>
 
-        <div class="info-banner">
-            <span class="material-icons-round">info</span>
-            <p>
-                <strong>Any Linked Lamp can connect to any other Linked Lamp</strong>, whether it's built with
-                NeoPixels or the custom PCB. You can mix and match!
-            </p>
-        </div>
-
         <div class="steps-grid">
-            <div class="step-card">
-                <div class="step-number">1</div>
-                <span class="material-icons-round" style="color: #ff6b81;">shopping_cart</span>
-                <h3>Gather Parts</h3>
-                <p>Choose your hardware (custom PCB or NeoPixel ring), download the 3D-printable files,
-                    and gather all the components you'll need.</p>
-                <a href="setup-parts.html" class="btn primary-btn">View Parts List →</a>
-            </div>
+            <a href="setup-parts.html" class="step-card">
+                <div class="step-number"><span class="material-icons-round">shopping_cart</span></div>
+                <div class="step-card-body">
+                    <h3>Gather Parts</h3>
+                    <p>Choose your hardware (custom PCB or NeoPixel ring), download the 3D-printable files,
+                        and gather all the components you'll need.</p>
+                </div>
+                <span class="material-icons-round arrow">chevron_right</span>
+            </a>
 
-            <div class="step-card">
-                <div class="step-number">2</div>
-                <span class="material-icons-round" style="color: #70a1ff;">build</span>
-                <h3>Assemble</h3>
-                <p>Solder your components, wire everything up, and put it all together inside the
-                    3D‑printed enclosure.</p>
-                <a href="setup-assembly.html" class="btn primary-btn">Assembly Guide →</a>
-            </div>
+            <a href="setup-assembly.html" class="step-card">
+                <div class="step-number"><span class="material-icons-round">build</span></div>
+                <div class="step-card-body">
+                    <h3>Assemble</h3>
+                    <p>Solder your components, wire everything up, and put it all together inside the
+                        3D‑printed enclosure.</p>
+                </div>
+                <span class="material-icons-round arrow">chevron_right</span>
+            </a>
 
-            <div class="step-card">
-                <div class="step-number">3</div>
-                <span class="material-icons-round" style="color: #2ed573;">memory</span>
-                <h3>Flash Software</h3>
-                <p>Flash the firmware onto both ESP32s, enter your MQTT broker details,
-                    and get your personal Web App URLs.</p>
-                <a href="setup-software.html" class="btn primary-btn">Flash Firmware →</a>
-            </div>
+            <a href="setup-software.html" class="step-card">
+                <div class="step-number"><span class="material-icons-round">bolt</span></div>
+                <div class="step-card-body">
+                    <h3>Flash Software</h3>
+                    <p>Flash the firmware onto both ESP32s, enter your MQTT broker details,
+                        and get your personal Web App URLs.</p>
+                </div>
+                <span class="material-icons-round arrow">chevron_right</span>
+            </a>
+
+            <div style="margin: 1rem 0 0.5rem; height: 1px; background: rgba(255,255,255,0.1);"></div>
+
+            <a href="usage.html" class="step-card" style="border-color: rgba(107, 76, 255, 0.4); background: rgba(107, 76, 255, 0.05);">
+                <div class="step-number" style="background: transparent; border: 2px solid var(--accent); color: var(--accent); box-shadow: none;">
+                    <span class="material-icons-round">menu_book</span>
+                </div>
+                <div class="step-card-body">
+                    <h3 style="color: white; margin-bottom: 0.3rem;">Finished Setting Up?</h3>
+                    <p>Learn how to connect your lamp to Wi-Fi, use touch gestures, and control it from your phone in the usage guide.</p>
+                </div>
+                <span class="material-icons-round arrow" style="color: var(--accent);">chevron_right</span>
+            </a>
         </div>
     </div>
 
@@ -221,8 +203,8 @@
     <footer>
         <div class="footer-content max-w">
             <div class="footer-brand">
-                <img src="images/logo.png" alt="Linked Lamp"
-                    style="height: 24px; width: 24px; object-fit: contain;"> Linked Lamp
+                <img src="images/logo.png" alt="Linked Lamp" style="height: 24px; width: 24px; object-fit: contain;">
+                Linked Lamp
             </div>
             <p>&copy; 2026 Aarush Magic. An Open Source Project.</p>
             <div class="footer-links">
