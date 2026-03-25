@@ -409,12 +409,12 @@
                 <p style="color: var(--text-dim); font-size: 0.9rem; margin-bottom: 0.6rem;">Print the Base in a solid
                     color and the Diffuser in White PLA/PETG for good light diffusion.</p>
                 <div class="download-grid">
-                    <a href="https://raw.githubusercontent.com/aarushmagic/Linked-Lamp/refs/heads/main/3D%20Models/PCB%20Lamp%20-%20100mm%20Hexagon/PCB%20Lamp%20100mm%20-%20Base%20(M3).step"
-                        class="download-btn" download>
+                    <a href="#" onclick="downloadFile('https://raw.githubusercontent.com/aarushmagic/Linked-Lamp/refs/heads/main/3D%20Models/PCB%20Lamp%20-%20100mm%20Hexagon/PCB%20Lamp%20100mm%20-%20Base%20(M3).step', 'PCB Lamp 100mm - Base (M3).step', this); return false;"
+                        class="download-btn">
                         <span class="material-icons-round">download</span> Base (M3)
                     </a>
-                    <a href="https://raw.githubusercontent.com/aarushmagic/Linked-Lamp/refs/heads/main/3D%20Models/PCB%20Lamp%20-%20100mm%20Hexagon/PCB%20Lamp%20100mm%20-%203in%20Diffuser.step"
-                        class="download-btn" download>
+                    <a href="#" onclick="downloadFile('https://raw.githubusercontent.com/aarushmagic/Linked-Lamp/refs/heads/main/3D%20Models/PCB%20Lamp%20-%20100mm%20Hexagon/PCB%20Lamp%20100mm%20-%203in%20Diffuser.step', 'PCB Lamp 100mm - 3in Diffuser.step', this); return false;"
+                        class="download-btn">
                         <span class="material-icons-round">download</span> Diffuser
                     </a>
                 </div>
@@ -519,12 +519,12 @@
                 <p style="color: var(--text-dim); font-size: 0.9rem; margin-bottom: 0.6rem;">Print the Base in a solid
                     color and the Diffuser in White PLA/PETG for good light diffusion.</p>
                 <div class="download-grid">
-                    <a href="https://raw.githubusercontent.com/aarushmagic/Linked-Lamp/refs/heads/main/3D%20Models/Neopixel%20Lamp%20-%2067mm%20Ring/Neopixel%20Lamp%20-%20Base%20(M3).step"
-                        class="download-btn" download>
+                    <a href="#" onclick="downloadFile('https://raw.githubusercontent.com/aarushmagic/Linked-Lamp/refs/heads/main/3D%20Models/Neopixel%20Lamp%20-%2067mm%20Ring/Neopixel%20Lamp%20-%20Base%20(M3).step', 'Neopixel Lamp - Base (M3).step', this); return false;"
+                        class="download-btn">
                         <span class="material-icons-round">download</span> Base (M3)
                     </a>
-                    <a href="https://raw.githubusercontent.com/aarushmagic/Linked-Lamp/refs/heads/main/3D%20Models/Neopixel%20Lamp%20-%2067mm%20Ring/Neopixel%20Lamp%20-%203in%20Diffuser.step"
-                        class="download-btn" download>
+                    <a href="#" onclick="downloadFile('https://raw.githubusercontent.com/aarushmagic/Linked-Lamp/refs/heads/main/3D%20Models/Neopixel%20Lamp%20-%2067mm%20Ring/Neopixel%20Lamp%20-%203in%20Diffuser.step', 'Neopixel Lamp - 3in Diffuser.step', this); return false;"
+                        class="download-btn">
                         <span class="material-icons-round">download</span> Diffuser
                     </a>
                 </div>
@@ -595,7 +595,36 @@
             document.getElementById('pinoutTooltip').classList.remove('show');
         }
 
+        function downloadFile(url, filename, el) {
+            const originalHTML = el.innerHTML;
+            el.innerHTML = '<span class="material-icons-round" style="animation: spin 1s linear infinite;">hourglass_empty</span> Downloading...';
+            el.style.pointerEvents = 'none';
+
+            fetch(url)
+                .then(response => response.blob())
+                .then(blob => {
+                    const blobUrl = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = blobUrl;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    window.URL.revokeObjectURL(blobUrl);
+                })
+                .catch(err => {
+                    console.error("Download failed, opening in new tab", err);
+                    window.open(url, '_blank');
+                })
+                .finally(() => {
+                    el.innerHTML = originalHTML;
+                    el.style.pointerEvents = 'auto';
+                });
+        }
 </script>
+<style>
+@keyframes spin { 100% { transform: rotate(360deg); } }
+</style>
 </body>
 
 </html>

@@ -86,6 +86,17 @@ On first power-up, the lamp creates a Wi-Fi network called **"Linked Lamp Setup"
 ### Web App
 
 The Setup Guide generates personalized Web App URLs for each lamp. Bookmark and share them — all credentials are saved after the first visit.
+```
+https://linkedlamp.com/my/#s=BROKER_URL&u=USERNAME&p=PASSWORD&id=A&name=Sarah
+```
+Replace the values:
+
+s = your MQTT broker URL
+u = MQTT username
+p = MQTT password
+id = A or B (must match the lamp's device_id)
+name = the other person's name (this appears as "Sarah's Lamp" in the app)
+After the first visit, credentials are saved — you can just open the page normally.
 
 ## 📱 How to Use
 
@@ -96,7 +107,7 @@ The Setup Guide generates personalized Web App URLs for each lamp. Bookmark and 
 | **Triple Tap** | Resets WiFi settings (only works when lamp is off) |
 | **Hold 1.5s+** | Cycles through colors — lift your finger to pick one |
 
-## 🔄 OTA Updates (For Maintainers)
+## 🔄 Pushing OTA Firmware Updates (For Maintainers)
 
 1. Compile in PlatformIO — binary outputs to `firmware/[type]/.pio/build/esp32dev/firmware.bin`
 2. Run `python docs/flash/build_template.py` to copy binaries
