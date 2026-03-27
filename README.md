@@ -67,7 +67,7 @@ For developers who want to modify the firmware or use a custom MQTT broker:
    ```json
    {
      "device_id": "A",
-     "mqtt_server": "your-broker.s1.eu.hivemq.cloud",
+     "mqtt_server": "your-broker.someMQTTBroker.com",
      "mqtt_port": 8883,
      "mqtt_user": "your_username",
      "mqtt_pass": "your_password",
@@ -91,11 +91,11 @@ https://linkedlamp.com/my/#s=BROKER_URL&u=USERNAME&p=PASSWORD&id=A&name=Sarah
 ```
 Replace the values:
 
-s = your MQTT broker URL (Note: append the port here like `broker.com:8081` if your broker uses a custom WebSocket port)
-u = MQTT username
-p = MQTT password
-id = A or B (must match the lamp's device_id)
-name = the other person's name (this appears as "Sarah's Lamp" in the app)
+* `s` = your MQTT broker URL (Note: append the port here like `broker.com:8081` if your broker uses a custom WebSocket port)
+* `u` = MQTT username
+* `p` = MQTT password
+* `id` = A or B (must match the lamp's device_id)
+* `name` = the other person's name (this appears as "Sarah's Lamp" in the app)
 After the first visit, credentials are saved — you can just open the page normally.
 
 ## 📱 How to Use
