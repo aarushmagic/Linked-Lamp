@@ -83,8 +83,8 @@ window.addEventListener("load", () => {
     renderPresets();
     connectMQTT();
 
-    // Set initial page title with partner name
-    document.getElementById("pageTitle").innerText = partnerName + "'s Lamp";
+    // Update page title
+    document.getElementById("pageTitle").innerText = "My Group";
 });
 
 // Clean MQTT disconnect on page unload
@@ -280,16 +280,16 @@ function updateStatusUI() {
     const text = document.getElementById("connectionText");
 
     if (!isMqttConnected) {
-        dot.className = "dot offline";
-        text.innerText = "Offline";
+        dot.className = "dot connecting";
+        text.innerText = "Connecting...";
         return;
     }
 
     // If we haven't received any status messages from firmware yet,
     // just show "Online" based on broker connectivity
     if (myLampOnline === null && partnerLampOnline === null) {
-        dot.className = "dot offline";
-        text.innerText = "Offline";
+        dot.className = "dot connecting";
+        text.innerText = "Connecting";
         return;
     }
 
@@ -430,7 +430,8 @@ function switchTab(tabId) {
 
     document.getElementById("navSend").classList.toggle("active", tabId === "partner");
     document.getElementById("navSettings").classList.toggle("active", tabId === "settings");
-    document.getElementById("pageTitle").innerText = tabId === "partner" ? partnerName + "'s Lamp" : "My Settings";
+    // Update page title based on view
+    document.getElementById("pageTitle").innerText = tabId === "partner" ? "My Group" : "My Settings";
 }
 
 // ==========================================================================

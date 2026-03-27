@@ -139,6 +139,10 @@ body {
     background: var(--danger);
 }
 
+.dot.connecting {
+    background: #777; /* Grey dot for connecting state */
+}
+
 /* ==========================================================================
    Content Area / Views
    ========================================================================== */
@@ -378,6 +382,7 @@ body {
 /* --- Range Slider --- */
 .custom-slider {
     -webkit-appearance: none;
+    appearance: none;
     width: 100%;
     height: 5px;
     border-radius: 3px;
