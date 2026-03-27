@@ -429,10 +429,10 @@
                     <span class="logo-text">Linked Lamp</span>
                 </a>
             </div>
-</div>
+        </div>
     </nav>
 
-<div class="setup-container max-w">
+    <div class="setup-container max-w">
 
         <!-- Dual lamp warning -->
         <div class="dual-lamp-warning">
@@ -473,36 +473,29 @@
             </div>
 
             <div class="alert-box mt-3" style="margin-top: 20px;">
-                <strong>HiveMQ Details</strong><br>
+                <strong>MQTT Broker Details</strong><br>
                 <span style="font-size: 0.9rem; color: #ccc;">
                     You need a free MQTT broker to let the lamps talk to each other. Go to <a
                         href="https://www.hivemq.com/mqtt-cloud-broker/" target="_blank"
-                        style="color:var(--accent);">HiveMQ Cloud</a>, sign up for a free "Serverless Multi-tenant"
-                    cluster, create credentials, and paste them here.
+                        style="color:var(--accent);">HiveMQ Cloud</a> or <a href="https://io.adafruit.com/"
+                        target="_blank" style="color:var(--accent);">Adafruit IO</a>, sign up for a free account, create
+                    credentials, and paste them here. For a fully open source, self hosted alternative, you may use <a
+                        href="https://mosquitto.org/" target="_blank" style="color:var(--accent);">Eclipse Mosquitto</a>
+                    (learn more in the FAQ).
                 </span>
             </div>
 
-            <div class="alert-box mt-3"
-                style="margin-top: 40px; background: rgba(255, 165, 2, 0.1); border-color: #ffa502;">
-                <strong style="color: #ffa502;">Are you an Advanced User?</strong><br>
-                <span style="font-size: 0.9rem; color: #ccc;">
-                    If you are using a different MQTT provider than HiveMQ, running a custom Mosquitto broker on a
-                    Raspberry Pi, or want to customize the source code, you are encouraged to do so! Simply open the
-                    project in VS Code and edit <code>config.json</code> and <code>main.cpp</code> manually. <strong>You
-                        do not need to proceed with this setup generator.</strong>
-                </span>
-            </div>
 
             <div class="form-group">
-                <label>HiveMQ Cluster URL</label>
-                <input type="text" id="in_mqtt_url" placeholder="e.g. xxxxxx.s2.eu.hivemq.cloud">
+                <label>MQTT Broker URL</label>
+                <input type="text" id="in_mqtt_url" placeholder="e.g. io.adafruit.com, or xxx.hivemq.cloud">
             </div>
             <div class="form-group">
-                <label>HiveMQ Username</label>
+                <label>MQTT Username</label>
                 <input type="text" id="in_mqtt_user" placeholder="Your created broker username">
             </div>
             <div class="form-group">
-                <label>HiveMQ Password</label>
+                <label>MQTT Password</label>
                 <input type="text" id="in_mqtt_pw" placeholder="Your created broker password">
             </div>
 
@@ -886,7 +879,7 @@
             const broker = document.getElementById("in_mqtt_url").value.trim();
 
             if (!n1 || !n2 || !broker) {
-                alert("Please fill in the Names and HiveMQ URL. We need these to build the link.");
+                alert("Please fill in the Names and Broker URL. We need these to build the link.");
                 return;
             }
             goToStep('finish');
@@ -898,7 +891,7 @@
         function generateConfigs() {
             const n1 = document.getElementById("in_name1").value.trim();
             const n2 = document.getElementById("in_name2").value.trim();
-            const url = document.getElementById("in_mqtt_url").value.trim();
+            let url = document.getElementById("in_mqtt_url").value.trim();
             const mUser = document.getElementById("in_mqtt_user").value.trim();
             const mPw = document.getElementById("in_mqtt_pw").value.trim();
 
@@ -907,9 +900,13 @@
             if (dn1) dn1.innerText = n1 + "'s Lamp";
             if (dn2) dn2.innerText = n2 + "'s Lamp";
 
+            // Strip explicit websocket port for ESP32 config
+            let fwBroker = url;
+            if (url.includes(":")) fwBroker = url.split(":")[0];
+
             const configA = {
                 "device_id": "A",
-                "mqtt_server": url,
+                "mqtt_server": fwBroker,
                 "mqtt_port": 8883,
                 "mqtt_user": mUser,
                 "mqtt_pass": mPw,
@@ -918,7 +915,7 @@
 
             const configB = {
                 "device_id": "B",
-                "mqtt_server": url,
+                "mqtt_server": fwBroker,
                 "mqtt_port": 8883,
                 "mqtt_user": mUser,
                 "mqtt_pass": mPw,
@@ -980,10 +977,14 @@
             progressEl.classList.add('active');
             logEl.innerHTML = '';
 
+            let url = document.getElementById("in_mqtt_url").value.trim();
+            let fwBroker = url;
+            if (url.includes(":")) fwBroker = url.split(":")[0];
+
             const config = {
                 deviceId: lampId,
                 hwType: document.querySelector(`input[name="hwType${lampId}"]:checked`).value,
-                mqttServer: document.getElementById("in_mqtt_url").value.trim(),
+                mqttServer: fwBroker,
                 mqttUser: document.getElementById("in_mqtt_user").value.trim(),
                 mqttPass: document.getElementById("in_mqtt_pw").value.trim(),
             };
@@ -1036,7 +1037,7 @@
             });
         }
 
-</script>
+    </script>
 </body>
 
 </html>

@@ -18,7 +18,6 @@
 let mqtt_server = "";
 let mqtt_user = "";
 let mqtt_pass = "";
-const mqtt_port = 8884; // HiveMQ WebSockets TLS port
 
 let mqttClient = null;
 let myDeviceId = "A";
@@ -28,6 +27,17 @@ let partnerName = "Partner";
 let isMqttConnected = false;
 let myLampOnline = null;       // null = unknown (no status msg received yet)
 let partnerLampOnline = null;  // null = unknown
+
+// ==========================================================================
+// MQTT Topic Builder
+// ==========================================================================
+function getTopic(deviceId, suffix) {
+    if (mqtt_server.includes("adafruit") && mqtt_user) {
+        const cleanSuffix = suffix.replace(/\//g, "_");
+        return `${mqtt_user}/f/ll_${deviceId}_${cleanSuffix}`;
+    }
+    return `linkedlamp/${deviceId}/${suffix}`;
+}
 
 // ==========================================================================
 // State
@@ -147,7 +157,20 @@ function loadCredentials() {
 // MQTT Connection
 // ==========================================================================
 function connectMQTT() {
-    const brokerUrl = `wss://${mqtt_server}:${mqtt_port}/mqtt`;
+    let clean_server = mqtt_server;
+    let active_port = 8884; // Default WSS port (HiveMQ)
+
+    if (mqtt_server.includes("adafruit")) {
+        active_port = 443; // Adafruit IO WSS port
+    }
+
+    if (mqtt_server.includes(":")) {
+        const parts = mqtt_server.split(":");
+        clean_server = parts[0];
+        active_port = parseInt(parts[1]) || active_port;
+    }
+
+    const brokerUrl = `wss://${clean_server}:${active_port}/mqtt`;
     const clientId = "Web-" + myDeviceId + "-" + Math.random().toString(16).substring(2, 8);
 
     mqttClient = mqtt.connect(brokerUrl, {
@@ -162,10 +185,10 @@ function connectMQTT() {
         console.log("MQTT Connected!");
         isMqttConnected = true;
 
-        mqttClient.subscribe(`linkedlamp/${myDeviceId}/status`);
-        mqttClient.subscribe(`linkedlamp/${partnerDeviceId}/status`);
-        mqttClient.subscribe(`linkedlamp/${myDeviceId}/settings`); // Pull retained settings
-        mqttClient.subscribe(`linkedlamp/${myDeviceId}/presets`);  // Pull retained presets
+        mqttClient.subscribe(getTopic(myDeviceId, "status"));
+        mqttClient.subscribe(getTopic(partnerDeviceId, "status"));
+        mqttClient.subscribe(getTopic(myDeviceId, "settings")); // Pull retained settings
+        mqttClient.subscribe(getTopic(myDeviceId, "presets"));  // Pull retained presets
 
         updateStatusUI();
     });
@@ -180,7 +203,7 @@ function connectMQTT() {
     mqttClient.on("message", (topic, message) => {
         const msg = message.toString();
 
-        if (topic === `linkedlamp/${myDeviceId}/status`) {
+        if (topic === getTopic(myDeviceId, "status")) {
             if (msg.startsWith("ONLINE")) {
                 myLampOnline = true;
                 const parts = msg.split(":");
@@ -192,7 +215,7 @@ function connectMQTT() {
             }
             updateStatusUI();
 
-        } else if (topic === `linkedlamp/${partnerDeviceId}/status`) {
+        } else if (topic === getTopic(partnerDeviceId, "status")) {
             if (msg.startsWith("ONLINE")) {
                 partnerLampOnline = true;
             } else {
@@ -200,7 +223,7 @@ function connectMQTT() {
             }
             updateStatusUI();
 
-        } else if (topic === `linkedlamp/${myDeviceId}/settings`) {
+        } else if (topic === getTopic(myDeviceId, "settings")) {
             if (isSelfPublishingUi) return; // Ignore our own publishes
 
             try {
@@ -225,7 +248,7 @@ function connectMQTT() {
             } catch (e) {
                 console.error("Failed to parse incoming settings payload:", e);
             }
-        } else if (topic === `linkedlamp/${myDeviceId}/presets`) {
+        } else if (topic === getTopic(myDeviceId, "presets")) {
             if (isSelfPublishingUi) return;
 
             try {
@@ -298,7 +321,7 @@ function sendSignal(hexColor) {
         alert("Not connected to your lamp network.");
         return;
     }
-    const topic = `linkedlamp/${partnerDeviceId}/color_trigger`;
+    const topic = getTopic(partnerDeviceId, "color_trigger");
     mqttClient.publish(topic, hexColor);
     console.log(`Signal sent: ${hexColor} → ${topic}`);
 }
@@ -309,7 +332,7 @@ function publishSettings() {
 
     if (!mqttClient || !mqttClient.connected) return;
 
-    const topic = `linkedlamp/${myDeviceId}/settings`;
+    const topic = getTopic(myDeviceId, "settings");
 
     if (window._setSelfPublishing) window._setSelfPublishing(true);
 
@@ -328,7 +351,7 @@ function publishPresets() {
 
     if (!mqttClient || !mqttClient.connected) return;
 
-    const topic = `linkedlamp/${myDeviceId}/presets`;
+    const topic = getTopic(myDeviceId, "presets");
 
     if (window._setSelfPublishing) window._setSelfPublishing(true);
 
@@ -390,8 +413,8 @@ function triggerUpdate() {
         const hwType = localStorage.getItem("ll_hwtype_" + myDeviceId) || "pcb";
         const fwFile = (hwType === "neopixel") ? "firmware-neo.bin" : "firmware.bin";
         const otaUrl = new URL("../flash/" + fwFile, window.location.href).href;
-        
-        mqttClient.publish(`linkedlamp/${myDeviceId}/system/ota`, otaUrl);
+
+        mqttClient.publish(getTopic(myDeviceId, "system/ota"), otaUrl);
         alert("Update command sent! Your lamp will restart shortly. This could take upto 5 minutes. Please do not restart your device in the meantime even if it goes offline.");
     } else {
         alert("Not connected to your lamp network.");

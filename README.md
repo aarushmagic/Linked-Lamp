@@ -91,7 +91,7 @@ https://linkedlamp.com/my/#s=BROKER_URL&u=USERNAME&p=PASSWORD&id=A&name=Sarah
 ```
 Replace the values:
 
-s = your MQTT broker URL
+s = your MQTT broker URL (Note: append the port here like `broker.com:8081` if your broker uses a custom WebSocket port)
 u = MQTT username
 p = MQTT password
 id = A or B (must match the lamp's device_id)

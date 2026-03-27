@@ -210,12 +210,22 @@ void setup() {
   Serial.println("My Device ID: " + device_id);
   Serial.println("Target Device ID: " + target_id);
 
-  // Build MQTT Topics
-  triggerTopicSub  = "linkedlamp/" + device_id + "/color_trigger";
-  settingsTopicSub = "linkedlamp/" + device_id + "/settings";
-  otaTopicSub      = "linkedlamp/" + device_id + "/system/ota";
-  triggerTopicPub  = "linkedlamp/" + target_id + "/color_trigger";
-  statusTopicPub   = "linkedlamp/" + device_id + "/status";
+  // Build MQTT Topics (Auto-detect Adafruit IO to use required feeds/ routing)
+  String topicPrefix = "linkedlamp/";
+  String d_sep = "/";
+  String suf_ota = "system/ota";
+
+  if (mqtt_server.indexOf("adafruit") != -1 && mqtt_user.length() > 0) {
+    topicPrefix = mqtt_user + "/f/ll_";
+    d_sep = "_";
+    suf_ota = "system_ota"; // Adafruit doesn't support nested slashes in feed names mapping
+  }
+
+  triggerTopicSub  = topicPrefix + device_id + d_sep + "color_trigger";
+  settingsTopicSub = topicPrefix + device_id + d_sep + "settings";
+  otaTopicSub      = topicPrefix + device_id + d_sep + suf_ota;
+  triggerTopicPub  = topicPrefix + target_id + d_sep + "color_trigger";
+  statusTopicPub   = topicPrefix + device_id + d_sep + "status";
 
   // --- WiFi Setup (from sample.cpp pattern) ---
   WiFi.setAutoReconnect(true);

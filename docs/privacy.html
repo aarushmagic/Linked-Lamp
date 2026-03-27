@@ -37,11 +37,11 @@
         <p><strong>Last Updated:</strong> March 2026</p>
 
         <h2>1. Data Collection by Setup Generator</h2>
-        <p>The Linked Lamp project provides a Setup Guide configuration generator. <strong>We do not collect, process, or store any of your data.</strong> The entire Setup Guide is a static web page executing 100% locally in your web browser. Any credentials you enter (Names, Wi-Fi, HiveMQ/AWS passwords) are used dynamically within your browser to generate your <code>config.json</code> file and Web App URLs, and are never transmitted to our servers.</p>
+        <p>The Linked Lamp project provides a Setup Guide configuration generator. <strong>We do not collect, process, or store any of your data.</strong> The entire Setup Guide is a static web page executing 100% locally in your web browser. Any credentials you enter (Names, Wi-Fi, MQTT Broker passwords) are used dynamically within your browser to generate your <code>config.json</code> file and Web App URLs, and are never transmitted to our servers.</p>
 
         <h2>2. Third-Party Services (Important)</h2>
         <p>The Linked Lamp relies heavily on third-party MQTT broker services to route messages across the world. While we do not collect your data, the companies hosting these brokers might.</p>
-        <p>If you use <strong>HiveMQ Cloud</strong>, <strong>AWS IoT Core</strong>, or any other cloud MQTT provider, the signals, durations, and connection metadata flowing between your lamps are processed by their servers. By using the Linked Lamp software to connect to a third-party service, you acknowledge and accept their respective Privacy Policies and Terms of Service. We have no affiliation with these entities and no liability for their data practices.</p>
+        <p>If you use <strong>HiveMQ Cloud</strong>, <strong>Adafruit IO</strong>, <strong>AWS IoT Core</strong>, or any other cloud MQTT provider, the signals, durations, and connection metadata flowing between your lamps are processed by their servers. By using the Linked Lamp software to connect to a third-party service, you acknowledge and accept their respective Privacy Policies and Terms of Service. We have no affiliation with these entities and no liability for their data practices.</p>
 
         <h2>3. Local Storage</h2>
         <p>The personalized Web App controller (accessed via your unique <code>/my/</code> URL) utilizes your browser's Local Storage to save UI states (like Signal Presets). This operates entirely offline relative to any centralized "Linked Lamp Server" because there is no such server. It talks directly to your third-party MQTT broker.</p>
@@ -66,7 +66,7 @@
             </div>
         </div>
         <div class="max-w mt-3" style="text-align: center; font-size: 0.8rem; color: var(--text-dim); padding: 0 20px;">
-            * The Linked Lamp software and hardware designs are open source. Third-party services required for connectivity (such as HiveMQ or AWS) are proprietary and governed by their respective owners.
+            * The Linked Lamp software and hardware designs are open source. Third-party services required for connectivity (such as HiveMQ, Adafruit IO, or AWS) are proprietary and governed by their respective owners.
         </div>
     </footer>
 

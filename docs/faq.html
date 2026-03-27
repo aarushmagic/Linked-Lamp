@@ -163,13 +163,18 @@
             </p>
         </div>
 
-        <button class="accordion">Do I have to pay for HiveMQ? <span
+        <button class="accordion">Which MQTT Broker should I use? Do I have to pay? <span
                 class="material-icons-round icon">expand_more</span></button>
         <div class="panel">
             <p style="padding: 15px 0;">
-                No — the free "Serverless Multi-tenant" tier is more than enough for a pair of lamps.
-                HiveMQ is a third-party service and could change their pricing in the future. If you want
-                full control, you can self-host an MQTT broker (e.g. Mosquitto on a Raspberry Pi).
+                No, you don't have to pay. The Linked Lamp system requires an MQTT broker to pass messages between lamps, but any broker that supports TLS encryption on port 8883 will work. 
+                <br><br>
+                <strong>Recommended Free Options:</strong><br>
+                &bull; <strong>HiveMQ Cloud:</strong> The "Serverless Multi-tenant" free tier provides more than enough bandwidth.<br>
+                &bull; <strong>Adafruit IO:</strong> Excellent real-time broker but limits free accounts to 10 "feeds". Each lamp takes up 4 feeds, so a pair fits perfectly under the limit.<br>
+                &bull; <strong>Eclipse Mosquitto:</strong> Open-source broker for power users. Note: The Web Dashboard requires secure WebSocket (WSS) support. If you self-host Mosquitto, ensure you bind WSS correctly. The dashboard connects to 8884 by default, but you can override this by appending your custom WSS port directly to the Broker URL during setup (e.g., <code>mqtt.mydomain.com:8081</code>). The firmware will still intelligently use the standard TLS port (8883) while providing the custom port to the dashboard.
+                <br><br>
+                <em>Please note: Cloud brokers like HiveMQ and Adafruit IO are third-party proprietary software. They are subject to change their pricing or Terms of Service at any time, and we are not affiliated with or responsible for them.</em>
             </p>
         </div>
 
@@ -213,7 +218,7 @@
         </div>
         <div class="max-w mt-3" style="text-align: center; font-size: 0.8rem; color: var(--text-dim); padding: 0 20px;">
             * The Linked Lamp software and hardware designs are open source. Third-party services required for
-            connectivity (such as HiveMQ or AWS) are proprietary and governed by their respective owners.
+            connectivity (such as HiveMQ, Adafruit IO, or AWS) are proprietary and governed by their respective owners.
         </div>
     </footer>
 
