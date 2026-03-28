@@ -85,6 +85,7 @@ window.addEventListener("load", () => {
 
     // Update page title
     document.getElementById("pageTitle").innerText = "My Group";
+    document.getElementById("signalSubtitle").innerText = "Tap to turn on " + partnerName + "'s lamp";
 });
 
 // Clean MQTT disconnect on page unload
@@ -489,7 +490,7 @@ function initColorPickers() {
         sub.innerText = "Signal sent! ✨";
         setTimeout(() => {
             btn.style.transform = "";
-            sub.innerText = "Tap to turn on their lamp";
+            sub.innerText = "Tap to turn on " + partnerName + "'s lamp";
         }, 1500);
     };
 }
