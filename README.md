@@ -6,7 +6,7 @@
 
 <p align="center">
   An open-source Wi-Fi connected <strong>Friendship Lamp</strong>.<br>
-  Tap your lamp to let someone know you're thinking of them — their lamp lights up in your chosen color, anywhere in the world.
+  Tap your lamp to let someone know you're thinking of them — their lamp lights up in your chosen color, anywhere in the world. 
 </p>
 
 <p align="center">
