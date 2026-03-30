@@ -810,9 +810,20 @@ void doActionBasedOnTaps() {
       Serial.println("Double Tap ignored: lamp already off.");
     }
 
-  } else if (tapCount >= 3) {
+  } else if (tapCount == 3) {
     // --- Triple+ Tap ---
     if (isLampOn) {
+      // Turn off lamp (same as double tap when ON)
+      Serial.println("Triple Tap: Turning OFF (lamp was on).");
+      isLampOn = false;
+      isPulsing = false;
+      isTransitioning = false;
+      setRGB(0, 0, 0);
+    } else {
+      Serial.println("Triple Tap ignored: lamp already off.");
+    }
+  } else if (tapCount >- 5) {
+        if (isLampOn) {
       // Turn off lamp (same as double tap when ON)
       Serial.println("Triple Tap: Turning OFF (lamp was on).");
       isLampOn = false;
