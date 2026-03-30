@@ -64,6 +64,8 @@ String nightEndTime          = "08:00";
 int    nightLampOnTimeMinutes = 5;
 int    nightMaxBrightness    = 128;
 String userTimezone          = "EST5EDT"; // POSIX TZ string
+bool   ambientModeEnabled    = false;
+String ambientColor          = "#0000FF";
 
 // =============================================================================
 // State & Timing Variables
@@ -446,6 +448,8 @@ void loadState() {
     nightLampOnTimeMinutes = doc["nightTimeMin"]   | 5;
     nightMaxBrightness    = doc["nightBright"]     | 128;
     userTimezone          = doc["timezone"]         | "EST5EDT";
+    ambientModeEnabled    = doc["ambientMode"]      | false;
+    ambientColor          = doc["ambientColor"]     | "#0000FF";
     Serial.println("State loaded. Default color: " + defaultColor);
   }
   f.close();
@@ -462,6 +466,8 @@ void saveState() {
   doc["nightTimeMin"] = nightLampOnTimeMinutes;
   doc["nightBright"]  = nightMaxBrightness;
   doc["timezone"]     = userTimezone;
+  doc["ambientMode"]  = ambientModeEnabled;
+  doc["ambientColor"] = ambientColor;
 
   File f = LittleFS.open("/state.json", "w");
   if (f) {
@@ -567,11 +573,25 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       lampDurationMs = (unsigned long)lampOnTimeMinutes * 60000UL;
     }
 
-    // If lamp is currently off, reset displayed color to black so we fade FROM black
+    // If lamp is currently off, reset displayed color to black so we fade FROM black (or from ambient!)
     if (!isLampOn) {
-      currentR = 0;
-      currentG = 0;
-      currentB = 0;
+      if (ambientModeEnabled && !(nightModeEnabled && isNighttime())) {
+        String hexColor = ambientColor;
+        if (hexColor.startsWith("#")) hexColor.remove(0, 1);
+        long number = strtol(hexColor.c_str(), NULL, 16);
+        uint8_t ambR = (number >> 16) & 0xFF;
+        uint8_t ambG = (number >> 8)  & 0xFF;
+        uint8_t ambB =  number        & 0xFF;
+        int ambientBrightness = max(1, dayMaxBrightness / 10);
+        // Scale so that when handleLEDs scales by currentMaxBrightness, it equals ambientBrightness
+        currentR = min(255, (ambR * ambientBrightness) / max(1, currentMaxBrightness));
+        currentG = min(255, (ambG * ambientBrightness) / max(1, currentMaxBrightness));
+        currentB = min(255, (ambB * ambientBrightness) / max(1, currentMaxBrightness));
+      } else {
+        currentR = 0;
+        currentG = 0;
+        currentB = 0;
+      }
     }
 
     // Start gradual color transition (fade from current color to new color)
@@ -611,6 +631,8 @@ void parseSettings(String payload) {
     configTzTime(userTimezone.c_str(), "pool.ntp.org", "time.nist.gov");
     Serial.println("Timezone updated: " + userTimezone);
   }
+  if (doc["ambientMode"].is<bool>()) ambientModeEnabled = doc["ambientMode"];
+  if (doc["ambientColor"].is<const char*>()) ambientColor = doc["ambientColor"].as<String>();
 
   saveState();
   Serial.println("Settings updated from web interface.");
@@ -632,6 +654,8 @@ void publishSettingsViaMQTT() {
   doc["nightTimeMin"] = nightLampOnTimeMinutes;
   doc["nightBright"]  = nightMaxBrightness;
   doc["timezone"]     = userTimezone;
+  doc["ambientMode"]  = ambientModeEnabled;
+  doc["ambientColor"] = ambientColor;
 
   String payload;
   serializeJson(doc, payload);
@@ -902,7 +926,26 @@ void handleLEDs() {
     return; // Don't run other LED logic during flash
   }
 
-  if (!isLampOn) return; // Nothing to do
+  if (!isLampOn) {
+    if (ambientModeEnabled && !(nightModeEnabled && isNighttime())) {
+      // Parse ambient color
+      String hexColor = ambientColor;
+      if (hexColor.startsWith("#")) hexColor.remove(0, 1);
+      long number = strtol(hexColor.c_str(), NULL, 16);
+      uint8_t ambR = (number >> 16) & 0xFF;
+      uint8_t ambG = (number >> 8)  & 0xFF;
+      uint8_t ambB =  number        & 0xFF;
+
+      // Brightness capped at 10% of daytime max brightness
+      int ambientBrightness = max(1, dayMaxBrightness / 10);
+      setRGB((ambR * ambientBrightness) / 255, 
+             (ambG * ambientBrightness) / 255, 
+             (ambB * ambientBrightness) / 255);
+    } else {
+      setRGB(0, 0, 0);
+    }
+    return;
+  }
 
   // Check auto-off timer
   if (millis() - lampOnStartTime >= lampDurationMs) {

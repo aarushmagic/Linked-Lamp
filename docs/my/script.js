@@ -46,6 +46,8 @@ let mySettings = {
     defaultColor: "#FF0000",
     dayTimeMin: 5,
     dayBright: 255,
+    ambientMode: false,
+    ambientColor: "#0000FF",
     nightMode: false,
     nightStart: "22:00",
     nightEnd: "08:00",
@@ -64,6 +66,7 @@ let editingPresetId = null;
 // Color Picker instances (iro.js)
 let mainColorPicker = null;
 let presetColorPicker = null;
+let ambientColorPicker = null;
 
 // ==========================================================================
 // Initialization
@@ -78,6 +81,7 @@ window.addEventListener("load", () => {
     initSliders(); // Now only handles brightness
     initDurationPickers();
     initDial();
+    initAmbientToggle();
     initNightToggle();
     initTimezone();
     renderPresets();
@@ -393,11 +397,22 @@ function applySettingsToUI() {
     updateMainButton(mySettings.defaultColor);
 
     // Night Toggle
-    const toggle = document.getElementById("nightModeToggle");
-    const section = document.getElementById("nightSettings");
-    if (toggle && section) {
-        toggle.checked = mySettings.nightMode;
-        section.classList.toggle("hidden", !mySettings.nightMode);
+    const nightToggle = document.getElementById("nightModeToggle");
+    const nightSection = document.getElementById("nightSettings");
+    if (nightToggle && nightSection) {
+        nightToggle.checked = mySettings.nightMode;
+        nightSection.classList.toggle("hidden", !mySettings.nightMode);
+    }
+    
+    // Ambient Toggle & color circle
+    const ambToggle = document.getElementById("ambientModeToggle");
+    const ambCircle = document.getElementById("btnAmbientColorDisplay");
+    if (ambToggle) {
+        ambToggle.checked = mySettings.ambientMode;
+    }
+    if (ambCircle) {
+        ambCircle.style.display = mySettings.ambientMode ? "block" : "none";
+        ambCircle.style.backgroundColor = mySettings.ambientColor;
     }
     updateTimeDisplay("nightStartDisplay", mySettings.nightStart || "22:00");
     updateTimeDisplay("nightEndDisplay", mySettings.nightEnd || "08:00");
@@ -475,6 +490,8 @@ function initColorPickers() {
         borderColor: "#ccc",
         layout: [{ component: iro.ui.Wheel, options: {} }]
     });
+
+    // Ambient color picker is lazily initialized inside openAmbientColorModal()
 
     // Set initial preview
     document.getElementById("colorPreview").style.borderLeft = `8px solid ${mySettings.defaultColor}`;
@@ -567,6 +584,67 @@ function bindSlider(sliderId, settingKey, suffix, isPercent) {
 
 function formatSliderVal(val, suffix, isPercent) {
     return isPercent ? Math.round((val / 255) * 100) + suffix : val + suffix;
+}
+
+// ==========================================================================
+// Ambient Mode Toggle & Color Modal
+// ==========================================================================
+let ambientColorBeforeEdit = null; // Store color before opening modal for cancel
+
+function initAmbientToggle() {
+    const toggle = document.getElementById("ambientModeToggle");
+    const circle = document.getElementById("btnAmbientColorDisplay");
+
+    toggle.checked = mySettings.ambientMode;
+    circle.style.display = mySettings.ambientMode ? "block" : "none";
+    circle.style.backgroundColor = mySettings.ambientColor;
+
+    toggle.onchange = () => {
+        mySettings.ambientMode = toggle.checked;
+        circle.style.display = toggle.checked ? "block" : "none";
+        publishSettings();
+    };
+}
+
+function openAmbientColorModal() {
+    ambientColorBeforeEdit = mySettings.ambientColor;
+    document.getElementById("ambientColorModal").style.display = "block";
+
+    // Lazy-init (iro.js needs the container to be visible to render correctly)
+    if (!ambientColorPicker) {
+        ambientColorPicker = new iro.ColorPicker("#ambientColorPickerContainer", {
+            width: 220,
+            color: mySettings.ambientColor,
+            borderWidth: 1,
+            borderColor: "#fff",
+            layout: [
+                { component: iro.ui.Wheel, options: {} },
+                { component: iro.ui.Slider, options: { sliderType: "value" } }
+            ]
+        });
+    } else {
+        ambientColorPicker.color.hexString = mySettings.ambientColor;
+    }
+}
+
+function closeAmbientColorModal() {
+    // Cancel — revert to pre-edit color
+    if (ambientColorBeforeEdit !== null) {
+        mySettings.ambientColor = ambientColorBeforeEdit;
+    }
+    document.getElementById("ambientColorModal").style.display = "none";
+}
+
+function saveAmbientColor() {
+    mySettings.ambientColor = ambientColorPicker.color.hexString;
+    ambientColorBeforeEdit = null; // Clear so close doesn't revert
+    
+    // Update the color circle
+    const circle = document.getElementById("btnAmbientColorDisplay");
+    if (circle) circle.style.backgroundColor = mySettings.ambientColor;
+    
+    publishSettings();
+    document.getElementById("ambientColorModal").style.display = "none";
 }
 
 // ==========================================================================

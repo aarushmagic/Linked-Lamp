@@ -94,6 +94,20 @@
                     <input type="range" id="dayBrightness" min="10" max="255" value="255" class="custom-slider">
                 </div>
 
+                <!-- Ambient Mode Settings -->
+                <div class="settings-card">
+                    <div class="night-mode-header">
+                        <h3>Ambient Mode</h3>
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <div id="btnAmbientColorDisplay" style="width: 24px; height: 24px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.2); cursor: pointer; display: none;" onclick="openAmbientColorModal()"></div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="ambientModeToggle">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Nighttime Settings -->
                 <div class="settings-card">
                     <div class="night-mode-header">
@@ -222,6 +236,29 @@
                 <button class="action-btn primary-btn" onclick="savePreset()">Save Signal</button>
                 <button class="action-btn danger-btn hidden mt-2" id="btnDeletePreset"
                     onclick="deleteCurrentPreset()">Delete Signal</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ Ambient Color Picker Modal ============ -->
+    <div id="ambientColorModal" class="modal">
+        <div class="modal-content fullscreen-modal">
+            <div class="modal-header">
+                <button class="icon-btn" onclick="closeAmbientColorModal()">
+                    <span class="material-icons-round">arrow_back</span>
+                </button>
+                <h2>Ambient Color</h2>
+                <div style="flex:1"></div>
+            </div>
+
+            <div class="modal-body" style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                <p class="desc mb-3 text-center">Keep your lamp glowing gently when inactive.</p>
+                <div class="color-wheel-wrapper mt-3" id="ambientColorPickerContainer"></div>
+            </div>
+
+            <div class="preset-modal-actions mt-3" style="flex-direction: row; gap: 10px;">
+                <button class="action-btn secondary-btn" style="flex: 1;" onclick="closeAmbientColorModal()">Cancel</button>
+                <button class="action-btn primary-btn" style="flex: 1;" onclick="saveAmbientColor()">Save</button>
             </div>
         </div>
     </div>
