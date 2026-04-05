@@ -147,6 +147,11 @@ unsigned long  lastMqttReconnectAttempt = 0;
 const unsigned long MQTT_RECONNECT_INTERVAL = 5000;
 int            mqttFailCount = 0;
 
+// MQTT Periodic Status Re-publish (guards against stale retained OFFLINE)
+unsigned long  lastStatusCheck = 0;
+const unsigned long STATUS_CHECK_INTERVAL = 300000; // 5 minutes
+bool           selfStatusOnline = false; // Tracks our own retained status
+
 // MQTT Topics (populated dynamically after config load)
 String triggerTopicSub;
 String triggerTopicPub;
@@ -330,6 +335,16 @@ void handleWifi() {
       handleMqttReconnect();
     } else {
       mqttClient.loop();
+
+      // Periodically check self-status and correct if showing OFFLINE
+      if (millis() - lastStatusCheck >= STATUS_CHECK_INTERVAL) {
+        lastStatusCheck = millis();
+        if (!selfStatusOnline) {
+          String onlineMsg = String("ONLINE:") + HW_TYPE;
+          mqttClient.publish(statusTopicPub.c_str(), onlineMsg.c_str(), true);
+          Serial.println("Status correction: re-published ONLINE (was showing OFFLINE)");
+        }
+      }
     }
   } else {
     // WiFi just dropped
@@ -493,6 +508,7 @@ void setupMQTT() {
   mqttClient.setServer(mqtt_server.c_str(), mqtt_port);
   mqttClient.setCallback(mqttCallback);
   mqttClient.setBufferSize(512); // Larger buffer for JSON settings payloads
+  mqttClient.setKeepAlive(60);   // 60s keep-alive (default 15s is too aggressive)
 }
 
 // =============================================================================
@@ -522,12 +538,15 @@ void handleMqttReconnect() {
     // Announce ONLINE with retained message
     String onlineMsg = String("ONLINE:") + HW_TYPE;
     mqttClient.publish(statusTopicPub.c_str(), onlineMsg.c_str(), true);
+    selfStatusOnline = false; // Will be confirmed when we receive our own retained msg
+    lastStatusCheck = millis();
     Serial.println("Published " + onlineMsg + " status.");
 
     // Subscribe to all topics
     mqttClient.subscribe(triggerTopicSub.c_str());
     mqttClient.subscribe(settingsTopicSub.c_str());
     mqttClient.subscribe(otaTopicSub.c_str());
+    mqttClient.subscribe(statusTopicPub.c_str()); // Self-monitor for stale OFFLINE
 
     // OTA Rollback Protection: mark this firmware as valid once we've proven we can connect
     esp_ota_mark_app_valid_cancel_rollback();
@@ -620,6 +639,18 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   } else if (topicStr == otaTopicSub) {
     Serial.println("OTA triggered via MQTT! URL: " + msg);
     performOTA(msg);
+
+  } else if (topicStr == statusTopicPub) {
+    // Self-status monitoring: detect and correct stale OFFLINE retained messages
+    if (msg.startsWith("ONLINE")) {
+      selfStatusOnline = true;
+    } else {
+      selfStatusOnline = false;
+      // Immediately attempt to correct stale OFFLINE
+      String onlineMsg = String("ONLINE:") + HW_TYPE;
+      mqttClient.publish(statusTopicPub.c_str(), onlineMsg.c_str(), true);
+      Serial.println("Detected stale OFFLINE status — corrected to ONLINE.");
+    }
   }
 }
 
