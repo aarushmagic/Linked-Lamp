@@ -1583,6 +1583,7 @@ static String createJWT(const String& email, const String& privateKeyPem) {
 static String cachedAccessToken = "";
 static unsigned long cachedTokenExpiry = 0;
 static SemaphoreHandle_t fcmSemaphore = NULL;
+static unsigned long lastFcmSendTime = 0;
 
 // FCM task parameters (heap-allocated, freed by task)
 struct FCMTaskParams {
@@ -1689,6 +1690,11 @@ static void fcmTask(void* pvParameters) {
     msgDoc["message"]["notification"]["title"] = p->title;
     msgDoc["message"]["notification"]["body"] = p->body;
     
+    // Add APNs specific config so Apple naturally collapses spam without banning
+    msgDoc["message"]["apns"]["headers"]["apns-collapse-id"] = "lamp-tap";
+    msgDoc["message"]["apns"]["payload"]["aps"]["thread-id"] = "lamp-tap";
+    msgDoc["message"]["android"]["collapse_key"] = "lamp-tap";
+    
     String msgPayload;
     serializeJson(msgDoc, msgPayload);
     
@@ -1724,11 +1730,19 @@ void sendFCMAsync(String token, String title, String body) {
     xSemaphoreGive(fcmSemaphore); // Start as "available"
   }
   
+  // Wait at least 15 seconds between FCM pushes to physically prevent API spam
+  if (millis() - lastFcmSendTime < 15000) {
+    Serial.println("FCM: Throttled — sent a push within the last 15s. Skipping.");
+    return;
+  }
+  
   // Try to take the semaphore — if another FCM task is running, skip this one
   if (xSemaphoreTake(fcmSemaphore, 0) != pdTRUE) {
     Serial.println("FCM: Another push task is in progress, skipping.");
     return;
   }
+  
+  lastFcmSendTime = millis();
   
   FCMTaskParams* params = new FCMTaskParams();
   params->token = token;
