@@ -59,7 +59,7 @@ function generateConfigJSON(deviceId, mqttServer, mqttUser, mqttPass, firebaseEm
     if (firebaseKey && firebaseKey.trim().length > 0) {
         config.firebase_private_key = firebaseKey.trim();
     }
-    return JSON.stringify(config, null, 2);
+    return JSON.stringify(config);
 }
 
 async function flashESP32(config, onLog, onProgress) {
@@ -214,7 +214,17 @@ async function flashESP32(config, onLog, onProgress) {
                         onLog("Sending config to ESP32...");
                         onProgress(90);
                         const configLine = JSON.stringify(JSON.parse(configJson)) + "\n";
-                        await writer.write(new TextEncoder().encode(configLine));
+                        const encoder = new TextEncoder();
+                        const encoded = encoder.encode(configLine);
+                        // Send in small chunks to prevent ESP32 UART overflow
+                        const CHUNK_SIZE = 128;
+                        for (let i = 0; i < encoded.length; i += CHUNK_SIZE) {
+                            const chunk = encoded.slice(i, Math.min(i + CHUNK_SIZE, encoded.length));
+                            await writer.write(chunk);
+                            // Small delay between chunks to let ESP32 process
+                            await sleep(50);
+                        }
+                        onLog(`Config sent (${encoded.length} bytes in ${Math.ceil(encoded.length / CHUNK_SIZE)} chunks).`);
                         configSent = true;
                     }
 

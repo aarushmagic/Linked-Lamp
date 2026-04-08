@@ -28,6 +28,7 @@
 #include <time.h>
 #include <Adafruit_NeoPixel.h>
 #include <NimBLEDevice.h>
+#include <NimBLEHIDDevice.h>
 #include <mbedtls/pk.h>
 #include <mbedtls/md.h>
 #include <mbedtls/entropy.h>
@@ -207,6 +208,7 @@ String hexToEmoji(String hexColor);
 // Setup
 // =============================================================================
 void setup() {
+  Serial.setRxBufferSize(4096);
   Serial.begin(115200);
   delay(100);
   Serial.println("\n\n--- Linked Lamp Boot ---");
@@ -429,15 +431,36 @@ void loadConfig() {
         ota_url      = doc["ota_url"]     | "";
         firebase_client_email = doc["firebase_client_email"] | "";
         firebase_private_key  = doc["firebase_private_key"]  | "";
+        firebase_private_key.replace("\"", "");
+        firebase_private_key.replace("\\r", "");
+        firebase_private_key.replace("\\n", "\n");
+        int bIdx = firebase_private_key.indexOf("-----BEGIN");
+        if (bIdx > 0) firebase_private_key = firebase_private_key.substring(bIdx);
+        firebase_private_key.trim();
+        firebase_private_key += "\n";
+
         // Extract project ID from service account email
         if (firebase_client_email.length() > 0) {
           int atIdx = firebase_client_email.indexOf('@');
           int iamIdx = firebase_client_email.indexOf(".iam.");
           if (atIdx > 0 && iamIdx > atIdx) {
             firebase_project_id = firebase_client_email.substring(atIdx + 1, iamIdx);
-            Serial.println("Firebase project: " + firebase_project_id);
           }
         }
+        
+        Serial.println("\n=== CONFIG LOADED FROM LITTLEFS ===");
+        Serial.printf("MQTT Server: %s\n", mqtt_server.c_str());
+        Serial.printf("Firebase Client Email: %s\n", firebase_client_email.c_str());
+        Serial.printf("Firebase Project ID: %s\n", firebase_project_id.c_str());
+        Serial.printf("Firebase Private Key Length: %d\n", firebase_private_key.length());
+        if (firebase_private_key.length() > 60) {
+            Serial.printf("PK Head: '%s'\n", firebase_private_key.substring(0, 30).c_str());
+            Serial.printf("PK Tail: '%s'\n", firebase_private_key.substring(firebase_private_key.length() - 30).c_str());
+        } else {
+            Serial.printf("PK Raw: '%s'\n", firebase_private_key.c_str());
+        }
+        Serial.println("===================================");
+
         if (mqtt_server.length() > 0) {
           configValid = true;
           Serial.println("Config loaded from /config.json");
@@ -454,6 +477,7 @@ void loadConfig() {
     Serial.println("Waiting for config via Serial (30s timeout)...");
     unsigned long waitStart = millis();
     String serialBuffer = "";
+    serialBuffer.reserve(4096);
 
     while (millis() - waitStart < 30000) {
       if (Serial.available()) {
@@ -472,6 +496,14 @@ void loadConfig() {
               ota_url      = doc["ota_url"]     | "";
               firebase_client_email = doc["firebase_client_email"] | "";
               firebase_private_key  = doc["firebase_private_key"]  | "";
+              firebase_private_key.replace("\"", "");
+              firebase_private_key.replace("\\r", "");
+              firebase_private_key.replace("\\n", "\n");
+              int bIdx = firebase_private_key.indexOf("-----BEGIN");
+              if (bIdx > 0) firebase_private_key = firebase_private_key.substring(bIdx);
+              firebase_private_key.trim();
+              firebase_private_key += "\n";
+
               if (firebase_client_email.length() > 0) {
                 int atIdx = firebase_client_email.indexOf('@');
                 int iamIdx = firebase_client_email.indexOf(".iam.");
@@ -1361,24 +1393,47 @@ String buildOnlineMsg() {
   return msg;
 }
 
+// Consumer Control Report Map (Volume/Media keys only — doesn't hide iOS Keyboard)
+static const uint8_t hidReportMap[] = {
+  0x05, 0x0C, 0x09, 0x01, 0xA1, 0x01, 0x15, 0x00, 
+  0x25, 0x01, 0x75, 0x01, 0x95, 0x07, 0x09, 0xB5, 
+  0x09, 0xB6, 0x09, 0xB7, 0x09, 0xCD, 0x09, 0xE2, 
+  0x09, 0xEA, 0x09, 0xE9, 0x81, 0x02, 0x75, 0x01, 
+  0x95, 0x01, 0x81, 0x03, 0xC0
+};
+
 void initBLE() {
   if (bleInitialized) return;
   if (!awayModeEnabled || pushToken.length() == 0 || firebase_client_email.length() == 0) return;
   if (WiFi.status() != WL_CONNECTED) return; // Don't init BLE without WiFi
 
-  NimBLEDevice::init("My Linked Lamp");
+  NimBLEDevice::setSecurityAuth(true, false, true);
+  NimBLEDevice::setSecurityIOCap(BLE_HS_IO_NO_INPUT_OUTPUT);
+  NimBLEDevice::setSecurityInitKey(BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID);
+  NimBLEDevice::setSecurityRespKey(BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID);
+  
+  NimBLEDevice::init("LinkedLamp BLE");
   NimBLEDevice::setPower(3); // Low TX power (3 dBm) to minimize WiFi interference
 
+  // Create server & hook callbacks for presence tracking
   NimBLEServer* pServer = NimBLEDevice::createServer();
-  // No services/characteristics needed — presence detection only
+
+  // Initialize as a dummy Media Remote so iOS/Android aggressively stay connected in the background
+  NimBLEHIDDevice* pHid = new NimBLEHIDDevice(pServer);
+  pHid->setManufacturer("Linked Lamp");
+  pHid->setPnp(0x02, 0x05ac, 0x0255, 0x0115); // Apple Inc Vendor ID
+  pHid->setHidInfo(0x00, 0x01);
+  pHid->setReportMap((uint8_t*)hidReportMap, sizeof(hidReportMap));
 
   NimBLEAdvertising* pAdv = NimBLEDevice::getAdvertising();
+  pAdv->addServiceUUID("1812");
+  pAdv->setAppearance(0x0180); // Generic Remote Control
   pAdv->setMinInterval(1600); // 1000ms in 0.625ms units — WiFi-friendly
   pAdv->setMaxInterval(3200); // 2000ms
   pAdv->start();
 
   bleInitialized = true;
-  Serial.println("BLE server started: 'My Linked Lamp'");
+  Serial.println("BLE server started: 'My Linked Lamp' (HID Tether)");
 }
 
 void deinitBLE() {
@@ -1469,10 +1524,19 @@ static String createJWT(const String& email, const String& privateKeyPem) {
   mbedtls_md_finish(&mdCtx, hash);
   mbedtls_md_free(&mdCtx);
   
-  // RSA sign with private key
+  Serial.println("\n[FCM JWT GENERATION]");
+  Serial.printf("PK Length received by createJWT: %d\n", privateKeyPem.length());
+  if (privateKeyPem.length() > 60) {
+      Serial.printf("- Key Head: '%s'\n", privateKeyPem.substring(0, 31).c_str());
+      Serial.printf("- Key Tail: '%s'\n", privateKeyPem.substring(privateKeyPem.length() - 31).c_str());
+  } else {
+      Serial.printf("- Key Raw Content: '%s'\n", privateKeyPem.c_str());
+  }
+
   mbedtls_pk_context pk;
   mbedtls_pk_init(&pk);
   
+  Serial.println("FCM: Calling mbedtls_pk_parse_key...");
   int ret = mbedtls_pk_parse_key(&pk, (const uint8_t*)privateKeyPem.c_str(),
                                   privateKeyPem.length() + 1, NULL, 0);
   if (ret != 0) {
@@ -1506,99 +1570,167 @@ static String createJWT(const String& email, const String& privateKeyPem) {
   return signInput + "." + b64Sig;
 }
 
+// FCM: Cached OAuth token and mutex for memory safety
+static String cachedAccessToken = "";
+static unsigned long cachedTokenExpiry = 0;
+static SemaphoreHandle_t fcmSemaphore = NULL;
+
 // FCM task parameters (heap-allocated, freed by task)
 struct FCMTaskParams {
   String token;
   String title;
   String body;
   String email;
-  String privateKey;
   String projectId;
+  // privateKey is NOT copied — we read from the global to save ~1.7KB heap
 };
 
-static void fcmTask(void* param) {
-  FCMTaskParams* p = (FCMTaskParams*)param;
+static String obtainAccessToken(const String& email) {
+  // Check if cached token is still valid (with 10-min safety margin)
+  if (cachedAccessToken.length() > 0 && millis() < cachedTokenExpiry) {
+    Serial.println("FCM: Using cached access token.");
+    return cachedAccessToken;
+  }
   
-  Serial.println("FCM: Starting push notification send...");
+  Serial.println("FCM: Generating new JWT & exchanging for access token...");
   
-  // Step 1: Create JWT
-  String jwt = createJWT(p->email, p->privateKey);
+  // Step 1: Create JWT using the global private key (no copy needed)
+  String jwt = createJWT(email, firebase_private_key);
   if (jwt.length() == 0) {
     Serial.println("FCM: JWT creation failed.");
-    delete p;
-    vTaskDelete(NULL);
-    return;
+    return "";
   }
-  
-  WiFiClientSecure client;
-  client.setInsecure();
-  HTTPClient http;
   
   // Step 2: Exchange JWT for access token
-  http.begin(client, "https://oauth2.googleapis.com/token");
-  http.addHeader("Content-Type", "application/x-www-form-urlencoded");
-  String tokenBody = "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=" + jwt;
-  
-  int httpCode = http.POST(tokenBody);
   String accessToken = "";
-  
-  if (httpCode == 200) {
-    JsonDocument tokenDoc;
-    if (!deserializeJson(tokenDoc, http.getString())) {
-      accessToken = tokenDoc["access_token"].as<String>();
+  {
+    WiFiClientSecure client;
+    client.setInsecure();
+    client.setHandshakeTimeout(10);
+    HTTPClient http;
+    
+    http.begin(client, "https://oauth2.googleapis.com/token");
+    http.addHeader("Content-Type", "application/x-www-form-urlencoded");
+    http.setTimeout(15000);
+    String tokenBody = "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=" + jwt;
+    
+    // Clear JWT immediately — it's been copied into tokenBody
+    jwt.clear();
+    
+    int httpCode = http.POST(tokenBody);
+    tokenBody.clear(); // Free the large POST body
+    
+    if (httpCode == 200) {
+      String response = http.getString();
+      JsonDocument tokenDoc;
+      if (!deserializeJson(tokenDoc, response)) {
+        accessToken = tokenDoc["access_token"].as<String>();
+      }
+    } else {
+      Serial.printf("FCM: Token exchange failed: %d\n", httpCode);
     }
-  } else {
-    Serial.printf("FCM: Token exchange failed: %d\n", httpCode);
+    
     http.end();
-    delete p;
-    vTaskDelete(NULL);
-    return;
-  }
-  http.end();
+    client.stop(); // Explicitly tear down SSL — frees ~16KB heap
+    Serial.printf("FCM: Heap after OAuth cleanup: %u bytes\n", ESP.getFreeHeap());
+  } // WiFiClientSecure and HTTPClient destructors fire here
   
+  if (accessToken.length() > 0) {
+    cachedAccessToken = accessToken;
+    cachedTokenExpiry = millis() + (50UL * 60UL * 1000UL); // Cache for 50 minutes
+    Serial.println("FCM: Access token cached for 50 minutes.");
+  }
+  
+  return accessToken;
+}
+
+static void fcmTask(void* pvParameters) {
+  FCMTaskParams* p = (FCMTaskParams*)pvParameters;
+  Serial.println("\n+++ FCM ASYNC TASK TRIGGERED +++");
+  Serial.printf("Recipient Push Token: %.40s...\n", p->token.c_str());
+  Serial.printf("Heap at task start: %u bytes\n", ESP.getFreeHeap());
+  Serial.println("++++++++++++++++++++++++++++++++++");
+  
+  // Step 1: Get access token (cached or fresh)
+  String accessToken = obtainAccessToken(p->email);
   if (accessToken.length() == 0) {
-    Serial.println("FCM: Empty access token.");
+    Serial.println("FCM: Failed to obtain access token.");
     delete p;
+    xSemaphoreGive(fcmSemaphore);
     vTaskDelete(NULL);
     return;
   }
   
-  // Step 3: Send FCM notification
-  String fcmUrl = "https://fcm.googleapis.com/v1/projects/" + p->projectId + "/messages:send";
-  http.begin(client, fcmUrl);
-  http.addHeader("Content-Type", "application/json");
-  http.addHeader("Authorization", "Bearer " + accessToken);
-  
-  JsonDocument msgDoc;
-  msgDoc["message"]["token"] = p->token;
-  msgDoc["message"]["notification"]["title"] = p->title;
-  msgDoc["message"]["notification"]["body"] = p->body;
-  
-  String msgPayload;
-  serializeJson(msgDoc, msgPayload);
-  
-  httpCode = http.POST(msgPayload);
-  if (httpCode == 200) {
-    Serial.println("FCM: Push notification sent successfully!");
-  } else {
-    Serial.printf("FCM: Send failed: %d - %s\n", httpCode, http.getString().c_str());
+  // Step 2: Send FCM notification using a FRESH SSL client
+  {
+    WiFiClientSecure client;
+    client.setInsecure();
+    client.setHandshakeTimeout(10);
+    HTTPClient http;
+    
+    String fcmUrl = "https://fcm.googleapis.com/v1/projects/" + p->projectId + "/messages:send";
+    http.begin(client, fcmUrl);
+    http.addHeader("Content-Type", "application/json");
+    http.addHeader("Authorization", "Bearer " + accessToken);
+    http.setTimeout(15000);
+    
+    // Build payload
+    JsonDocument msgDoc;
+    msgDoc["message"]["token"] = p->token;
+    msgDoc["message"]["notification"]["title"] = p->title;
+    msgDoc["message"]["notification"]["body"] = p->body;
+    
+    String msgPayload;
+    serializeJson(msgDoc, msgPayload);
+    
+    int httpCode = http.POST(msgPayload);
+    if (httpCode == 200) {
+      Serial.println("FCM: Push notification sent successfully!");
+    } else {
+      String errBody = http.getString();
+      Serial.printf("FCM: Send failed: %d - %s\n", httpCode, errBody.c_str());
+      // If 401, token expired — invalidate cache
+      if (httpCode == 401) {
+        cachedAccessToken.clear();
+        cachedTokenExpiry = 0;
+        Serial.println("FCM: Cached token invalidated (401).");
+      }
+    }
+    
+    http.end();
+    client.stop(); // Explicitly tear down SSL — frees ~16KB heap
   }
-  http.end();
+  
+  Serial.printf("FCM: Heap after full cleanup: %u bytes\n", ESP.getFreeHeap());
   
   delete p;
+  xSemaphoreGive(fcmSemaphore); // Signal completion for the next notification
   vTaskDelete(NULL);
 }
 
 void sendFCMAsync(String token, String title, String body) {
+  // Create binary semaphore on first call (not a mutex — avoids ownership crash)
+  if (fcmSemaphore == NULL) {
+    fcmSemaphore = xSemaphoreCreateBinary();
+    xSemaphoreGive(fcmSemaphore); // Start as "available"
+  }
+  
+  // Try to take the semaphore — if another FCM task is running, skip this one
+  if (xSemaphoreTake(fcmSemaphore, 0) != pdTRUE) {
+    Serial.println("FCM: Another push task is in progress, skipping.");
+    return;
+  }
+  
   FCMTaskParams* params = new FCMTaskParams();
   params->token = token;
   params->title = title;
   params->body = body;
   params->email = firebase_client_email;
-  params->privateKey = firebase_private_key;
   params->projectId = firebase_project_id;
+  // Note: privateKey is read from the global `firebase_private_key` directly
   
   // Run on core 0 (protocol core) to avoid blocking LED animations on core 1
-  xTaskCreatePinnedToCore(fcmTask, "fcm_push", 8192, params, 1, NULL, 0);
+  // Stack increased to 12288 to accommodate SSL handshake overhead
+  xTaskCreatePinnedToCore(fcmTask, "fcm_push", 12288, params, 1, NULL, 0);
   Serial.println("FCM: Push task launched (async).");
 }
