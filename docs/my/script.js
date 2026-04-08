@@ -899,7 +899,18 @@ async function setupFirebase(firebaseConfig) {
         onMessage(window.firebaseMessaging, (payload) => {
             console.log("Foreground message received:", payload);
             if (payload.notification) {
-                new Notification(payload.notification.title, { body: payload.notification.body });
+                const title = payload.notification.title || 'Linked Lamp';
+                const body = payload.notification.body || 'Your lamp received a tap!';
+                
+                navigator.serviceWorker.ready.then((registration) => {
+                    registration.showNotification(title, {
+                        body: body,
+                        icon: 'icon-192.png',
+                        badge: 'icon-192.png',
+                        tag: 'linked-lamp-notify',
+                        renotify: true
+                    });
+                });
             }
         });
     }
