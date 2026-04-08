@@ -84,6 +84,12 @@ let ambientColorPicker = null;
 window.addEventListener("load", () => {
     if (!loadCredentials()) {
         document.getElementById("missingCredentialsModal").style.display = "flex"; // Use flex to center the content using modal's built in styling
+
+        // Show manual override entry ONLY in PWA modes
+        const isPWA = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+        if (isPWA) {
+            document.getElementById("pwaManualInputBlock").style.display = "block";
+        }
         return;
     }
 
@@ -121,7 +127,7 @@ window.addEventListener("beforeunload", () => {
 function loadCredentials() {
     let params = new URLSearchParams(window.location.search);
     let fromQuery = params.has("s") && params.has("u") && params.has("p") && params.has("id");
-    
+
     let fromHash = false;
     if (!fromQuery) {
         const hash = window.location.hash;
@@ -157,13 +163,13 @@ function loadCredentials() {
         mqtt_server = localStorage.getItem("ll_s");
         mqtt_user = localStorage.getItem("ll_u");
         mqtt_pass = localStorage.getItem("ll_p");
-        
+
         const id = localStorage.getItem("ll_id");
         if (id) {
             myDeviceId = id.toUpperCase() === "B" ? "B" : "A";
             partnerDeviceId = myDeviceId === "A" ? "B" : "A";
         }
-        
+
         const savedName = localStorage.getItem("ll_name");
         if (savedName) partnerName = savedName;
     }
@@ -179,6 +185,40 @@ function loadCredentials() {
     }
 
     return !!(mqtt_server && mqtt_user && mqtt_pass);
+}
+
+// ==========================================================================
+// iOS Sandbox Escape: Manual Credential Load
+// ==========================================================================
+function saveManualLink() {
+    const linkStr = document.getElementById("manualLinkInput").value.trim();
+    const errorEl = document.getElementById("manualLinkError");
+
+    if (!linkStr) {
+        errorEl.style.display = "block";
+        errorEl.innerText = "Please paste a link first.";
+        return;
+    }
+
+    try {
+        const url = new URL(linkStr);
+        // Convert query string into a hash string so it safely redirects cleanly 
+        // into the app and passes validation without breaking PWA bounds.
+        let params = url.search;
+        if (!params || params.length < 5) {
+            params = url.hash; // Try to extract from hash if it was a hash link
+        }
+
+        if (params && params.includes("s=") && params.includes("id=")) {
+            window.location.href = window.location.pathname + params;
+        } else {
+            errorEl.style.display = "block";
+            errorEl.innerText = "This link doesn't contain the correct connection data.";
+        }
+    } catch (e) {
+        errorEl.style.display = "block";
+        errorEl.innerText = "Invalid URL format.";
+    }
 }
 
 // ==========================================================================
@@ -432,7 +472,7 @@ function applySettingsToUI() {
         nightToggle.checked = mySettings.nightMode;
         nightSection.classList.toggle("hidden", !mySettings.nightMode);
     }
-    
+
     // Ambient Toggle & color circle
     const ambToggle = document.getElementById("ambientModeToggle");
     const ambCircle = document.getElementById("btnAmbientColorDisplay");
@@ -675,11 +715,11 @@ function closeAmbientColorModal() {
 function saveAmbientColor() {
     mySettings.ambientColor = ambientColorPicker.color.hexString;
     ambientColorBeforeEdit = null; // Clear so close doesn't revert
-    
+
     // Update the color circle
     const circle = document.getElementById("btnAmbientColorDisplay");
     if (circle) circle.style.backgroundColor = mySettings.ambientColor;
-    
+
     publishSettings();
     document.getElementById("ambientColorModal").style.display = "none";
 }
@@ -725,19 +765,19 @@ function updateTimeDisplay(elementId, time24) {
 // ==========================================================================
 
 function updateAwayNotifUI() {
-    const isPWA = window.matchMedia('(display-mode: standalone)').matches 
-               || window.navigator.standalone;
+    const isPWA = window.matchMedia('(display-mode: standalone)').matches
+        || window.navigator.standalone;
     const hasFirebase = firebaseEmail && firebaseEmail.length > 0;
-    
+
     const card = document.getElementById('awayNotifCard');
     const promo = document.getElementById('awayNotifPromo');
-    
+
     if (!card || !promo) return;
 
     if (isPWA && hasFirebase) {
         card.style.display = 'block';
         promo.style.display = 'none';
-        
+
         // Multi-device lockout
         if (mySettings.pushToken && mySettings.deviceId && mySettings.deviceId !== currentDeviceId) {
             document.getElementById('awayToggleLabel').classList.add('locked');
@@ -759,13 +799,13 @@ function updateAwayNotifUI() {
 
 function resetAwayConnection() {
     if (!confirm("This will disconnect notifications from the other device and connect them to this phone. Continue?")) return;
-    
+
     mySettings.pushToken = "";
     mySettings.deviceId = "";
     mySettings.away_mode = false;
     publishSettings();
     document.getElementById('awayModeToggle').checked = false;
-    
+
     // Simulate re-running the UI logic so the user can toggle it fresh
     setTimeout(updateAwayNotifUI, 500);
 }
@@ -823,23 +863,23 @@ async function saveFirebaseConfig() {
         // Evaluate the user's snippet (extract the object)
         const match = input.match(/({[\s\S]*})/);
         if (!match) throw new Error("Could not find a valid object in the input.");
-        
+
         // This is safe because it's client side only and they pasted it themselves
         const configObj = eval("(" + match[1] + ")");
-        
+
         if (!configObj.apiKey || !configObj.projectId) {
             throw new Error("Invalid config object. Make sure apiKey and projectId are present.");
         }
 
         localStorage.setItem("ll_firebase_config", JSON.stringify(configObj));
         document.getElementById("firebaseConfigModal").style.display = "none";
-        
+
         // Set toggle UI visually
         document.getElementById("awayModeToggle").checked = true;
-        
+
         // Attempt setup
         await setupFirebase(configObj);
-        
+
         alert("Push notifications enabled!");
     } catch (e) {
         alert("Error parsing config: " + e.message);
@@ -851,11 +891,11 @@ async function setupFirebase(firebaseConfig) {
     if (!window.firebaseApp) {
         const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.10.0/firebase-app.js");
         const { getMessaging, getToken, onMessage } = await import("https://www.gstatic.com/firebasejs/10.10.0/firebase-messaging.js");
-        
+
         window.firebaseApp = initializeApp(firebaseConfig);
         window.firebaseMessaging = getMessaging(window.firebaseApp);
         window.firebaseGetToken = getToken;
-        
+
         onMessage(window.firebaseMessaging, (payload) => {
             console.log("Foreground message received:", payload);
             if (payload.notification) {
@@ -867,7 +907,7 @@ async function setupFirebase(firebaseConfig) {
     // Request permissions and get token
     const permission = await Notification.requestPermission();
     if (permission === 'granted') {
-        
+
         // Register SW manually so we can pass the dynamic user config
         const swReg = await navigator.serviceWorker.register(
             'firebase-messaging-sw.js?config=' + encodeURIComponent(JSON.stringify(firebaseConfig))
@@ -876,7 +916,7 @@ async function setupFirebase(firebaseConfig) {
         const token = await window.firebaseGetToken(window.firebaseMessaging, {
             serviceWorkerRegistration: swReg
         });
-        
+
         if (token) {
             console.log('FCM Token:', token);
             mySettings.pushToken = token;

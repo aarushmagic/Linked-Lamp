@@ -402,15 +402,20 @@
                 your <strong>Special Customized Link</strong> or via the NFC tag on the bottom of your lamp (if
                 available).
             </p>
-            <p class="desc" style="margin-bottom: 25px; line-height: 1.5;">
+            <p class="desc" style="margin-bottom: 20px; line-height: 1.5;">
                 Try asking the person who set up the lamp for the link. If you are that person, you can generate a new
-                link by following the setup process again. Note, in this case, all connected lamps will need to be
-                reflashed and new links will be generated for all lamps.
+                link by following the setup process again.
             </p>
-            <div class="preset-modal-actions" style="flex-direction: column; gap: 10px; margin-top: 10px; padding: 0;">
-                <button class="action-btn primary-btn" onclick="window.location.href='../setup-software.html'">Go to
-                    Setup
-                    Guide</button>
+            <div id="pwaManualInputBlock" style="display: none; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; margin-bottom: 15px; border: 1px solid rgba(255,255,255,0.1);">
+                <p class="desc" style="margin-bottom: 12px; font-size: 0.85rem;">
+                    <strong>App Users:</strong> If your connection was lost after adding to your Home Screen, copy the link from your browser and paste it here:
+                </p>
+                <input type="text" id="manualLinkInput" placeholder="Paste link here (https://...)" style="width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 8px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); color: white; font-family: monospace; font-size: 0.85rem; outline: none;">
+                <button class="action-btn primary-btn" onclick="saveManualLink()" style="font-size: 0.9rem; padding: 10px;">Connect Lamp</button>
+                <p id="manualLinkError" style="color: #ff4757; font-size: 0.8rem; margin-top: 8px; display: none;">Invalid link format. Make sure it contains connection parameters.</p>
+            </div>
+            <div class="preset-modal-actions" style="flex-direction: column; gap: 10px; margin-top: 0; padding: 0;">
+                <button class="action-btn secondary-btn" onclick="window.location.href='../setup-software.html'" style="font-size: 0.9rem; padding: 10px;">Go to Setup Guide</button>
             </div>
         </div>
     </div>
