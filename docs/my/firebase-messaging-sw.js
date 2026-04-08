@@ -11,8 +11,17 @@ try {
 
         messaging.onBackgroundMessage((payload) => {
             console.log('[firebase-messaging-sw.js] Received background message ', payload);
-            // The browser FCM automatically handles 'notification' payloads so we don't
-            // explicitly need to call self.registration.showNotification here
+            
+            const title = (payload.notification && payload.notification.title) || 'Linked Lamp';
+            const body = (payload.notification && payload.notification.body) || 'Your lamp received a tap!';
+
+            return self.registration.showNotification(title, {
+                body: body,
+                icon: 'icon-192.png',
+                badge: 'icon-192.png',
+                tag: 'linked-lamp-notify',
+                renotify: true
+            });
         });
     }
 } catch (e) {
