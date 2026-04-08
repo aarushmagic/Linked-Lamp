@@ -9,6 +9,7 @@
  *   - tzapu/WiFiManager
  *   - knolleary/PubSubClient
  *   - bblanchon/ArduinoJson
+ *   - h2zero/NimBLE-Arduino (for BLE presence detection)
  * 
  * License: GNU GPLv3
  */
@@ -25,6 +26,12 @@
 #include <lwip/dns.h>
 #include <esp_ota_ops.h>
 #include <time.h>
+#include <NimBLEDevice.h>
+#include <mbedtls/pk.h>
+#include <mbedtls/md.h>
+#include <mbedtls/entropy.h>
+#include <mbedtls/ctr_drbg.h>
+#include <mbedtls/base64.h>
 
 // =============================================================================
 // Hardware Type Definition
@@ -49,6 +56,19 @@ int    mqtt_port    = 8883;
 String mqtt_user    = "";
 String mqtt_pass    = "";
 String ota_url      = "";  // Optional: base URL for auto-OTA checks
+
+// Firebase (loaded from config, empty = feature disabled)
+String firebase_client_email  = "";
+String firebase_private_key   = "";
+String firebase_project_id    = "";  // auto-extracted from email
+
+// Away Mode state (persisted in state.json)
+String pushToken    = "";
+String pushDeviceId = "";
+bool   awayModeEnabled = false;
+
+// BLE state
+bool bleInitialized = false;
 
 // =============================================================================
 // User Settings (synced from web interface via MQTT, persisted in /state.json)
@@ -182,6 +202,11 @@ float hexToHue(String hexColor);
 bool isNighttime();
 void publishSettingsViaMQTT();
 void startColorTransition(uint8_t toR, uint8_t toG, uint8_t toB);
+void initBLE();
+void deinitBLE();
+String buildOnlineMsg();
+void sendFCMAsync(String token, String title, String body);
+String hexToEmoji(String hexColor);
 
 // =============================================================================
 // Setup
@@ -322,6 +347,11 @@ void onWifiConnect() {
     delay(200);
     setRGB(0, 0, 0);
   }
+
+  // Re-enable BLE if away mode is active
+  if (awayModeEnabled && pushToken.length() > 0 && !bleInitialized) {
+    initBLE();
+  }
 }
 
 void handleWifi() {
@@ -340,7 +370,7 @@ void handleWifi() {
       if (millis() - lastStatusCheck >= STATUS_CHECK_INTERVAL) {
         lastStatusCheck = millis();
         if (!selfStatusOnline) {
-          String onlineMsg = String("ONLINE:") + HW_TYPE;
+          String onlineMsg = buildOnlineMsg();
           mqttClient.publish(statusTopicPub.c_str(), onlineMsg.c_str(), true);
           Serial.println("Status correction: re-published ONLINE (was showing OFFLINE)");
         }
@@ -351,6 +381,11 @@ void handleWifi() {
     if (wifiConnected) {
       wifiConnected = false;
       wifiDisconnectedSince = millis();
+      // WiFi takes priority — temporarily disable BLE
+      if (bleInitialized) {
+        deinitBLE();
+        Serial.println("BLE disabled to prioritize WiFi reconnection.");
+      }
       Serial.println("WiFi lost! Attempting reconnect...");
       WiFi.disconnect();
       WiFi.reconnect();
@@ -403,6 +438,16 @@ void loadConfig() {
         mqtt_user    = doc["mqtt_user"]   | "";
         mqtt_pass    = doc["mqtt_pass"]   | "";
         ota_url      = doc["ota_url"]     | "";
+        firebase_client_email = doc["firebase_client_email"] | "";
+        firebase_private_key  = doc["firebase_private_key"]  | "";
+        if (firebase_client_email.length() > 0) {
+          int atIdx = firebase_client_email.indexOf('@');
+          int iamIdx = firebase_client_email.indexOf(".iam.");
+          if (atIdx > 0 && iamIdx > atIdx) {
+            firebase_project_id = firebase_client_email.substring(atIdx + 1, iamIdx);
+            Serial.println("Firebase project: " + firebase_project_id);
+          }
+        }
         if (mqtt_server.length() > 0) {
           configValid = true;
           Serial.println("Config loaded from /config.json");
@@ -435,6 +480,15 @@ void loadConfig() {
               mqtt_user    = doc["mqtt_user"]   | "";
               mqtt_pass    = doc["mqtt_pass"]   | "";
               ota_url      = doc["ota_url"]     | "";
+              firebase_client_email = doc["firebase_client_email"] | "";
+              firebase_private_key  = doc["firebase_private_key"]  | "";
+              if (firebase_client_email.length() > 0) {
+                int atIdx = firebase_client_email.indexOf('@');
+                int iamIdx = firebase_client_email.indexOf(".iam.");
+                if (atIdx > 0 && iamIdx > atIdx) {
+                  firebase_project_id = firebase_client_email.substring(atIdx + 1, iamIdx);
+                }
+              }
 
               // Save to LittleFS so we don't need Serial next boot
               if (!LittleFS.begin(true)) { LittleFS.format(); LittleFS.begin(true); }
@@ -476,6 +530,9 @@ void loadState() {
     userTimezone          = doc["timezone"]         | "EST5EDT";
     ambientModeEnabled    = doc["ambientMode"]      | false;
     ambientColor          = doc["ambientColor"]     | "#0000FF";
+    pushToken             = doc["pushToken"]         | "";
+    pushDeviceId          = doc["pushDeviceId"]      | "";
+    awayModeEnabled       = doc["awayMode"]           | false;
     Serial.println("State loaded. Default color: " + defaultColor);
   }
   f.close();
@@ -507,7 +564,7 @@ void setupMQTT() {
   espClientSecure.setInsecure();
   mqttClient.setServer(mqtt_server.c_str(), mqtt_port);
   mqttClient.setCallback(mqttCallback);
-  mqttClient.setBufferSize(512); // Larger buffer for JSON settings payloads
+  mqttClient.setBufferSize(1024); // Larger buffer for JSON settings + push token payloads
   mqttClient.setKeepAlive(60);   // 60s keep-alive (default 15s is too aggressive)
 }
 
@@ -536,7 +593,7 @@ void handleMqttReconnect() {
     mqttFailCount = 0;
 
     // Announce ONLINE with retained message
-    String onlineMsg = String("ONLINE:") + HW_TYPE;
+    String onlineMsg = buildOnlineMsg();
     mqttClient.publish(statusTopicPub.c_str(), onlineMsg.c_str(), true);
     selfStatusOnline = false; // Will be confirmed when we receive our own retained msg
     lastStatusCheck = millis();
@@ -633,6 +690,16 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     pulseStartTime = millis();
     Serial.println("Trigger received! Lamp ON with gradual transition.");
 
+    // Away Mode: send push notification if user is not nearby
+    if (awayModeEnabled && pushToken.length() > 0 && firebase_client_email.length() > 0) {
+      if (!bleInitialized || NimBLEDevice::getServer() == nullptr || NimBLEDevice::getServer()->getConnectedCount() == 0) {
+        String emoji = hexToEmoji(msg);
+        sendFCMAsync(pushToken, "Linked Lamp", "New tap received! " + emoji);
+      } else {
+        Serial.println("User nearby (BLE connected) — notification suppressed.");
+      }
+    }
+
   } else if (topicStr == settingsTopicSub) {
     parseSettings(msg);
 
@@ -647,7 +714,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     } else {
       selfStatusOnline = false;
       // Immediately attempt to correct stale OFFLINE
-      String onlineMsg = String("ONLINE:") + HW_TYPE;
+      String onlineMsg = buildOnlineMsg();
       mqttClient.publish(statusTopicPub.c_str(), onlineMsg.c_str(), true);
       Serial.println("Detected stale OFFLINE status — corrected to ONLINE.");
     }
@@ -675,6 +742,15 @@ void parseSettings(String payload) {
   }
   if (doc["ambientMode"].is<bool>()) ambientModeEnabled = doc["ambientMode"];
   if (doc["ambientColor"].is<const char*>()) ambientColor = doc["ambientColor"].as<String>();
+  if (doc["pushToken"].is<const char*>()) pushToken = doc["pushToken"].as<String>();
+  if (doc["deviceId"].is<const char*>()) pushDeviceId = doc["deviceId"].as<String>();
+  if (doc["away_mode"].is<bool>()) {
+    bool newAwayMode = doc["away_mode"];
+    if (newAwayMode != awayModeEnabled) {
+      awayModeEnabled = newAwayMode;
+      if (awayModeEnabled) initBLE(); else deinitBLE();
+    }
+  }
 
   saveState();
   Serial.println("Settings updated from web interface.");
@@ -907,6 +983,13 @@ void doActionBasedOnTaps() {
       setRGB(255, 0, 0);
       delay(300);
       setRGB(0, 0, 0);
+
+      // Clear away mode state before reset
+      pushToken = "";
+      pushDeviceId = "";
+      awayModeEnabled = false;
+      deinitBLE();
+      saveState();
 
       wifiManager.resetSettings();
       rtcBootMarker = 0; // Force cold boot for config portal
@@ -1268,4 +1351,257 @@ void performOTA(String url) {
     mqttClient.publish(statusTopicPub.c_str(), "OTA_FAILED");
     mqttClient.loop();
   }
+}
+
+// =============================================================================
+// Away Mode: BLE Presence Detection
+// =============================================================================
+String buildOnlineMsg() {
+  String msg = String("ONLINE:") + HW_TYPE;
+  if (firebase_client_email.length() > 0) {
+    msg += ":" + firebase_client_email;
+  }
+  return msg;
+}
+
+void initBLE() {
+  if (bleInitialized) return;
+  if (!awayModeEnabled || pushToken.length() == 0 || firebase_client_email.length() == 0) return;
+  if (WiFi.status() != WL_CONNECTED) return; // Don't init BLE without WiFi
+
+  NimBLEDevice::init("My Linked Lamp");
+  NimBLEDevice::setPower(3); // Low TX power (3 dBm) to minimize WiFi interference
+
+  NimBLEServer* pServer = NimBLEDevice::createServer();
+  // No services/characteristics needed — presence detection only
+
+  NimBLEAdvertising* pAdv = NimBLEDevice::getAdvertising();
+  pAdv->setMinInterval(1600); // 1000ms in 0.625ms units — WiFi-friendly
+  pAdv->setMaxInterval(3200); // 2000ms
+  pAdv->start();
+
+  bleInitialized = true;
+  Serial.println("BLE server started: 'My Linked Lamp'");
+}
+
+void deinitBLE() {
+  if (!bleInitialized) return;
+  NimBLEDevice::deinit(true); // true = release all resources
+  bleInitialized = false;
+  Serial.println("BLE server stopped (resources freed).");
+}
+
+// =============================================================================
+// Away Mode: Color to Emoji Mapping
+// =============================================================================
+String hexToEmoji(String hexColor) {
+  if (hexColor.startsWith("#")) hexColor.remove(0, 1);
+  long number = strtol(hexColor.c_str(), NULL, 16);
+  uint8_t r = (number >> 16) & 0xFF;
+  uint8_t g = (number >> 8) & 0xFF;
+  uint8_t b = number & 0xFF;
+
+  // Map to closest emoji heart based on dominant channel
+  if (r > g && r > b) {
+    if (g > 100) return "\xF0\x9F\xA7\xA1"; // 🧡 orange
+    if (b > 100) return "\xF0\x9F\x92\x97"; // 💗 pink
+    return "\xE2\x9D\xA4\xEF\xB8\x8F";     // ❤️ red
+  }
+  if (g > r && g > b) return "\xF0\x9F\x92\x9A"; // 💚 green
+  if (b > r && b > g) {
+    if (r > 100) return "\xF0\x9F\x92\x9C"; // 💜 purple
+    return "\xF0\x9F\x92\x99";              // 💙 blue
+  }
+  if (r > 200 && g > 200 && b > 200) return "\xF0\x9F\xA4\x8D"; // 🤍 white
+  if (r > 200 && g > 200) return "\xF0\x9F\x92\x9B"; // 💛 yellow
+  return "\xF0\x9F\x92\x97"; // 💗 default
+}
+
+// =============================================================================
+// Away Mode: FCM Push Notification via Raw JWT + HTTP
+// =============================================================================
+static String base64UrlEncode(const uint8_t* data, size_t len) {
+  // Calculate base64 output size
+  size_t b64Len = 0;
+  mbedtls_base64_encode(NULL, 0, &b64Len, data, len);
+  
+  uint8_t* b64Buf = (uint8_t*)malloc(b64Len + 1);
+  if (!b64Buf) return "";
+  
+  size_t written = 0;
+  mbedtls_base64_encode(b64Buf, b64Len + 1, &written, data, len);
+  b64Buf[written] = 0;
+  
+  // Convert to URL-safe base64
+  String result = String((char*)b64Buf);
+  free(b64Buf);
+  result.replace("+", "-");
+  result.replace("/", "_");
+  // Remove padding
+  while (result.endsWith("=")) {
+    result.remove(result.length() - 1);
+  }
+  return result;
+}
+
+static String createJWT(const String& email, const String& privateKeyPem) {
+  // Header
+  String header = "{\"alg\":\"RS256\",\"typ\":\"JWT\"}";
+  String b64Header = base64UrlEncode((const uint8_t*)header.c_str(), header.length());
+  
+  // Claims
+  time_t now;
+  time(&now);
+  String claims = "{\"iss\":\"" + email + "\","
+                  "\"scope\":\"https://www.googleapis.com/auth/firebase.messaging\","
+                  "\"aud\":\"https://oauth2.googleapis.com/token\","
+                  "\"iat\":" + String((unsigned long)now) + ","
+                  "\"exp\":" + String((unsigned long)(now + 3600)) + "}";
+  String b64Claims = base64UrlEncode((const uint8_t*)claims.c_str(), claims.length());
+  
+  // Sign
+  String signInput = b64Header + "." + b64Claims;
+  
+  // SHA-256 hash of sign input
+  uint8_t hash[32];
+  mbedtls_md_context_t mdCtx;
+  mbedtls_md_init(&mdCtx);
+  mbedtls_md_setup(&mdCtx, mbedtls_md_info_from_type(MBEDTLS_MD_SHA256), 0);
+  mbedtls_md_starts(&mdCtx);
+  mbedtls_md_update(&mdCtx, (const uint8_t*)signInput.c_str(), signInput.length());
+  mbedtls_md_finish(&mdCtx, hash);
+  mbedtls_md_free(&mdCtx);
+  
+  // RSA sign with private key
+  mbedtls_pk_context pk;
+  mbedtls_pk_init(&pk);
+  
+  int ret = mbedtls_pk_parse_key(&pk, (const uint8_t*)privateKeyPem.c_str(),
+                                  privateKeyPem.length() + 1, NULL, 0);
+  if (ret != 0) {
+    Serial.printf("PK parse failed: -0x%04X\n", -ret);
+    mbedtls_pk_free(&pk);
+    return "";
+  }
+  
+  uint8_t sig[256];
+  size_t sigLen = 0;
+  
+  mbedtls_entropy_context entropy;
+  mbedtls_ctr_drbg_context ctrDrbg;
+  mbedtls_entropy_init(&entropy);
+  mbedtls_ctr_drbg_init(&ctrDrbg);
+  mbedtls_ctr_drbg_seed(&ctrDrbg, mbedtls_entropy_func, &entropy, NULL, 0);
+  
+  ret = mbedtls_pk_sign(&pk, MBEDTLS_MD_SHA256, hash, 32, sig, &sigLen,
+                         mbedtls_ctr_drbg_random, &ctrDrbg);
+  
+  mbedtls_pk_free(&pk);
+  mbedtls_ctr_drbg_free(&ctrDrbg);
+  mbedtls_entropy_free(&entropy);
+  
+  if (ret != 0) {
+    Serial.printf("PK sign failed: -0x%04X\n", -ret);
+    return "";
+  }
+  
+  String b64Sig = base64UrlEncode(sig, sigLen);
+  return signInput + "." + b64Sig;
+}
+
+// FCM task parameters (heap-allocated, freed by task)
+struct FCMTaskParams {
+  String token;
+  String title;
+  String body;
+  String email;
+  String privateKey;
+  String projectId;
+};
+
+static void fcmTask(void* param) {
+  FCMTaskParams* p = (FCMTaskParams*)param;
+  
+  Serial.println("FCM: Starting push notification send...");
+  
+  // Step 1: Create JWT
+  String jwt = createJWT(p->email, p->privateKey);
+  if (jwt.length() == 0) {
+    Serial.println("FCM: JWT creation failed.");
+    delete p;
+    vTaskDelete(NULL);
+    return;
+  }
+  
+  WiFiClientSecure client;
+  client.setInsecure();
+  HTTPClient http;
+  
+  // Step 2: Exchange JWT for access token
+  http.begin(client, "https://oauth2.googleapis.com/token");
+  http.addHeader("Content-Type", "application/x-www-form-urlencoded");
+  String tokenBody = "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=" + jwt;
+  
+  int httpCode = http.POST(tokenBody);
+  String accessToken = "";
+  
+  if (httpCode == 200) {
+    JsonDocument tokenDoc;
+    if (!deserializeJson(tokenDoc, http.getString())) {
+      accessToken = tokenDoc["access_token"].as<String>();
+    }
+  } else {
+    Serial.printf("FCM: Token exchange failed: %d\n", httpCode);
+    http.end();
+    delete p;
+    vTaskDelete(NULL);
+    return;
+  }
+  http.end();
+  
+  if (accessToken.length() == 0) {
+    Serial.println("FCM: Empty access token.");
+    delete p;
+    vTaskDelete(NULL);
+    return;
+  }
+  
+  // Step 3: Send FCM notification
+  String fcmUrl = "https://fcm.googleapis.com/v1/projects/" + p->projectId + "/messages:send";
+  http.begin(client, fcmUrl);
+  http.addHeader("Content-Type", "application/json");
+  http.addHeader("Authorization", "Bearer " + accessToken);
+  
+  JsonDocument msgDoc;
+  msgDoc["message"]["token"] = p->token;
+  msgDoc["message"]["notification"]["title"] = p->title;
+  msgDoc["message"]["notification"]["body"] = p->body;
+  
+  String msgPayload;
+  serializeJson(msgDoc, msgPayload);
+  
+  httpCode = http.POST(msgPayload);
+  if (httpCode == 200) {
+    Serial.println("FCM: Push notification sent successfully!");
+  } else {
+    Serial.printf("FCM: Send failed: %d - %s\n", httpCode, http.getString().c_str());
+  }
+  http.end();
+  
+  delete p;
+  vTaskDelete(NULL);
+}
+
+void sendFCMAsync(String token, String title, String body) {
+  FCMTaskParams* params = new FCMTaskParams();
+  params->token = token;
+  params->title = title;
+  params->body = body;
+  params->email = firebase_client_email;
+  params->privateKey = firebase_private_key;
+  params->projectId = firebase_project_id;
+  
+  // Run on core 0 (protocol core) to avoid blocking LED animations on core 1
+  xTaskCreatePinnedToCore(fcmTask, "fcm_push", 8192, params, 1, NULL, 0);
+  Serial.println("FCM: Push task launched (async).");
 }

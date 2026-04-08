@@ -436,6 +436,11 @@ body {
     height: 26px;
 }
 
+.toggle-switch.locked {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
 .toggle-switch input {
     opacity: 0;
     width: 0;

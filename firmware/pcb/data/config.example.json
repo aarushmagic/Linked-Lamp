@@ -4,5 +4,7 @@
   "mqtt_port": 8883,
   "mqtt_user": "your_mqtt_username",
   "mqtt_pass": "your_mqtt_password",
-  "ota_url": "https://www.linkedlamp.com"
+  "ota_url": "https://www.linkedlamp.com",
+  "firebase_client_email": "",
+  "firebase_private_key": ""
 }

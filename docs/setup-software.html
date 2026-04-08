@@ -499,6 +499,28 @@
                 <input type="text" id="in_mqtt_pw" placeholder="Your created broker password">
             </div>
 
+            <div style="margin-top: 25px; border-top: 1px solid var(--border); padding-top: 20px;">
+                <div style="display: flex; align-items: center; gap: 10px; cursor: pointer;" onclick="document.getElementById('firebaseSection').style.display = document.getElementById('firebaseSection').style.display === 'none' ? 'block' : 'none'; this.querySelector('.material-icons-round').textContent = document.getElementById('firebaseSection').style.display === 'none' ? 'expand_more' : 'expand_less';">
+                    <span class="material-icons-round" style="color: var(--accent); font-size: 1.4rem;">expand_more</span>
+                    <div>
+                        <strong style="font-size: 1rem;">Push Notifications (Optional)</strong>
+                        <p style="color: #888; font-size: 0.85rem; margin: 2px 0 0;">Get notified when your partner taps. <a href="pwa-setup.html" target="_blank" style="color: var(--accent);">Learn how to set this up →</a></p>
+                    </div>
+                </div>
+                <div id="firebaseSection" style="display: none; margin-top: 15px;">
+                    <div class="form-group">
+                        <label>Firebase Client Email</label>
+                        <input type="text" id="in_firebase_email" placeholder="firebase-adminsdk-xxxxx@your-project.iam.gserviceaccount.com">
+                        <span class="hint">From your Firebase Service Account JSON file</span>
+                    </div>
+                    <div class="form-group">
+                        <label>Firebase Private Key</label>
+                        <textarea id="in_firebase_key" rows="4" placeholder="-----BEGIN PRIVATE KEY-----\nMIIEv...\n-----END PRIVATE KEY-----" style="width:100%; padding:12px 15px; border-radius:10px; background:rgba(0,0,0,0.3); border:1px solid var(--border); color:white; font-family:monospace; font-size:0.85rem; outline:none; resize:vertical; transition:border 0.3s;"></textarea>
+                        <span class="hint">The full private key including BEGIN/END lines</span>
+                    </div>
+                </div>
+            </div>
+
             <div class="step-actions" style="justify-content: space-between;">
                 <a href="setup-assembly.html" class="btn outline-btn">← Back to Assembly</a>
                 <button class="btn primary-btn" onclick="goToNextFromDetails()">Next <span class="material-icons-round"
@@ -904,6 +926,9 @@
             let fwBroker = url;
             if (url.includes(":")) fwBroker = url.split(":")[0];
 
+            const fbEmail = (document.getElementById('in_firebase_email') || {}).value?.trim() || '';
+            const fbKey = (document.getElementById('in_firebase_key') || {}).value?.trim() || '';
+
             const configA = {
                 "device_id": "A",
                 "mqtt_server": fwBroker,
@@ -912,6 +937,8 @@
                 "mqtt_pass": mPw,
                 "ota_url": "https://www.linkedlamp.com"
             };
+            if (fbEmail) configA.firebase_client_email = fbEmail;
+            if (fbKey) configA.firebase_private_key = fbKey;
 
             const configB = {
                 "device_id": "B",
@@ -921,6 +948,8 @@
                 "mqtt_pass": mPw,
                 "ota_url": "https://www.linkedlamp.com"
             };
+            if (fbEmail) configB.firebase_client_email = fbEmail;
+            if (fbKey) configB.firebase_private_key = fbKey;
 
             const codeA = document.getElementById("codeA");
             const codeB = document.getElementById("codeB");
@@ -987,6 +1016,8 @@
                 mqttServer: fwBroker,
                 mqttUser: document.getElementById("in_mqtt_user").value.trim(),
                 mqttPass: document.getElementById("in_mqtt_pw").value.trim(),
+                firebaseEmail: (document.getElementById('in_firebase_email') || {}).value?.trim() || '',
+                firebaseKey: (document.getElementById('in_firebase_key') || {}).value?.trim() || '',
             };
 
             function onLog(msg) {
