@@ -1411,11 +1411,42 @@ static const uint8_t hidReportMap[] = {
   0x95, 0x01, 0x81, 0x03, 0xC0
 };
 
+// BLE Server Callbacks — handles connect/disconnect for presence tracking
+// and restarts advertising after disconnect so iOS can auto-reconnect.
+class LampBLECallbacks : public NimBLEServerCallbacks {
+  void onConnect(NimBLEServer* pServer, NimBLEConnInfo& connInfo) override {
+    Serial.printf("BLE: Device connected (handle=%d)\n", connInfo.getConnHandle());
+    // Stop advertising while connected (single connection device)
+    NimBLEDevice::getAdvertising()->stop();
+  }
+
+  void onDisconnect(NimBLEServer* pServer, NimBLEConnInfo& connInfo, int reason) override {
+    Serial.printf("BLE: Device disconnected (reason=0x%02X). Restarting advertising...\n", reason);
+    // Restart advertising so the device is discoverable again and iOS can reconnect
+    if (bleInitialized) {
+      NimBLEDevice::getAdvertising()->start();
+    }
+  }
+
+  void onAuthenticationComplete(NimBLEConnInfo& connInfo) override {
+    if (connInfo.isEncrypted()) {
+      Serial.println("BLE: Pairing/bonding complete — connection encrypted.");
+    } else {
+      Serial.println("BLE: Auth complete but NOT encrypted — disconnecting.");
+      NimBLEDevice::getServer()->disconnect(connInfo.getConnHandle());
+    }
+  }
+};
+
+static LampBLECallbacks bleCallbacks;
+
 void initBLE() {
   if (bleInitialized) return;
   if (!awayModeEnabled || pushToken.length() == 0 || firebase_client_email.length() == 0) return;
   if (WiFi.status() != WL_CONNECTED) return; // Don't init BLE without WiFi
 
+  // Security: enable bonding (1st param) so iOS remembers the device,
+  // no MITM (2nd param), and enable secure connections (3rd param).
   NimBLEDevice::setSecurityAuth(true, false, true);
   NimBLEDevice::setSecurityIOCap(BLE_HS_IO_NO_INPUT_OUTPUT);
   NimBLEDevice::setSecurityInitKey(BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID);
@@ -1424,8 +1455,9 @@ void initBLE() {
   NimBLEDevice::init("LinkedLamp BLE");
   NimBLEDevice::setPower(3); // Low TX power (3 dBm) to minimize WiFi interference
 
-  // Create server & hook callbacks for presence tracking
+  // Create server & attach callbacks for presence tracking + reconnection
   NimBLEServer* pServer = NimBLEDevice::createServer();
+  pServer->setCallbacks(&bleCallbacks);
 
   // Initialize as a dummy Media Remote so iOS/Android aggressively stay connected in the background
   NimBLEHIDDevice* pHid = new NimBLEHIDDevice(pServer);
@@ -1442,14 +1474,14 @@ void initBLE() {
   pAdv->start();
 
   bleInitialized = true;
-  Serial.println("BLE server started: 'My Linked Lamp' (HID Tether)");
+  Serial.println("BLE server started: 'LinkedLamp BLE' (HID Tether with bonding)");
 }
 
 void deinitBLE() {
   if (!bleInitialized) return;
-  NimBLEDevice::deinit(true); // true = release all resources
+  NimBLEDevice::deinit(false); // false = preserve bonding data in NVS
   bleInitialized = false;
-  Serial.println("BLE server stopped (resources freed).");
+  Serial.println("BLE server stopped (bonding data preserved).");
 }
 
 // =============================================================================
@@ -1684,16 +1716,19 @@ static void fcmTask(void* pvParameters) {
     http.addHeader("Authorization", "Bearer " + accessToken);
     http.setTimeout(15000);
     
-    // Build payload
+    // Build payload — use data-only (no "notification" key) so iOS always
+    // routes through the service worker's onBackgroundMessage handler.
+    // A "notification" key causes iOS to auto-display and suppress the SW.
     JsonDocument msgDoc;
     msgDoc["message"]["token"] = p->token;
-    msgDoc["message"]["notification"]["title"] = p->title;
-    msgDoc["message"]["notification"]["body"] = p->body;
+    msgDoc["message"]["data"]["title"] = p->title;
+    msgDoc["message"]["data"]["body"] = p->body;
     
-    // Add APNs specific config so Apple naturally collapses spam without banning
-    msgDoc["message"]["apns"]["headers"]["apns-collapse-id"] = "lamp-tap";
-    msgDoc["message"]["apns"]["payload"]["aps"]["thread-id"] = "lamp-tap";
-    msgDoc["message"]["android"]["collapse_key"] = "lamp-tap";
+    // APNs: content-available wakes the SW; alert push-type + priority 10
+    // ensures immediate delivery even when the app is backgrounded.
+    msgDoc["message"]["apns"]["payload"]["aps"]["content-available"] = 1;
+    msgDoc["message"]["apns"]["headers"]["apns-push-type"] = "alert";
+    msgDoc["message"]["apns"]["headers"]["apns-priority"] = "10";
     
     String msgPayload;
     serializeJson(msgDoc, msgPayload);

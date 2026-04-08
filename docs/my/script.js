@@ -778,6 +778,21 @@ function updateAwayNotifUI() {
         card.style.display = 'block';
         promo.style.display = 'none';
 
+        // Provide easy access to copy the Push Token for testing
+        const copyBtn = document.getElementById("copyTokenLink");
+        if (copyBtn) {
+            if (mySettings.pushToken && mySettings.deviceId === currentDeviceId) {
+                copyBtn.style.display = "inline";
+                copyBtn.onclick = (e) => {
+                    e.preventDefault();
+                    navigator.clipboard.writeText(mySettings.pushToken);
+                    alert("Push token copied to clipboard!");
+                };
+            } else {
+                copyBtn.style.display = "none";
+            }
+        }
+
         // Multi-device lockout
         if (mySettings.pushToken && mySettings.deviceId && mySettings.deviceId !== currentDeviceId) {
             document.getElementById('awayToggleLabel').classList.add('locked');
@@ -896,22 +911,23 @@ async function setupFirebase(firebaseConfig) {
         window.firebaseMessaging = getMessaging(window.firebaseApp);
         window.firebaseGetToken = getToken;
 
+        // Foreground message handler — reads from data payload (not notification)
+        // because the ESP32 now sends data-only messages for iOS compatibility.
         onMessage(window.firebaseMessaging, (payload) => {
             console.log("Foreground message received:", payload);
-            if (payload.notification) {
-                const title = payload.notification.title || 'Linked Lamp';
-                const body = payload.notification.body || 'Your lamp received a tap!';
-                
-                navigator.serviceWorker.ready.then((registration) => {
-                    registration.showNotification(title, {
-                        body: body,
-                        icon: 'icon-192.png',
-                        badge: 'icon-192.png',
-                        tag: 'linked-lamp-notify',
-                        renotify: true
-                    });
+            const data = payload.data || {};
+            const title = data.title || 'Linked Lamp';
+            const body = data.body || 'Your lamp received a tap!';
+            
+            navigator.serviceWorker.ready.then((registration) => {
+                registration.showNotification(title, {
+                    body: body,
+                    icon: 'pwa-icon.png',
+                    badge: 'pwa-icon.png',
+                    tag: 'linked-lamp-' + Date.now(),
+                    renotify: true
                 });
-            }
+            });
         });
     }
 
@@ -919,10 +935,24 @@ async function setupFirebase(firebaseConfig) {
     const permission = await Notification.requestPermission();
     if (permission === 'granted') {
 
-        // Register SW manually so we can pass the dynamic user config
-        const swReg = await navigator.serviceWorker.register(
-            'firebase-messaging-sw.js?config=' + encodeURIComponent(JSON.stringify(firebaseConfig))
-        );
+        // Register SW with a FIXED URL (no query params) to prevent
+        // FCM token rotation caused by different SW script URLs.
+        const swReg = await navigator.serviceWorker.register('firebase-messaging-sw.js');
+
+        // Wait for the SW to be active, then send config via postMessage.
+        // The SW caches it in IndexedDB for persistence across restarts.
+        const activeSW = swReg.active || swReg.installing || swReg.waiting;
+        if (activeSW) {
+            activeSW.postMessage({ type: 'FIREBASE_CONFIG', config: firebaseConfig });
+        }
+        // Also send when the SW becomes active (in case it was installing)
+        if (swReg.installing) {
+            swReg.installing.addEventListener('statechange', (e) => {
+                if (e.target.state === 'activated') {
+                    e.target.postMessage({ type: 'FIREBASE_CONFIG', config: firebaseConfig });
+                }
+            });
+        }
 
         const token = await window.firebaseGetToken(window.firebaseMessaging, {
             serviceWorkerRegistration: swReg
@@ -930,10 +960,15 @@ async function setupFirebase(firebaseConfig) {
 
         if (token) {
             console.log('FCM Token:', token);
-            mySettings.pushToken = token;
-            mySettings.deviceId = currentDeviceId;
-            mySettings.away_mode = true;
-            publishSettings();
+            // Only publish if token actually changed to avoid unnecessary MQTT traffic
+            if (token !== mySettings.pushToken || currentDeviceId !== mySettings.deviceId) {
+                mySettings.pushToken = token;
+                mySettings.deviceId = currentDeviceId;
+                mySettings.away_mode = true;
+                publishSettings();
+            } else {
+                mySettings.away_mode = true;
+            }
             updateAwayNotifUI();
             return true;
         } else {
