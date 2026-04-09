@@ -444,7 +444,7 @@ function applySettingsToUI() {
         nightToggle.checked = mySettings.nightMode;
         nightSection.classList.toggle("hidden", !mySettings.nightMode);
     }
-    
+
     // Ambient Toggle & color circle
     const ambToggle = document.getElementById("ambientModeToggle");
     const ambCircle = document.getElementById("btnAmbientColorDisplay");
@@ -461,9 +461,9 @@ function applySettingsToUI() {
     if (lastTapEl) {
         if (mySettings.lastTapTimestamp > 0) {
             const tapDate = new Date(mySettings.lastTapTimestamp * 1000);
-            lastTapEl.innerText = "Last tap: " + tapDate.toLocaleString();
+            lastTapEl.innerText = "Last Tap Received: " + tapDate.toLocaleString();
         } else {
-            lastTapEl.innerText = "Last tap: Unknown";
+            lastTapEl.innerText = "Last Tap Received: Unknown";
         }
     }
 
@@ -691,11 +691,11 @@ function closeAmbientColorModal() {
 function saveAmbientColor() {
     mySettings.ambientColor = ambientColorPicker.color.hexString;
     ambientColorBeforeEdit = null; // Clear so close doesn't revert
-    
+
     // Update the color circle
     const circle = document.getElementById("btnAmbientColorDisplay");
     if (circle) circle.style.backgroundColor = mySettings.ambientColor;
-    
+
     publishSettings();
     document.getElementById("ambientColorModal").style.display = "none";
 }
