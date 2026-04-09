@@ -29,6 +29,12 @@
     <!-- MQTT.js Library -->
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#121212">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="../images/pwa-icon.png">
+
     <link rel="stylesheet" href="style.css?v=2">
     <link rel="icon" type="image/png" href="../logo.png">
 </head>
@@ -62,6 +68,9 @@
                     <div class="presets-grid" id="presetsGrid">
                         <!-- JS generated -->
                     </div>
+                </div>
+                <div style="text-align: center; margin-top: 25px; padding-bottom: 80px;">
+                    <p id="lastTapDisplay" style="font-size: 0.8rem; font-style: italic; color: rgba(255,255,255,0.5);">Last tap: Unknown</p>
                 </div>
             </div>
 
@@ -102,7 +111,9 @@
                             <p class="desc">Glow gently (5% brightness) when inactive.</p>
                         </div>
                         <div style="display: flex; align-items: center; gap: 12px;">
-                            <div id="btnAmbientColorDisplay" style="width: 24px; height: 24px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.2); cursor: pointer; display: none;" onclick="openAmbientColorModal()"></div>
+                            <div id="btnAmbientColorDisplay"
+                                style="width: 24px; height: 24px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.2); cursor: pointer; display: none;"
+                                onclick="openAmbientColorModal()"></div>
                             <label class="toggle-switch">
                                 <input type="checkbox" id="ambientModeToggle">
                                 <span class="toggle-slider"></span>
@@ -254,13 +265,15 @@
                 <div style="flex:1"></div>
             </div>
 
-            <div class="modal-body" style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
+            <div class="modal-body"
+                style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
                 <p class="desc mb-3 text-center">Keep your lamp glowing gently when inactive.</p>
                 <div class="color-wheel-wrapper mt-3" id="ambientColorPickerContainer"></div>
             </div>
 
             <div class="preset-modal-actions mt-3" style="flex-direction: row; gap: 10px;">
-                <button class="action-btn secondary-btn" style="flex: 1;" onclick="closeAmbientColorModal()">Cancel</button>
+                <button class="action-btn secondary-btn" style="flex: 1;"
+                    onclick="closeAmbientColorModal()">Cancel</button>
                 <button class="action-btn primary-btn" style="flex: 1;" onclick="saveAmbientColor()">Save</button>
             </div>
         </div>
@@ -327,13 +340,26 @@
             <h2 style="margin-bottom: 15px;">Connection Details Missing</h2>
             <p class="desc" style="margin-bottom: 25px; line-height: 1.5;">
                 We couldn't link to your lamp because your connection details are missing. Please access this page using
-                your <strong>Special Customized Link</strong> or via the NFC tag on the bottom of your lamp (if available).
+                your <strong>Special Customized Link</strong> or via the NFC tag on the bottom of your lamp (if
+                available).
             </p>
             <p class="desc" style="margin-bottom: 25px; line-height: 1.5;">
                 Try asking the person who set up the lamp for the link. If you are that person, you can generate a new
                 link by following the setup process again. Note, in this case, all connected lamps will need to be
                 reflashed and new links will be generated for all lamps.
             </p>
+            <div id="pwaManualInputBlock"
+                style="display: none; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; margin-bottom: 15px; border: 1px solid rgba(255,255,255,0.1);">
+                <p class="desc" style="margin-bottom: 12px; font-size: 0.85rem;">
+                    <strong>App Users:</strong> If your connection was lost after adding to your Home Screen, copy the link from your browser and paste it here:
+                </p>
+                <input type="text" id="manualLinkInput" placeholder="Paste link here (https://...)"
+                    style="width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 8px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); color: white; font-family: monospace; font-size: 0.85rem; outline: none;">
+                <button class="action-btn primary-btn" onclick="saveManualLink()"
+                    style="font-size: 0.9rem; padding: 10px;">Connect Lamp</button>
+                <p id="manualLinkError" style="color: #ff4757; font-size: 0.8rem; margin-top: 8px; display: none;">
+                    Invalid link format. Make sure it contains connection parameters.</p>
+            </div>
             <div class="preset-modal-actions" style="flex-direction: column; gap: 10px; margin-top: 10px; padding: 0;">
                 <button class="action-btn primary-btn" onclick="window.location.href='../setup-software.html'">Go to
                     Setup

@@ -53,7 +53,8 @@ let mySettings = {
     nightEnd: "08:00",
     nightTimeMin: 5,
     nightBright: 76,
-    timezone: "EST5EDT"
+    timezone: "EST5EDT",
+    lastTapTimestamp: 0
 };
 
 let presets = [
@@ -74,6 +75,12 @@ let ambientColorPicker = null;
 window.addEventListener("load", () => {
     if (!loadCredentials()) {
         document.getElementById("missingCredentialsModal").style.display = "flex"; // Use flex to center the content using modal's built in styling
+
+        // Show manual override entry ONLY in PWA modes
+        const isPWA = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+        if (isPWA) {
+            document.getElementById("pwaManualInputBlock").style.display = "block";
+        }
         return;
     }
 
@@ -156,6 +163,40 @@ function loadCredentials() {
     }
 
     return !!(mqtt_server && mqtt_user && mqtt_pass);
+}
+
+// ==========================================================================
+// iOS Sandbox Escape: Manual Credential Load
+// ==========================================================================
+function saveManualLink() {
+    const linkStr = document.getElementById("manualLinkInput").value.trim();
+    const errorEl = document.getElementById("manualLinkError");
+
+    if (!linkStr) {
+        errorEl.style.display = "block";
+        errorEl.innerText = "Please paste a link first.";
+        return;
+    }
+
+    try {
+        const url = new URL(linkStr);
+        // Convert query string into a hash string so it safely redirects cleanly 
+        // into the app and passes validation without breaking PWA bounds.
+        let params = url.search;
+        if (!params || params.length < 5) {
+            params = url.hash; // Try to extract from hash if it was a hash link
+        }
+
+        if (params && params.includes("s=") && params.includes("id=")) {
+            window.location.href = window.location.pathname + params;
+        } else {
+            errorEl.style.display = "block";
+            errorEl.innerText = "This link doesn't contain the correct connection data.";
+        }
+    } catch (e) {
+        errorEl.style.display = "block";
+        errorEl.innerText = "Invalid URL format.";
+    }
 }
 
 // ==========================================================================
@@ -414,6 +455,18 @@ function applySettingsToUI() {
         ambCircle.style.display = mySettings.ambientMode ? "block" : "none";
         ambCircle.style.backgroundColor = mySettings.ambientColor;
     }
+
+    // Last Tap display
+    const lastTapEl = document.getElementById("lastTapDisplay");
+    if (lastTapEl) {
+        if (mySettings.lastTapTimestamp > 0) {
+            const tapDate = new Date(mySettings.lastTapTimestamp * 1000);
+            lastTapEl.innerText = "Last tap: " + tapDate.toLocaleString();
+        } else {
+            lastTapEl.innerText = "Last tap: Unknown";
+        }
+    }
+
     updateTimeDisplay("nightStartDisplay", mySettings.nightStart || "22:00");
     updateTimeDisplay("nightEndDisplay", mySettings.nightEnd || "08:00");
 

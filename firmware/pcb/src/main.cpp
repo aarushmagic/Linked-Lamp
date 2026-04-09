@@ -50,6 +50,9 @@ String mqtt_user    = "";
 String mqtt_pass    = "";
 String ota_url      = "";  // Optional: base URL for auto-OTA checks
 
+// Last Tap Time (Epoch)
+unsigned long lastTapTimestamp = 0;
+
 // =============================================================================
 // User Settings (synced from web interface via MQTT, persisted in /state.json)
 // =============================================================================
@@ -318,10 +321,15 @@ void onWifiConnect() {
     delay(200);
     setRGB(0, 0, 0);
     delay(200);
+    setRGB(0, 0, 0);
+    delay(200);
     setRGB(0, 120, 0);
     delay(200);
     setRGB(0, 0, 0);
   }
+
+  // Set local time from NTP using user's timezone configuration
+  configTzTime(userTimezone.c_str(), "pool.ntp.org", "time.nist.gov");
 }
 
 void handleWifi() {
@@ -476,6 +484,7 @@ void loadState() {
     userTimezone          = doc["timezone"]         | "EST5EDT";
     ambientModeEnabled    = doc["ambientMode"]      | false;
     ambientColor          = doc["ambientColor"]     | "#0000FF";
+    lastTapTimestamp      = doc["lastTapTimestamp"] | 0UL;
     Serial.println("State loaded. Default color: " + defaultColor);
   }
   f.close();
@@ -494,6 +503,7 @@ void saveState() {
   doc["timezone"]     = userTimezone;
   doc["ambientMode"]  = ambientModeEnabled;
   doc["ambientColor"] = ambientColor;
+  doc["lastTapTimestamp"] = lastTapTimestamp;
 
   File f = LittleFS.open("/state.json", "w");
   if (f) {
@@ -633,6 +643,13 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     pulseStartTime = millis();
     Serial.println("Trigger received! Lamp ON with gradual transition.");
 
+    // Update last tap timestamp for the PWA dashboard
+    time_t now;
+    time(&now);
+    lastTapTimestamp = (unsigned long)now;
+    saveState();
+    publishSettingsViaMQTT(); // Inform web app instantly
+
   } else if (topicStr == settingsTopicSub) {
     parseSettings(msg);
 
@@ -698,6 +715,7 @@ void publishSettingsViaMQTT() {
   doc["timezone"]     = userTimezone;
   doc["ambientMode"]  = ambientModeEnabled;
   doc["ambientColor"] = ambientColor;
+  doc["lastTapTimestamp"] = lastTapTimestamp;
 
   String payload;
   serializeJson(doc, payload);
