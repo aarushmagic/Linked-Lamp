@@ -456,7 +456,7 @@ function applySettingsToUI() {
         ambCircle.style.backgroundColor = mySettings.ambientColor;
     }
 
-    // Last Tap display
+    // Last Tap display 
     const lastTapEl = document.getElementById("lastTapDisplay");
     if (lastTapEl) {
         if (mySettings.lastTapTimestamp > 0) {
