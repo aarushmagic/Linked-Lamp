@@ -1668,9 +1668,9 @@ void sendFCMAsync(String token, String title, String body) {
     xSemaphoreGive(fcmSemaphore); // Start as "available"
   }
   
-  // Wait at least 15 seconds between FCM pushes to physically prevent API spam
-  if (millis() - lastFcmSendTime < 15000) {
-    Serial.println("FCM: Throttled — sent a push within the last 15s. Skipping.");
+  // Wait at least 30 minutes between FCM pushes to prevent notification spam
+  if (millis() - lastFcmSendTime < 1800000) {
+    Serial.println("FCM: Throttled — sent a push within the last 30min. Skipping.");
     return;
   }
   

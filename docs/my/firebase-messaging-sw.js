@@ -41,26 +41,8 @@ function initFirebase(config) {
     try {
         firebase.initializeApp(config);
         const messaging = firebase.messaging();
-
-        messaging.onBackgroundMessage((payload) => {
-            console.log('[firebase-messaging-sw.js] Received background message ', payload);
-
-            // Read from data payload (not notification) — data-only messages
-            // always route through the SW on iOS instead of being auto-handled.
-            const title = (payload.data && payload.data.title) || 'Linked Lamp';
-            const body = (payload.data && payload.data.body) || 'Your lamp received a tap!';
-
-            return self.registration.showNotification(title, {
-                body: body,
-                icon: 'pwa-icon.png',
-                badge: 'pwa-icon.png',
-                tag: 'linked-lamp-' + Date.now(),
-                renotify: true
-            });
-        });
-
         firebaseInitialized = true;
-        console.log('[firebase-messaging-sw.js] Firebase initialized successfully.');
+        console.log('[firebase-messaging-sw.js] Firebase initialized successfully (for token generation).');
     } catch (e) {
         console.error("Firebase SW Init Error: ", e);
     }
@@ -79,3 +61,44 @@ self.addEventListener('message', (event) => {
 loadConfig().then(config => {
     if (config) initFirebase(config);
 }).catch(e => console.error('Failed to load cached config:', e));
+
+
+// ============================================================================
+// ROCK SOLID PUSH HANDLER
+// ============================================================================
+// iOS terminates push subscriptions after 3+ "silent pushes" (pushes received
+// where showNotification is not called). 
+// Firebase's `onBackgroundMessage` is dangerous here because it relies on
+// extracting config from IndexedDB to initialize before it handles events.
+// If IndexedDB is cleared, it fails silently, causing a silent push.
+// By listening to the raw 'push' event synchronously, we GUARANTEE iOS sees
+// a notification every single time, avoiding the NotRegistered termination.
+self.addEventListener('push', (event) => {
+    let title = 'Linked Lamp';
+    let body = 'Your lamp received a tap!';
+
+    try {
+        const payload = event.data ? event.data.json() : {};
+        // FCM payload wraps data-only payloads in a 'data' object
+        if (payload && payload.data) {
+            title = payload.data.title || title;
+            body = payload.data.body || body;
+        }
+    } catch (e) {
+        console.error('Failed to parse push data:', e);
+    }
+
+    event.waitUntil(
+        self.registration.showNotification(title, {
+            body: body,
+            icon: 'pwa-icon.png',
+            badge: 'pwa-icon.png',
+            // Use static tag without timestamp if you don't want them to pile up,
+            // or dynamic tag to ensure every single tap shows a separate bubble.
+            // Using a timestamp ensures we never collapse them if iOS expects multiples.
+            tag: 'lamp-tap-' + Date.now(),
+            renotify: true
+        })
+    );
+});
+
