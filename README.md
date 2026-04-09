@@ -24,7 +24,6 @@
 - **Web App** — Send signals, manage presets, and adjust settings from your phone
 - **Preset Signals** — Quick-send "I Love You", "I Miss You", or custom messages
 - **Ambient Mode** — Optional low-power glow (5% brightness) in your chosen color when the lamp is inactive
-- **Away Mode (Beta)** — Optional integration with Firebase to receive background push notifications on your phone when your lamp is tapped while you aren't around
 - **OTA Updates** — Firmware updates pushed wirelessly with automatic rollback protection
 
 ## 🔧 Hardware Options
@@ -73,9 +72,7 @@ For developers who want to modify the firmware or use a custom MQTT broker:
      "mqtt_port": 8883,
      "mqtt_user": "your_username",
      "mqtt_pass": "your_password",
-     "ota_url": "https://www.linkedlamp.com",
-     "firebase_client_email": "optional-service-account@project.iam.gserviceaccount.com",
-     "firebase_private_key": "-----BEGIN PRIVATE KEY-----..."
+     "ota_url": "https://www.linkedlamp.com"
    }
    ```
    Set `device_id` to `"A"` for the first lamp and `"B"` for the second. Use the same broker credentials for both.
@@ -123,5 +120,7 @@ The ESP32 automatically rolls back if new firmware crashes before reaching `setu
 ## 📜 License
 
 GNU General Public License v3.0 — see [LICENSE](https://www.gnu.org/licenses/gpl-3.0.html).
+
+## 🙏 Credits
 
 [WiFiManager](https://github.com/tzapu/WiFiManager) · [PubSubClient](https://github.com/knolleary/pubsubclient) · [ArduinoJson](https://github.com/bblanchon/ArduinoJson) · [iro.js](https://iro.js.org/) · [MQTT.js](https://github.com/mqttjs/MQTT.js) · [esptool-js](https://github.com/espressif/esptool-js)

@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -14,87 +13,41 @@
             max-width: 800px;
             margin: 15vh auto 10vh;
         }
-
-        .legal-container h1 {
-            font-size: 3rem;
-            margin-bottom: 2rem;
-        }
-
-        .legal-container h2 {
-            font-size: 1.8rem;
-            margin: 2rem 0 1rem;
-            color: var(--accent);
-        }
-
-        .legal-container p {
-            color: var(--text-dim);
-            margin-bottom: 1rem;
-        }
-
-        .legal-container ul {
-            color: var(--text-dim);
-            margin-left: 20px;
-            margin-bottom: 1rem;
-        }
-
-        .legal-container li {
-            margin-bottom: 0.5rem;
-        }
+        .legal-container h1 { font-size: 3rem; margin-bottom: 2rem; }
+        .legal-container h2 { font-size: 1.8rem; margin: 2rem 0 1rem; color: var(--accent); }
+        .legal-container p { color: var(--text-dim); margin-bottom: 1rem; }
+        .legal-container ul { color: var(--text-dim); margin-left: 20px; margin-bottom: 1rem; }
+        .legal-container li { margin-bottom: 0.5rem; }
     </style>
 </head>
-
 <body>
     <nav class="navbar scrolled">
         <div class="nav-content max-w">
             <div class="logo">
-                <a href="index.html"
-                    style="color:inherit; text-decoration:none; display:flex; align-items:center; gap:10px;">
-                    <img src="images/logo.png" alt="Linked Lamp"
-                        style="height: 28px; width: 28px; object-fit: contain;">
+                <a href="index.html" style="color:inherit; text-decoration:none; display:flex; align-items:center; gap:10px;">
+                    <img src="images/logo.png" alt="Linked Lamp" style="height: 28px; width: 28px; object-fit: contain;">
                     <span class="logo-text">Linked Lamp</span>
                 </a>
             </div>
-        </div>
+</div>
     </nav>
 
-    <div class="legal-container max-w">
+<div class="legal-container max-w">
         <h1>Privacy Policy</h1>
-        <p><strong>Last Updated:</strong> April 2026</p>
+        <p><strong>Last Updated:</strong> March 2026</p>
 
         <h2>1. Data Collection by Setup Generator</h2>
-        <p>The Linked Lamp project provides a Setup Guide configuration generator. <strong>We do not collect, process,
-                or store any of your data.</strong> The entire Setup Guide is a static web page executing 100% locally
-            in your web browser. Any credentials you enter (Names, Wi-Fi, MQTT Broker passwords) are used dynamically
-            within your browser to generate your <code>config.json</code> file and Web App URLs, and are never
-            transmitted to our servers.</p>
+        <p>The Linked Lamp project provides a Setup Guide configuration generator. <strong>We do not collect, process, or store any of your data.</strong> The entire Setup Guide is a static web page executing 100% locally in your web browser. Any credentials you enter (Names, Wi-Fi, MQTT Broker passwords) are used dynamically within your browser to generate your <code>config.json</code> file and Web App URLs, and are never transmitted to our servers.</p>
 
         <h2>2. Third-Party Services (Important)</h2>
-        <p>The Linked Lamp relies heavily on third-party services to route messages and notifications across the world.
-            While we do not collect your data, the companies hosting these services might.</p>
-        <p>If you use <strong>HiveMQ Cloud</strong>, <strong>Adafruit IO</strong>, <strong>AWS IoT Core</strong>, or any
-            other cloud MQTT provider, the signals, durations, and connection metadata flowing between your lamps are
-            processed by their servers. If you enable <strong>Away Mode</strong>, your push notification tokens and
-            payloads are processed by <strong>Google Firebase</strong>. By using the Linked Lamp software to connect to
-            a third-party service, you acknowledge and accept their respective Privacy Policies and Terms of Service. We
-            have no affiliation with these entities and no liability for their data practices.</p>
+        <p>The Linked Lamp relies heavily on third-party MQTT broker services to route messages across the world. While we do not collect your data, the companies hosting these brokers might.</p>
+        <p>If you use <strong>HiveMQ Cloud</strong>, <strong>Adafruit IO</strong>, <strong>AWS IoT Core</strong>, or any other cloud MQTT provider, the signals, durations, and connection metadata flowing between your lamps are processed by their servers. By using the Linked Lamp software to connect to a third-party service, you acknowledge and accept their respective Privacy Policies and Terms of Service. We have no affiliation with these entities and no liability for their data practices.</p>
 
-        <h2>3. Website Hosting & Analytics</h2>
-        <p>The Linked Lamp documentation and setup tools are hosted via <strong>GitHub Pages</strong> and routed through
-            <strong>Cloudflare</strong>. While we purposely do not include any tracking scripts or analytics of our own
-            on this website, these hosting platforms automatically collect basic diagnostic, network connection, and
-            analytics information (such as IP addresses and browser types) to maintain their infrastructure security and
-            performance. Please refer to their respective privacy policies for details.</p>
+        <h2>3. Local Storage</h2>
+        <p>The personalized Web App controller (accessed via your unique <code>/my/</code> URL) utilizes your browser's Local Storage to save UI states (like Signal Presets). This operates entirely offline relative to any centralized "Linked Lamp Server" because there is no such server. It talks directly to your third-party MQTT broker.</p>
 
-        <h2>4. Local Storage</h2>
-        <p>The personalized Web App controller (accessed via your unique <code>/my/</code> URL) utilizes your browser's
-            Local Storage to save UI states (like Signal Presets). This operates entirely offline relative to any
-            centralized "Linked Lamp Server" because there is no such server. It talks directly to your third-party MQTT
-            broker.</p>
-
-        <h2>5. Open Source Transparency</h2>
-        <p>The source code for the Linked Lamp firmware and web interface is completely open and public under the
-            <strong>GNU General Public License v3.0 (GPLv3)</strong>. You are encouraged to read the code, modify it,
-            and audit it for your own security requirements.</p>
+        <h2>4. Open Source Transparency</h2>
+        <p>The source code for the Linked Lamp firmware and web interface is completely open and public under the <strong>GNU General Public License v3.0 (GPLv3)</strong>. You are encouraged to read the code, modify it, and audit it for your own security requirements.</p>
 
         <a href="index.html" class="btn outline-btn mt-3">Return to Home</a>
     </div>
@@ -103,8 +56,7 @@
     <footer>
         <div class="footer-content max-w">
             <div class="footer-brand">
-                <img src="images/logo.png" alt="Linked Lamp" style="height: 24px; width: 24px; object-fit: contain;">
-                Linked Lamp
+                <img src="images/logo.png" alt="Linked Lamp" style="height: 24px; width: 24px; object-fit: contain;"> Linked Lamp
             </div>
             <p>&copy; 2026 Aarush Magic. An Open Source Project.</p>
             <div class="footer-links">
@@ -114,15 +66,11 @@
             </div>
         </div>
         <div class="max-w mt-3" style="text-align: center; font-size: 0.8rem; color: var(--text-dim); padding: 0 20px;">
-            * The Linked Lamp software and hardware designs are open source. Third-party services required for
-            connectivity or notifications (such as HiveMQ, Adafruit IO, AWS, or Firebase) are proprietary and governed
-            by their respective owners. Note: the static website is hosted via GitHub Pages and routed through
-            Cloudflare, which automatically collect basic connection and analytics data.
+            * The Linked Lamp software and hardware designs are open source. Third-party services required for connectivity (such as HiveMQ, Adafruit IO, or AWS) are proprietary and governed by their respective owners.
         </div>
     </footer>
 
     <script>
-    </script>
+</script>
 </body>
-
 </html>

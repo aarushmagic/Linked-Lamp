@@ -43,7 +43,7 @@ async function fetchBinary(url) {
     return new Uint8Array(buffer);
 }
 
-function generateConfigJSON(deviceId, mqttServer, mqttUser, mqttPass, firebaseEmail, firebaseKey) {
+function generateConfigJSON(deviceId, mqttServer, mqttUser, mqttPass) {
     const config = {
         device_id: deviceId,
         mqtt_server: mqttServer,
@@ -52,14 +52,7 @@ function generateConfigJSON(deviceId, mqttServer, mqttUser, mqttPass, firebaseEm
         mqtt_pass: mqttPass,
         ota_url: "https://www.linkedlamp.com"
     };
-    // Only include Firebase fields when provided (backward compatible)
-    if (firebaseEmail && firebaseEmail.trim().length > 0) {
-        config.firebase_client_email = firebaseEmail.trim();
-    }
-    if (firebaseKey && firebaseKey.trim().length > 0) {
-        config.firebase_private_key = firebaseKey.trim();
-    }
-    return JSON.stringify(config);
+    return JSON.stringify(config, null, 2);
 }
 
 async function flashESP32(config, onLog, onProgress) {
@@ -171,9 +164,7 @@ async function flashESP32(config, onLog, onProgress) {
         config.deviceId,
         config.mqttServer,
         config.mqttUser,
-        config.mqttPass,
-        config.firebaseEmail || "",
-        config.firebaseKey || ""
+        config.mqttPass
     );
 
     try {
@@ -214,17 +205,7 @@ async function flashESP32(config, onLog, onProgress) {
                         onLog("Sending config to ESP32...");
                         onProgress(90);
                         const configLine = JSON.stringify(JSON.parse(configJson)) + "\n";
-                        const encoder = new TextEncoder();
-                        const encoded = encoder.encode(configLine);
-                        // Send in small chunks to prevent ESP32 UART overflow
-                        const CHUNK_SIZE = 128;
-                        for (let i = 0; i < encoded.length; i += CHUNK_SIZE) {
-                            const chunk = encoded.slice(i, Math.min(i + CHUNK_SIZE, encoded.length));
-                            await writer.write(chunk);
-                            // Small delay between chunks to let ESP32 process
-                            await sleep(50);
-                        }
-                        onLog(`Config sent (${encoded.length} bytes in ${Math.ceil(encoded.length / CHUNK_SIZE)} chunks).`);
+                        await writer.write(new TextEncoder().encode(configLine));
                         configSent = true;
                     }
 

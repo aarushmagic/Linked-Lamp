@@ -9,7 +9,6 @@
  *   - tzapu/WiFiManager
  *   - knolleary/PubSubClient
  *   - bblanchon/ArduinoJson
- *   - arduino-libraries/NTPClient
  * 
  * License: GNU GPLv3
  */
@@ -27,12 +26,6 @@
 #include <esp_ota_ops.h>
 #include <time.h>
 #include <Adafruit_NeoPixel.h>
-// BLE removed — was causing radio contention with WiFi SSL and iOS bonding failures
-#include <mbedtls/pk.h>
-#include <mbedtls/md.h>
-#include <mbedtls/entropy.h>
-#include <mbedtls/ctr_drbg.h>
-#include <mbedtls/base64.h>
 
 // =============================================================================
 // Hardware Type Definition
@@ -58,18 +51,6 @@ int    mqtt_port    = 8883;
 String mqtt_user    = "";
 String mqtt_pass    = "";
 String ota_url      = "";  // Optional: base URL for auto-OTA checks
-
-// Firebase (loaded from config, empty = feature disabled)
-String firebase_client_email  = "";
-String firebase_private_key   = "";
-String firebase_project_id    = "";  // auto-extracted from email
-
-// Away Mode state (persisted in state.json)
-String pushToken    = "";
-String pushDeviceId = "";
-bool   awayModeEnabled = false;
-
-
 
 // =============================================================================
 // User Settings (synced from web interface via MQTT, persisted in /state.json)
@@ -197,15 +178,10 @@ bool isNighttime();
 void publishSettingsViaMQTT();
 void startColorTransition(uint8_t toR, uint8_t toG, uint8_t toB);
 
-String buildOnlineMsg();
-void sendFCMAsync(String token, String title, String body);
-String hexToEmoji(String hexColor);
-
 // =============================================================================
 // Setup
 // =============================================================================
 void setup() {
-  Serial.setRxBufferSize(4096);
   Serial.begin(115200);
   delay(100);
   Serial.println("\n\n--- Linked Lamp Boot ---");
@@ -341,8 +317,6 @@ void onWifiConnect() {
     delay(200);
     setRGB(0, 0, 0);
   }
-
-
 }
 
 void handleWifi() {
@@ -361,7 +335,7 @@ void handleWifi() {
       if (millis() - lastStatusCheck >= STATUS_CHECK_INTERVAL) {
         lastStatusCheck = millis();
         if (!selfStatusOnline) {
-          String onlineMsg = buildOnlineMsg();
+          String onlineMsg = String("ONLINE:") + HW_TYPE;
           mqttClient.publish(statusTopicPub.c_str(), onlineMsg.c_str(), true);
           Serial.println("Status correction: re-published ONLINE (was showing OFFLINE)");
         }
@@ -372,7 +346,6 @@ void handleWifi() {
     if (wifiConnected) {
       wifiConnected = false;
       wifiDisconnectedSince = millis();
-
       Serial.println("WiFi lost! Attempting reconnect...");
       WiFi.disconnect();
       WiFi.reconnect();
@@ -419,38 +392,6 @@ void loadConfig() {
         mqtt_user    = doc["mqtt_user"]   | "";
         mqtt_pass    = doc["mqtt_pass"]   | "";
         ota_url      = doc["ota_url"]     | "";
-        firebase_client_email = doc["firebase_client_email"] | "";
-        firebase_private_key  = doc["firebase_private_key"]  | "";
-        firebase_private_key.replace("\"", "");
-        firebase_private_key.replace("\\r", "");
-        firebase_private_key.replace("\\n", "\n");
-        int bIdx = firebase_private_key.indexOf("-----BEGIN");
-        if (bIdx > 0) firebase_private_key = firebase_private_key.substring(bIdx);
-        firebase_private_key.trim();
-        firebase_private_key += "\n";
-
-        // Extract project ID from service account email
-        if (firebase_client_email.length() > 0) {
-          int atIdx = firebase_client_email.indexOf('@');
-          int iamIdx = firebase_client_email.indexOf(".iam.");
-          if (atIdx > 0 && iamIdx > atIdx) {
-            firebase_project_id = firebase_client_email.substring(atIdx + 1, iamIdx);
-          }
-        }
-        
-        Serial.println("\n=== CONFIG LOADED FROM LITTLEFS ===");
-        Serial.printf("MQTT Server: %s\n", mqtt_server.c_str());
-        Serial.printf("Firebase Client Email: %s\n", firebase_client_email.c_str());
-        Serial.printf("Firebase Project ID: %s\n", firebase_project_id.c_str());
-        Serial.printf("Firebase Private Key Length: %d\n", firebase_private_key.length());
-        if (firebase_private_key.length() > 60) {
-            Serial.printf("PK Head: '%s'\n", firebase_private_key.substring(0, 30).c_str());
-            Serial.printf("PK Tail: '%s'\n", firebase_private_key.substring(firebase_private_key.length() - 30).c_str());
-        } else {
-            Serial.printf("PK Raw: '%s'\n", firebase_private_key.c_str());
-        }
-        Serial.println("===================================");
-
         if (mqtt_server.length() > 0) {
           configValid = true;
           Serial.println("Config loaded from /config.json");
@@ -467,7 +408,6 @@ void loadConfig() {
     Serial.println("Waiting for config via Serial (30s timeout)...");
     unsigned long waitStart = millis();
     String serialBuffer = "";
-    serialBuffer.reserve(4096);
 
     while (millis() - waitStart < 30000) {
       if (Serial.available()) {
@@ -484,23 +424,6 @@ void loadConfig() {
               mqtt_user    = doc["mqtt_user"]   | "";
               mqtt_pass    = doc["mqtt_pass"]   | "";
               ota_url      = doc["ota_url"]     | "";
-              firebase_client_email = doc["firebase_client_email"] | "";
-              firebase_private_key  = doc["firebase_private_key"]  | "";
-              firebase_private_key.replace("\"", "");
-              firebase_private_key.replace("\\r", "");
-              firebase_private_key.replace("\\n", "\n");
-              int bIdx = firebase_private_key.indexOf("-----BEGIN");
-              if (bIdx > 0) firebase_private_key = firebase_private_key.substring(bIdx);
-              firebase_private_key.trim();
-              firebase_private_key += "\n";
-
-              if (firebase_client_email.length() > 0) {
-                int atIdx = firebase_client_email.indexOf('@');
-                int iamIdx = firebase_client_email.indexOf(".iam.");
-                if (atIdx > 0 && iamIdx > atIdx) {
-                  firebase_project_id = firebase_client_email.substring(atIdx + 1, iamIdx);
-                }
-              }
 
               // Save to LittleFS so we don't need Serial next boot
               if (!LittleFS.begin(true)) { LittleFS.format(); LittleFS.begin(true); }
@@ -542,9 +465,6 @@ void loadState() {
     userTimezone          = doc["timezone"]         | "EST5EDT";
     ambientModeEnabled    = doc["ambientMode"]      | false;
     ambientColor          = doc["ambientColor"]     | "#0000FF";
-    pushToken             = doc["pushToken"]         | "";
-    pushDeviceId          = doc["pushDeviceId"]      | "";
-    awayModeEnabled       = doc["awayMode"]           | false;
     Serial.println("State loaded. Default color: " + defaultColor);
   }
   f.close();
@@ -563,9 +483,6 @@ void saveState() {
   doc["timezone"]     = userTimezone;
   doc["ambientMode"]  = ambientModeEnabled;
   doc["ambientColor"] = ambientColor;
-  doc["pushToken"]    = pushToken;
-  doc["pushDeviceId"] = pushDeviceId;
-  doc["awayMode"]     = awayModeEnabled;
 
   File f = LittleFS.open("/state.json", "w");
   if (f) {
@@ -579,7 +496,7 @@ void setupMQTT() {
   espClientSecure.setInsecure();
   mqttClient.setServer(mqtt_server.c_str(), mqtt_port);
   mqttClient.setCallback(mqttCallback);
-  mqttClient.setBufferSize(1024); // Larger buffer for JSON settings + push token payloads
+  mqttClient.setBufferSize(512); // Larger buffer for JSON settings payloads
   mqttClient.setKeepAlive(60);   // 60s keep-alive (default 15s is too aggressive)
 }
 
@@ -608,7 +525,7 @@ void handleMqttReconnect() {
     mqttFailCount = 0;
 
     // Announce ONLINE with retained message
-    String onlineMsg = buildOnlineMsg();
+    String onlineMsg = String("ONLINE:") + HW_TYPE;
     mqttClient.publish(statusTopicPub.c_str(), onlineMsg.c_str(), true);
     selfStatusOnline = false; // Will be confirmed when we receive our own retained msg
     lastStatusCheck = millis();
@@ -705,12 +622,6 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     pulseStartTime = millis();
     Serial.println("Trigger received! Lamp ON with gradual transition.");
 
-    // Away Mode: send push notification
-    if (awayModeEnabled && pushToken.length() > 0 && firebase_client_email.length() > 0) {
-      String emoji = hexToEmoji(msg);
-      sendFCMAsync(pushToken, "Linked Lamp", "New tap received! " + emoji);
-    }
-
   } else if (topicStr == settingsTopicSub) {
     parseSettings(msg);
 
@@ -725,7 +636,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     } else {
       selfStatusOnline = false;
       // Immediately attempt to correct stale OFFLINE
-      String onlineMsg = buildOnlineMsg();
+      String onlineMsg = String("ONLINE:") + HW_TYPE;
       mqttClient.publish(statusTopicPub.c_str(), onlineMsg.c_str(), true);
       Serial.println("Detected stale OFFLINE status — corrected to ONLINE.");
     }
@@ -753,14 +664,6 @@ void parseSettings(String payload) {
   }
   if (doc["ambientMode"].is<bool>()) ambientModeEnabled = doc["ambientMode"];
   if (doc["ambientColor"].is<const char*>()) ambientColor = doc["ambientColor"].as<String>();
-  if (doc["pushToken"].is<const char*>()) pushToken = doc["pushToken"].as<String>();
-  if (doc["deviceId"].is<const char*>()) pushDeviceId = doc["deviceId"].as<String>();
-  if (doc["away_mode"].is<bool>()) {
-    bool newAwayMode = doc["away_mode"];
-    if (newAwayMode != awayModeEnabled) {
-      awayModeEnabled = newAwayMode;
-    }
-  }
 
   saveState();
   Serial.println("Settings updated from web interface.");
@@ -784,9 +687,6 @@ void publishSettingsViaMQTT() {
   doc["timezone"]     = userTimezone;
   doc["ambientMode"]  = ambientModeEnabled;
   doc["ambientColor"] = ambientColor;
-  doc["pushToken"]    = pushToken;
-  doc["deviceId"]     = pushDeviceId;
-  doc["away_mode"]    = awayModeEnabled;
 
   String payload;
   serializeJson(doc, payload);
@@ -996,13 +896,6 @@ void doActionBasedOnTaps() {
       setRGB(255, 0, 0);
       delay(300);
       setRGB(0, 0, 0);
-
-      // Clear away mode state before reset
-      pushToken = "";
-      pushDeviceId = "";
-      awayModeEnabled = false;
-
-      saveState();
 
       wifiManager.resetSettings();
       rtcBootMarker = 0; // Force cold boot for config portal
@@ -1365,324 +1258,4 @@ void performOTA(String url) {
     mqttClient.publish(statusTopicPub.c_str(), "OTA_FAILED");
     mqttClient.loop();
   }
-}
-
-// =============================================================================
-// Away Mode: Utility
-// =============================================================================
-String buildOnlineMsg() {
-  String msg = String("ONLINE:") + HW_TYPE;
-  if (firebase_client_email.length() > 0) {
-    msg += ":" + firebase_client_email;
-  }
-  return msg;
-}
-
-// =============================================================================
-// Away Mode: Color to Emoji Mapping
-// =============================================================================
-String hexToEmoji(String hexColor) {
-  if (hexColor.startsWith("#")) hexColor.remove(0, 1);
-  long number = strtol(hexColor.c_str(), NULL, 16);
-  uint8_t r = (number >> 16) & 0xFF;
-  uint8_t g = (number >> 8) & 0xFF;
-  uint8_t b = number & 0xFF;
-
-  // Map to closest emoji heart based on dominant channel
-  if (r > g && r > b) {
-    if (g > 100) return "\xF0\x9F\xA7\xA1"; // 🧡 orange
-    if (b > 100) return "\xF0\x9F\x92\x97"; // 💗 pink
-    return "\xE2\x9D\xA4\xEF\xB8\x8F";     // ❤️ red
-  }
-  if (g > r && g > b) return "\xF0\x9F\x92\x9A"; // 💚 green
-  if (b > r && b > g) {
-    if (r > 100) return "\xF0\x9F\x92\x9C"; // 💜 purple
-    return "\xF0\x9F\x92\x99";              // 💙 blue
-  }
-  if (r > 200 && g > 200 && b > 200) return "\xF0\x9F\xA4\x8D"; // 🤍 white
-  if (r > 200 && g > 200) return "\xF0\x9F\x92\x9B"; // 💛 yellow
-  return "\xF0\x9F\x92\x97"; // 💗 default
-}
-
-// =============================================================================
-// Away Mode: FCM Push Notification via Raw JWT + HTTP
-// =============================================================================
-static String base64UrlEncode(const uint8_t* data, size_t len) {
-  // Calculate base64 output size
-  size_t b64Len = 0;
-  mbedtls_base64_encode(NULL, 0, &b64Len, data, len);
-  
-  uint8_t* b64Buf = (uint8_t*)malloc(b64Len + 1);
-  if (!b64Buf) return "";
-  
-  size_t written = 0;
-  mbedtls_base64_encode(b64Buf, b64Len + 1, &written, data, len);
-  b64Buf[written] = 0;
-  
-  // Convert to URL-safe base64
-  String result = String((char*)b64Buf);
-  free(b64Buf);
-  result.replace("+", "-");
-  result.replace("/", "_");
-  // Remove padding
-  while (result.endsWith("=")) {
-    result.remove(result.length() - 1);
-  }
-  return result;
-}
-
-static String createJWT(const String& email, const String& privateKeyPem) {
-  // Header
-  String header = "{\"alg\":\"RS256\",\"typ\":\"JWT\"}";
-  String b64Header = base64UrlEncode((const uint8_t*)header.c_str(), header.length());
-  
-  // Claims
-  time_t now;
-  time(&now);
-  String claims = "{\"iss\":\"" + email + "\","
-                  "\"scope\":\"https://www.googleapis.com/auth/firebase.messaging\","
-                  "\"aud\":\"https://oauth2.googleapis.com/token\","
-                  "\"iat\":" + String((unsigned long)now) + ","
-                  "\"exp\":" + String((unsigned long)(now + 3600)) + "}";
-  String b64Claims = base64UrlEncode((const uint8_t*)claims.c_str(), claims.length());
-  
-  // Sign
-  String signInput = b64Header + "." + b64Claims;
-  
-  // SHA-256 hash of sign input
-  uint8_t hash[32];
-  mbedtls_md_context_t mdCtx;
-  mbedtls_md_init(&mdCtx);
-  mbedtls_md_setup(&mdCtx, mbedtls_md_info_from_type(MBEDTLS_MD_SHA256), 0);
-  mbedtls_md_starts(&mdCtx);
-  mbedtls_md_update(&mdCtx, (const uint8_t*)signInput.c_str(), signInput.length());
-  mbedtls_md_finish(&mdCtx, hash);
-  mbedtls_md_free(&mdCtx);
-  
-  Serial.println("\n[FCM JWT GENERATION]");
-  Serial.printf("PK Length received by createJWT: %d\n", privateKeyPem.length());
-  if (privateKeyPem.length() > 60) {
-      Serial.printf("- Key Head: '%s'\n", privateKeyPem.substring(0, 31).c_str());
-      Serial.printf("- Key Tail: '%s'\n", privateKeyPem.substring(privateKeyPem.length() - 31).c_str());
-  } else {
-      Serial.printf("- Key Raw Content: '%s'\n", privateKeyPem.c_str());
-  }
-
-  mbedtls_pk_context pk;
-  mbedtls_pk_init(&pk);
-  
-  Serial.println("FCM: Calling mbedtls_pk_parse_key...");
-  int ret = mbedtls_pk_parse_key(&pk, (const uint8_t*)privateKeyPem.c_str(),
-                                  privateKeyPem.length() + 1, NULL, 0);
-  if (ret != 0) {
-    Serial.printf("PK parse failed: -0x%04X\n", -ret);
-    mbedtls_pk_free(&pk);
-    return "";
-  }
-  
-  uint8_t sig[256];
-  size_t sigLen = 0;
-  
-  mbedtls_entropy_context entropy;
-  mbedtls_ctr_drbg_context ctrDrbg;
-  mbedtls_entropy_init(&entropy);
-  mbedtls_ctr_drbg_init(&ctrDrbg);
-  mbedtls_ctr_drbg_seed(&ctrDrbg, mbedtls_entropy_func, &entropy, NULL, 0);
-  
-  ret = mbedtls_pk_sign(&pk, MBEDTLS_MD_SHA256, hash, 32, sig, &sigLen,
-                         mbedtls_ctr_drbg_random, &ctrDrbg);
-  
-  mbedtls_pk_free(&pk);
-  mbedtls_ctr_drbg_free(&ctrDrbg);
-  mbedtls_entropy_free(&entropy);
-  
-  if (ret != 0) {
-    Serial.printf("PK sign failed: -0x%04X\n", -ret);
-    return "";
-  }
-  
-  String b64Sig = base64UrlEncode(sig, sigLen);
-  return signInput + "." + b64Sig;
-}
-
-// FCM: Cached OAuth token and mutex for memory safety
-static String cachedAccessToken = "";
-static unsigned long cachedTokenExpiry = 0;
-static SemaphoreHandle_t fcmSemaphore = NULL;
-static unsigned long lastFcmSendTime = 0;
-
-// FCM task parameters (heap-allocated, freed by task)
-struct FCMTaskParams {
-  String token;
-  String title;
-  String body;
-  String email;
-  String projectId;
-  // privateKey is NOT copied — we read from the global to save ~1.7KB heap
-};
-
-static String obtainAccessToken(const String& email) {
-  // Check if cached token is still valid (with 10-min safety margin)
-  if (cachedAccessToken.length() > 0 && millis() < cachedTokenExpiry) {
-    Serial.println("FCM: Using cached access token.");
-    return cachedAccessToken;
-  }
-  
-  Serial.println("FCM: Generating new JWT & exchanging for access token...");
-  
-  // Step 1: Create JWT using the global private key (no copy needed)
-  String jwt = createJWT(email, firebase_private_key);
-  if (jwt.length() == 0) {
-    Serial.println("FCM: JWT creation failed.");
-    return "";
-  }
-  
-  // Step 2: Exchange JWT for access token
-  String accessToken = "";
-  {
-    WiFiClientSecure client;
-    client.setInsecure();
-
-    HTTPClient http;
-    
-    http.begin(client, "https://oauth2.googleapis.com/token");
-    http.addHeader("Content-Type", "application/x-www-form-urlencoded");
-    http.setTimeout(15000);
-    String tokenBody = "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=" + jwt;
-    
-    // Clear JWT immediately — it's been copied into tokenBody
-    jwt.clear();
-    
-    int httpCode = http.POST(tokenBody);
-    tokenBody.clear(); // Free the large POST body
-    
-    if (httpCode == 200) {
-      String response = http.getString();
-      JsonDocument tokenDoc;
-      if (!deserializeJson(tokenDoc, response)) {
-        accessToken = tokenDoc["access_token"].as<String>();
-      }
-    } else {
-      Serial.printf("FCM: Token exchange failed: %d\n", httpCode);
-    }
-    
-    http.end();
-    client.stop(); // Explicitly tear down SSL — frees ~16KB heap
-    Serial.printf("FCM: Heap after OAuth cleanup: %u bytes\n", ESP.getFreeHeap());
-  } // WiFiClientSecure and HTTPClient destructors fire here
-  
-  if (accessToken.length() > 0) {
-    cachedAccessToken = accessToken;
-    cachedTokenExpiry = millis() + (50UL * 60UL * 1000UL); // Cache for 50 minutes
-    Serial.println("FCM: Access token cached for 50 minutes.");
-  }
-  
-  return accessToken;
-}
-
-static void fcmTask(void* pvParameters) {
-  FCMTaskParams* p = (FCMTaskParams*)pvParameters;
-  Serial.println("\n+++ FCM ASYNC TASK TRIGGERED +++");
-  Serial.printf("Recipient Push Token: %.40s...\n", p->token.c_str());
-  Serial.printf("Heap at task start: %u bytes\n", ESP.getFreeHeap());
-  Serial.println("++++++++++++++++++++++++++++++++++");
-  
-  // Step 1: Get access token (cached or fresh)
-  String accessToken = obtainAccessToken(p->email);
-  if (accessToken.length() == 0) {
-    Serial.println("FCM: Failed to obtain access token.");
-    delete p;
-    xSemaphoreGive(fcmSemaphore);
-    vTaskDelete(NULL);
-    return;
-  }
-  
-  // Step 2: Send FCM notification using a FRESH SSL client
-  {
-    WiFiClientSecure client;
-    client.setInsecure();
-
-    HTTPClient http;
-    
-    String fcmUrl = "https://fcm.googleapis.com/v1/projects/" + p->projectId + "/messages:send";
-    http.begin(client, fcmUrl);
-    http.addHeader("Content-Type", "application/json");
-    http.addHeader("Authorization", "Bearer " + accessToken);
-    http.setTimeout(15000);
-    
-    // Build payload — use data-only (no "notification" key) so iOS always
-    // routes through the service worker's onBackgroundMessage handler.
-    // A "notification" key causes iOS to auto-display and suppress the SW.
-    JsonDocument msgDoc;
-    msgDoc["message"]["token"] = p->token;
-    msgDoc["message"]["data"]["title"] = p->title;
-    msgDoc["message"]["data"]["body"] = p->body;
-    
-    // APNs: content-available wakes the SW; alert push-type + priority 10
-    // ensures immediate delivery even when the app is backgrounded.
-    msgDoc["message"]["apns"]["payload"]["aps"]["content-available"] = 1;
-    msgDoc["message"]["apns"]["headers"]["apns-push-type"] = "alert";
-    msgDoc["message"]["apns"]["headers"]["apns-priority"] = "10";
-
-    String msgPayload;
-    serializeJson(msgDoc, msgPayload);
-    
-    int httpCode = http.POST(msgPayload);
-    if (httpCode == 200) {
-      Serial.println("FCM: Push notification sent successfully!");
-    } else {
-      String errBody = http.getString();
-      Serial.printf("FCM: Send failed: %d - %s\n", httpCode, errBody.c_str());
-      // If 401, token expired — invalidate cache
-      if (httpCode == 401) {
-        cachedAccessToken.clear();
-        cachedTokenExpiry = 0;
-        Serial.println("FCM: Cached token invalidated (401).");
-      }
-    }
-    
-    http.end();
-    client.stop(); // Explicitly tear down SSL — frees ~16KB heap
-  }
-  
-  Serial.printf("FCM: Heap after full cleanup: %u bytes\n", ESP.getFreeHeap());
-  
-  delete p;
-  xSemaphoreGive(fcmSemaphore); // Signal completion for the next notification
-  vTaskDelete(NULL);
-}
-
-void sendFCMAsync(String token, String title, String body) {
-  // Create binary semaphore on first call (not a mutex — avoids ownership crash)
-  if (fcmSemaphore == NULL) {
-    fcmSemaphore = xSemaphoreCreateBinary();
-    xSemaphoreGive(fcmSemaphore); // Start as "available"
-  }
-  
-  // Wait at least 30 minutes between FCM pushes to prevent notification spam
-  if (millis() - lastFcmSendTime < 1800000) {
-    Serial.println("FCM: Throttled — sent a push within the last 30min. Skipping.");
-    return;
-  }
-  
-  // Try to take the semaphore — if another FCM task is running, skip this one
-  if (xSemaphoreTake(fcmSemaphore, 0) != pdTRUE) {
-    Serial.println("FCM: Another push task is in progress, skipping.");
-    return;
-  }
-  
-  lastFcmSendTime = millis();
-  
-  FCMTaskParams* params = new FCMTaskParams();
-  params->token = token;
-  params->title = title;
-  params->body = body;
-  params->email = firebase_client_email;
-  params->projectId = firebase_project_id;
-  // Note: privateKey is read from the global `firebase_private_key` directly
-  
-  // Run on core 0 (protocol core) to avoid blocking LED animations on core 1
-  // Stack increased to 12288 to accommodate SSL handshake overhead
-  xTaskCreatePinnedToCore(fcmTask, "fcm_push", 12288, params, 1, NULL, 0);
-  Serial.println("FCM: Push task launched (async).");
 }
