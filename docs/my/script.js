@@ -960,8 +960,8 @@ async function setupFirebase(firebaseConfig) {
 
         if (token) {
             console.log('FCM Token:', token);
-            // Only publish if token actually changed to avoid unnecessary MQTT traffic
-            if (token !== mySettings.pushToken || currentDeviceId !== mySettings.deviceId) {
+            // Publish if token changed, device changed, OR if we are turning away mode ON
+            if (token !== mySettings.pushToken || currentDeviceId !== mySettings.deviceId || !mySettings.away_mode) {
                 mySettings.pushToken = token;
                 mySettings.deviceId = currentDeviceId;
                 mySettings.away_mode = true;
