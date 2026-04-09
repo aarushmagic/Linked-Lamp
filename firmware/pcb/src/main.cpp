@@ -9,7 +9,7 @@
  *   - tzapu/WiFiManager
  *   - knolleary/PubSubClient
  *   - bblanchon/ArduinoJson
- *   - h2zero/NimBLE-Arduino (for BLE presence detection)
+ *   - arduino-libraries/NTPClient
  * 
  * License: GNU GPLv3
  */
@@ -26,8 +26,7 @@
 #include <lwip/dns.h>
 #include <esp_ota_ops.h>
 #include <time.h>
-#include <NimBLEDevice.h>
-#include <NimBLEHIDDevice.h>
+// BLE removed — was causing radio contention with WiFi SSL and iOS bonding failures
 #include <mbedtls/pk.h>
 #include <mbedtls/md.h>
 #include <mbedtls/entropy.h>
@@ -68,8 +67,7 @@ String pushToken    = "";
 String pushDeviceId = "";
 bool   awayModeEnabled = false;
 
-// BLE state
-bool bleInitialized = false;
+
 
 // =============================================================================
 // User Settings (synced from web interface via MQTT, persisted in /state.json)
@@ -203,8 +201,7 @@ float hexToHue(String hexColor);
 bool isNighttime();
 void publishSettingsViaMQTT();
 void startColorTransition(uint8_t toR, uint8_t toG, uint8_t toB);
-void initBLE();
-void deinitBLE();
+
 String buildOnlineMsg();
 void sendFCMAsync(String token, String title, String body);
 String hexToEmoji(String hexColor);
@@ -350,10 +347,7 @@ void onWifiConnect() {
     setRGB(0, 0, 0);
   }
 
-  // Re-enable BLE if away mode is active
-  if (awayModeEnabled && pushToken.length() > 0 && !bleInitialized) {
-    initBLE();
-  }
+
 }
 
 void handleWifi() {
@@ -383,11 +377,7 @@ void handleWifi() {
     if (wifiConnected) {
       wifiConnected = false;
       wifiDisconnectedSince = millis();
-      // WiFi takes priority — temporarily disable BLE
-      if (bleInitialized) {
-        deinitBLE();
-        Serial.println("BLE disabled to prioritize WiFi reconnection.");
-      }
+
       Serial.println("WiFi lost! Attempting reconnect...");
       WiFi.disconnect();
       WiFi.reconnect();
@@ -725,14 +715,10 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     pulseStartTime = millis();
     Serial.println("Trigger received! Lamp ON with gradual transition.");
 
-    // Away Mode: send push notification if user is not nearby
+    // Away Mode: send push notification
     if (awayModeEnabled && pushToken.length() > 0 && firebase_client_email.length() > 0) {
-      if (!bleInitialized || NimBLEDevice::getServer() == nullptr || NimBLEDevice::getServer()->getConnectedCount() == 0) {
-        String emoji = hexToEmoji(msg);
-        sendFCMAsync(pushToken, "Linked Lamp", "New tap received! " + emoji);
-      } else {
-        Serial.println("User nearby (BLE connected) — notification suppressed.");
-      }
+      String emoji = hexToEmoji(msg);
+      sendFCMAsync(pushToken, "Linked Lamp", "New tap received! " + emoji);
     }
 
   } else if (topicStr == settingsTopicSub) {
@@ -783,7 +769,6 @@ void parseSettings(String payload) {
     bool newAwayMode = doc["away_mode"];
     if (newAwayMode != awayModeEnabled) {
       awayModeEnabled = newAwayMode;
-      if (awayModeEnabled) initBLE(); else deinitBLE();
     }
   }
 
@@ -1026,7 +1011,7 @@ void doActionBasedOnTaps() {
       pushToken = "";
       pushDeviceId = "";
       awayModeEnabled = false;
-      deinitBLE();
+
       saveState();
 
       wifiManager.resetSettings();
@@ -1392,7 +1377,7 @@ void performOTA(String url) {
 }
 
 // =============================================================================
-// Away Mode: BLE Presence Detection
+// Away Mode: Utility
 // =============================================================================
 String buildOnlineMsg() {
   String msg = String("ONLINE:") + HW_TYPE;
@@ -1402,87 +1387,6 @@ String buildOnlineMsg() {
   return msg;
 }
 
-// Consumer Control Report Map (Volume/Media keys only — doesn't hide iOS Keyboard)
-static const uint8_t hidReportMap[] = {
-  0x05, 0x0C, 0x09, 0x01, 0xA1, 0x01, 0x15, 0x00, 
-  0x25, 0x01, 0x75, 0x01, 0x95, 0x07, 0x09, 0xB5, 
-  0x09, 0xB6, 0x09, 0xB7, 0x09, 0xCD, 0x09, 0xE2, 
-  0x09, 0xEA, 0x09, 0xE9, 0x81, 0x02, 0x75, 0x01, 
-  0x95, 0x01, 0x81, 0x03, 0xC0
-};
-
-// BLE Server Callbacks — handles connect/disconnect for presence tracking
-// and restarts advertising after disconnect so iOS can auto-reconnect.
-class LampBLECallbacks : public NimBLEServerCallbacks {
-  void onConnect(NimBLEServer* pServer, NimBLEConnInfo& connInfo) override {
-    Serial.printf("BLE: Device connected (handle=%d)\n", connInfo.getConnHandle());
-    // Stop advertising while connected (single connection device)
-    NimBLEDevice::getAdvertising()->stop();
-  }
-
-  void onDisconnect(NimBLEServer* pServer, NimBLEConnInfo& connInfo, int reason) override {
-    Serial.printf("BLE: Device disconnected (reason=0x%02X). Restarting advertising...\n", reason);
-    // Restart advertising so the device is discoverable again and iOS can reconnect
-    if (bleInitialized) {
-      NimBLEDevice::getAdvertising()->start();
-    }
-  }
-
-  void onAuthenticationComplete(NimBLEConnInfo& connInfo) override {
-    if (connInfo.isEncrypted()) {
-      Serial.println("BLE: Pairing/bonding complete — connection encrypted.");
-    } else {
-      Serial.println("BLE: Auth complete but NOT encrypted — disconnecting.");
-      NimBLEDevice::getServer()->disconnect(connInfo.getConnHandle());
-    }
-  }
-};
-
-static LampBLECallbacks bleCallbacks;
-
-void initBLE() {
-  if (bleInitialized) return;
-  if (!awayModeEnabled || pushToken.length() == 0 || firebase_client_email.length() == 0) return;
-  if (WiFi.status() != WL_CONNECTED) return; // Don't init BLE without WiFi
-
-  // Security: enable bonding (1st param) so iOS remembers the device,
-  // no MITM (2nd param), and enable secure connections (3rd param).
-  NimBLEDevice::setSecurityAuth(true, false, true);
-  NimBLEDevice::setSecurityIOCap(BLE_HS_IO_NO_INPUT_OUTPUT);
-  NimBLEDevice::setSecurityInitKey(BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID);
-  NimBLEDevice::setSecurityRespKey(BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID);
-  
-  NimBLEDevice::init("LinkedLamp BLE");
-  NimBLEDevice::setPower(3); // Low TX power (3 dBm) to minimize WiFi interference
-
-  // Create server & attach callbacks for presence tracking + reconnection
-  NimBLEServer* pServer = NimBLEDevice::createServer();
-  pServer->setCallbacks(&bleCallbacks);
-
-  // Initialize as a dummy Media Remote so iOS/Android aggressively stay connected in the background
-  NimBLEHIDDevice* pHid = new NimBLEHIDDevice(pServer);
-  pHid->setManufacturer("Linked Lamp");
-  pHid->setPnp(0x02, 0x05ac, 0x0255, 0x0115); // Apple Inc Vendor ID
-  pHid->setHidInfo(0x00, 0x01);
-  pHid->setReportMap((uint8_t*)hidReportMap, sizeof(hidReportMap));
-
-  NimBLEAdvertising* pAdv = NimBLEDevice::getAdvertising();
-  pAdv->addServiceUUID("1812");
-  pAdv->setAppearance(0x0180); // Generic Remote Control
-  pAdv->setMinInterval(1600); // 1000ms in 0.625ms units — WiFi-friendly
-  pAdv->setMaxInterval(3200); // 2000ms
-  pAdv->start();
-
-  bleInitialized = true;
-  Serial.println("BLE server started: 'LinkedLamp BLE' (HID Tether with bonding)");
-}
-
-void deinitBLE() {
-  if (!bleInitialized) return;
-  NimBLEDevice::deinit(false); // false = preserve bonding data in NVS
-  bleInitialized = false;
-  Serial.println("BLE server stopped (bonding data preserved).");
-}
 
 // =============================================================================
 // Away Mode: Color to Emoji Mapping
@@ -1648,7 +1552,7 @@ static String obtainAccessToken(const String& email) {
   {
     WiFiClientSecure client;
     client.setInsecure();
-    client.setHandshakeTimeout(10);
+    // Removed setHandshakeTimeout(10) to rely on stable library defaults
     HTTPClient http;
     
     http.begin(client, "https://oauth2.googleapis.com/token");
@@ -1707,7 +1611,6 @@ static void fcmTask(void* pvParameters) {
   {
     WiFiClientSecure client;
     client.setInsecure();
-    client.setHandshakeTimeout(10);
     HTTPClient http;
     
     String fcmUrl = "https://fcm.googleapis.com/v1/projects/" + p->projectId + "/messages:send";
@@ -1750,7 +1653,7 @@ static void fcmTask(void* pvParameters) {
     http.end();
     client.stop(); // Explicitly tear down SSL — frees ~16KB heap
   }
-  
+
   Serial.printf("FCM: Heap after full cleanup: %u bytes\n", ESP.getFreeHeap());
   
   delete p;
