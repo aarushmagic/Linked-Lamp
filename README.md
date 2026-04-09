@@ -124,6 +124,4 @@ The ESP32 automatically rolls back if new firmware crashes before reaching `setu
 
 GNU General Public License v3.0 — see [LICENSE](https://www.gnu.org/licenses/gpl-3.0.html).
 
-## 🙏 Credits
-
-[WiFiManager](https://github.com/tzapu/WiFiManager) · [PubSubClient](https://github.com/knolleary/pubsubclient) · [ArduinoJson](https://github.com/bblanchon/ArduinoJson) · [iro.js](https://iro.js.org/) · [MQTT.js](https://github.com/mqttjs/MQTT.js) · [esptool-js](https://github.com/espressif/esptool-js) · [NimBLE-Arduino](https://github.com/h2zero/NimBLE-Arduino)
+[WiFiManager](https://github.com/tzapu/WiFiManager) · [PubSubClient](https://github.com/knolleary/pubsubclient) · [ArduinoJson](https://github.com/bblanchon/ArduinoJson) · [iro.js](https://iro.js.org/) · [MQTT.js](https://github.com/mqttjs/MQTT.js) · [esptool-js](https://github.com/espressif/esptool-js)
