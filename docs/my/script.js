@@ -237,6 +237,7 @@ function connectMQTT() {
         mqttClient.subscribe(getTopic(myDeviceId, "presets"));  // Pull retained presets
 
         updateStatusUI();
+        applySettingsToUI();
     });
 
     // We use a flag to prevent echoing our own settings publishes
