@@ -23,7 +23,7 @@
 - **Nighttime Mode** — Schedule quiet hours with reduced brightness or lamp fully off
 - **Web App** — Send signals, manage presets, and adjust settings from your phone
 - **Preset Signals** — Quick-send "I Love You", "I Miss You", or custom messages
-- **Ambient Mode** — Optional low-power glow (5% brightness) in your chosen color when the lamp is inactive
+- **Ambient Mode** — Optional low-power glow (10% brightness) in your chosen color when the lamp is inactive
 - **OTA Updates** — Firmware updates pushed wirelessly with automatic rollback protection
 
 ## 🔧 Hardware Options

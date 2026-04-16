@@ -640,7 +640,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
         uint8_t ambR = (number >> 16) & 0xFF;
         uint8_t ambG = (number >> 8)  & 0xFF;
         uint8_t ambB =  number        & 0xFF;
-        int ambientBrightness = max(1, dayMaxBrightness / 20);
+        int ambientBrightness = max(1, dayMaxBrightness / 10);
         // Scale so that when handleLEDs scales by currentMaxBrightness, it equals ambientBrightness
         currentR = min(255, (ambR * ambientBrightness) / max(1, currentMaxBrightness));
         currentG = min(255, (ambG * ambientBrightness) / max(1, currentMaxBrightness));
@@ -1102,8 +1102,8 @@ void handleLEDs() {
       uint8_t ambG = (number >> 8)  & 0xFF;
       uint8_t ambB =  number        & 0xFF;
 
-      // Brightness capped at 5% of daytime max brightness
-      int ambientBrightness = max(1, dayMaxBrightness / 20);
+      // Brightness capped at 10% of daytime max brightness
+      int ambientBrightness = max(1, dayMaxBrightness / 10);
       setRGB((ambR * ambientBrightness) / 255, 
              (ambG * ambientBrightness) / 255, 
              (ambB * ambientBrightness) / 255);
