@@ -67,7 +67,14 @@ let editingPresetId = null;
 // Color Picker instances (iro.js)
 let mainColorPicker = null;
 let presetColorPicker = null;
+let cycleColorPicker = null;
 let ambientColorPicker = null;
+
+// Cycle preset editing state
+let currentPresetMode = 'single'; // 'single' or 'cycle'
+let cycleColorEntries = [];       // [{hex, hold, trans}, ...]
+let selectedCycleIndex = 0;       // Which entry's color is being edited
+const MAX_CYCLE_COLORS = 10;
 
 // ==========================================================================
 // Initialization
@@ -363,14 +370,27 @@ function updateStatusUI() {
 // ==========================================================================
 // Publishing
 // ==========================================================================
-function sendSignal(hexColor) {
+function sendSignal(hexColorOrPreset) {
     if (!mqttClient || !mqttClient.connected) {
         alert("Not connected to your lamp network.");
         return;
     }
     const topic = getTopic(partnerDeviceId, "color_trigger");
-    mqttClient.publish(topic, hexColor);
-    console.log(`Signal sent: ${hexColor} → ${topic}`);
+
+    // If it's a preset object with cycle colors, encode as CC: payload
+    if (typeof hexColorOrPreset === 'object' && hexColorOrPreset.type === 'cycle' && hexColorOrPreset.colors) {
+        const parts = hexColorOrPreset.colors.map(c => {
+            const hex = c.hex.replace('#', '');
+            return `${hex},${c.hold},${c.trans}`;
+        });
+        const payload = 'CC:' + parts.join(';');
+        mqttClient.publish(topic, payload);
+        console.log(`Cycle signal sent: ${payload} → ${topic}`);
+    } else {
+        // Plain single color
+        mqttClient.publish(topic, hexColorOrPreset);
+        console.log(`Signal sent: ${hexColorOrPreset} → ${topic}`);
+    }
 }
 
 function publishSettings() {
@@ -536,7 +556,7 @@ function initColorPickers() {
         publishTimer = setTimeout(publishSettings, 400);
     });
 
-    // Preset color picker (modal)
+    // Preset color picker (modal — single color mode)
     presetColorPicker = new iro.ColorPicker("#presetColorPickerContainer", {
         width: 220,
         color: "#ffffff",
@@ -564,6 +584,34 @@ function initColorPickers() {
             sub.innerText = "Tap to turn on " + partnerName + "'s lamp";
         }, 1500);
     };
+}
+
+// ==========================================================================
+// Cycle Color Picker (lazy-init for cycle mode)
+// ==========================================================================
+function ensureCycleColorPicker() {
+    if (cycleColorPicker) return;
+    cycleColorPicker = new iro.ColorPicker("#cycleColorPickerContainer", {
+        width: 200,
+        color: "#ffffff",
+        borderWidth: 1,
+        borderColor: "#ccc",
+        layout: [{ component: iro.ui.Wheel, options: {} }]
+    });
+
+    cycleColorPicker.on("color:change", (color) => {
+        if (selectedCycleIndex >= 0 && selectedCycleIndex < cycleColorEntries.length) {
+            cycleColorEntries[selectedCycleIndex].hex = color.hexString;
+            // Update just the dot and hex label for the selected entry
+            const entry = document.querySelectorAll('.color-entry')[selectedCycleIndex];
+            if (entry) {
+                const dot = entry.querySelector('.color-entry-dot');
+                const hexLabel = entry.querySelector('.color-entry-hex');
+                if (dot) dot.style.backgroundColor = color.hexString;
+                if (hexLabel) hexLabel.innerText = color.hexString;
+            }
+        }
+    });
 }
 
 function getLuminance(hexCode) {
@@ -1082,28 +1130,61 @@ function renderPresets() {
     presets.forEach(p => {
         const btn = document.createElement("button");
         btn.className = "preset-btn";
-        btn.style.setProperty("--preset-color", p.color);
+        const isCycle = p.type === 'cycle' && p.colors && p.colors.length > 0;
+        btn.style.setProperty("--preset-color", isCycle ? p.colors[0].hex : p.color);
 
         const nameSpan = document.createElement("span");
         nameSpan.style.flex = "1";
         nameSpan.style.textAlign = "left";
         nameSpan.innerText = p.name;
 
-        const dot = document.createElement("div");
-        dot.className = "preset-color-dot";
-        dot.style.background = p.color;
+        btn.appendChild(nameSpan);
+
+        if (isCycle) {
+            // Cycle icon
+            const cycleIcon = document.createElement("span");
+            cycleIcon.className = "material-icons-round preset-cycle-icon";
+            cycleIcon.innerText = "autorenew";
+            btn.appendChild(cycleIcon);
+
+            // Multi-dot indicator
+            const dotsWrap = document.createElement("div");
+            dotsWrap.className = "preset-color-dots";
+            const showCount = Math.min(p.colors.length, 5);
+            for (let i = 0; i < showCount; i++) {
+                const miniDot = document.createElement("div");
+                miniDot.className = "mini-dot";
+                miniDot.style.backgroundColor = p.colors[i].hex;
+                dotsWrap.appendChild(miniDot);
+            }
+            if (p.colors.length > 5) {
+                const overflow = document.createElement("span");
+                overflow.className = "dots-overflow";
+                overflow.innerText = "+" + (p.colors.length - 5);
+                dotsWrap.appendChild(overflow);
+            }
+            btn.appendChild(dotsWrap);
+        } else {
+            const dot = document.createElement("div");
+            dot.className = "preset-color-dot";
+            dot.style.background = p.color;
+            btn.appendChild(dot);
+        }
 
         const editIcon = document.createElement("span");
         editIcon.className = "material-icons-round preset-edit-icon";
         editIcon.innerText = "edit";
-
-        btn.appendChild(nameSpan);
-        btn.appendChild(dot);
         btn.appendChild(editIcon);
 
         // Tap the button area = send signal, tap edit icon = edit
         editIcon.onclick = (e) => { e.stopPropagation(); openPresetModal(p.id); };
-        btn.onclick = () => sendSignal(p.color);
+        btn.onclick = () => {
+            if (isCycle) {
+                sendSignal(p); // Pass full preset object for cycle encoding
+            } else {
+                sendSignal(p.color);
+            }
+        };
 
         grid.appendChild(btn);
     });
@@ -1128,31 +1209,78 @@ function openPresetModal(presetId = null) {
         if (!p) return;
         title.innerText = "Edit Signal";
         nameInp.value = p.name;
-        presetColorPicker.color.hexString = p.color;
         delBtn.classList.remove("hidden");
+
+        if (p.type === 'cycle' && p.colors && p.colors.length > 0) {
+            cycleColorEntries = p.colors.map(c => ({...c}));
+            selectedCycleIndex = 0;
+            setPresetMode('cycle');
+        } else {
+            presetColorPicker.color.hexString = p.color;
+            setPresetMode('single');
+        }
     } else {
         title.innerText = "New Signal";
         nameInp.value = "";
         presetColorPicker.color.hexString = "#ffffff";
+        cycleColorEntries = [
+            { hex: "#FF0000", hold: 30, trans: 10 },
+            { hex: "#0000FF", hold: 30, trans: 10 }
+        ];
+        selectedCycleIndex = 0;
         delBtn.classList.add("hidden");
+        setPresetMode('single');
     }
     modal.style.display = "block";
 }
 
 function closePresetModal() {
     document.getElementById("presetModal").style.display = "none";
+    currentPresetMode = 'single';
 }
 
 function savePreset() {
     const name = document.getElementById("presetName").value.trim();
     if (!name) { alert("Please enter a name."); return; }
-    const color = presetColorPicker.color.hexString;
 
-    if (editingPresetId) {
-        const p = presets.find(x => x.id === editingPresetId);
-        if (p) { p.name = name; p.color = color; }
+    if (currentPresetMode === 'cycle') {
+        // Read durations from inputs before saving
+        syncCycleDurationsFromUI();
+
+        if (cycleColorEntries.length < 2) {
+            alert("A color cycle needs at least 2 colors.");
+            return;
+        }
+
+        const presetData = {
+            id: editingPresetId || ("p_" + Date.now()),
+            name,
+            color: cycleColorEntries[0].hex,  // First color for backwards compat display
+            type: 'cycle',
+            colors: cycleColorEntries.map(c => ({...c}))
+        };
+
+        if (editingPresetId) {
+            const idx = presets.findIndex(x => x.id === editingPresetId);
+            if (idx >= 0) presets[idx] = presetData;
+        } else {
+            presets.push(presetData);
+        }
     } else {
-        presets.push({ id: "p_" + Date.now(), name, color });
+        const color = presetColorPicker.color.hexString;
+
+        if (editingPresetId) {
+            const p = presets.find(x => x.id === editingPresetId);
+            if (p) {
+                p.name = name;
+                p.color = color;
+                // Clear cycle data if switching from cycle to single
+                delete p.type;
+                delete p.colors;
+            }
+        } else {
+            presets.push({ id: "p_" + Date.now(), name, color });
+        }
     }
 
     localStorage.setItem("ll_presets_" + myDeviceId, JSON.stringify(presets));
@@ -1168,4 +1296,169 @@ function deleteCurrentPreset() {
     publishPresets();
     renderPresets();
     closePresetModal();
+}
+
+// ==========================================================================
+// Preset Mode Toggle (Single / Cycle)
+// ==========================================================================
+function setPresetMode(mode) {
+    currentPresetMode = mode;
+
+    const btnSingle = document.getElementById("btnModeSingle");
+    const btnCycle = document.getElementById("btnModeCycle");
+    const singleSection = document.getElementById("singleColorSection");
+    const cycleSection = document.getElementById("cycleColorsSection");
+
+    if (mode === 'cycle') {
+        btnSingle.classList.remove('active');
+        btnCycle.classList.add('active');
+        singleSection.style.display = 'none';
+        cycleSection.classList.add('visible');
+
+        ensureCycleColorPicker();
+        renderCycleColorEntries();
+        selectCycleEntry(selectedCycleIndex);
+    } else {
+        btnSingle.classList.add('active');
+        btnCycle.classList.remove('active');
+        singleSection.style.display = 'block';
+        cycleSection.classList.remove('visible');
+    }
+}
+
+// ==========================================================================
+// Cycle Color Entry Management
+// ==========================================================================
+function renderCycleColorEntries() {
+    const list = document.getElementById("colorEntryList");
+    list.innerHTML = "";
+
+    cycleColorEntries.forEach((entry, idx) => {
+        const el = document.createElement("div");
+        el.className = "color-entry" + (idx === selectedCycleIndex ? " selected" : "");
+        el.onclick = (e) => {
+            // Don't select when clicking remove or inputs
+            if (e.target.closest('.color-entry-remove') || e.target.tagName === 'INPUT') return;
+            selectCycleEntry(idx);
+        };
+
+        el.innerHTML = `
+            <div class="color-entry-header">
+                <div class="color-entry-dot" style="background-color: ${entry.hex}"></div>
+                <span class="color-entry-label">Color ${idx + 1}</span>
+                <span class="color-entry-hex">${entry.hex}</span>
+                ${cycleColorEntries.length > 1 ? `
+                    <button class="color-entry-remove" onclick="event.stopPropagation(); removeCycleEntry(${idx})">
+                        <span class="material-icons-round" style="font-size:18px;">close</span>
+                    </button>
+                ` : ''}
+            </div>
+            <div class="color-entry-durations">
+                <div class="duration-field">
+                    <label>Hold</label>
+                    <div class="duration-input-wrap">
+                        <input type="number" min="0.1" max="60" step="0.1"
+                            value="${(entry.hold / 10).toFixed(1)}"
+                            data-idx="${idx}" data-field="hold"
+                            onchange="updateCycleDuration(this)">
+                        <span class="unit">sec</span>
+                    </div>
+                </div>
+                <div class="duration-field">
+                    <label>Transition</label>
+                    <div class="duration-input-wrap">
+                        <input type="number" min="0" max="60" step="0.1"
+                            value="${(entry.trans / 10).toFixed(1)}"
+                            data-idx="${idx}" data-field="trans"
+                            onchange="updateCycleDuration(this)">
+                        <span class="unit">sec</span>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        list.appendChild(el);
+    });
+
+    // Update Add button visibility
+    const addBtn = document.getElementById("btnAddColor");
+    if (addBtn) {
+        addBtn.style.display = cycleColorEntries.length >= MAX_CYCLE_COLORS ? 'none' : 'flex';
+    }
+}
+
+function selectCycleEntry(idx) {
+    if (idx < 0 || idx >= cycleColorEntries.length) return;
+    selectedCycleIndex = idx;
+
+    // Update visual selection
+    document.querySelectorAll('.color-entry').forEach((el, i) => {
+        el.classList.toggle('selected', i === idx);
+    });
+
+    // Sync the color picker to the selected entry's color
+    if (cycleColorPicker) {
+        cycleColorPicker.color.hexString = cycleColorEntries[idx].hex;
+    }
+}
+
+function addCycleColorEntry() {
+    if (cycleColorEntries.length >= MAX_CYCLE_COLORS) return;
+
+    // New color defaults: pick a slightly different hue from the last entry
+    const lastColor = cycleColorEntries.length > 0
+        ? cycleColorEntries[cycleColorEntries.length - 1].hex
+        : "#ffffff";
+    cycleColorEntries.push({ hex: lastColor, hold: 30, trans: 10 });
+
+    renderCycleColorEntries();
+    selectCycleEntry(cycleColorEntries.length - 1);
+
+    // Scroll the new entry into view
+    const list = document.getElementById("colorEntryList");
+    list.scrollTop = list.scrollHeight;
+}
+
+function removeCycleEntry(idx) {
+    if (cycleColorEntries.length <= 1) return;
+    cycleColorEntries.splice(idx, 1);
+
+    // Adjust selection
+    if (selectedCycleIndex >= cycleColorEntries.length) {
+        selectedCycleIndex = cycleColorEntries.length - 1;
+    }
+
+    renderCycleColorEntries();
+    selectCycleEntry(selectedCycleIndex);
+}
+
+function updateCycleDuration(inputEl) {
+    const idx = parseInt(inputEl.dataset.idx);
+    const field = inputEl.dataset.field; // 'hold' or 'trans'
+    let val = parseFloat(inputEl.value);
+
+    // Clamp
+    if (isNaN(val) || val < 0) val = 0;
+    if (field === 'hold' && val < 0.1) val = 0.1;
+    if (val > 60) val = 60;
+
+    // Store as tenths of seconds
+    cycleColorEntries[idx][field] = Math.round(val * 10);
+    inputEl.value = val.toFixed(1);
+}
+
+function syncCycleDurationsFromUI() {
+    // Read all duration inputs from the DOM into cycleColorEntries
+    const inputs = document.querySelectorAll('.color-entry-durations input');
+    inputs.forEach(inp => {
+        const idx = parseInt(inp.dataset.idx);
+        const field = inp.dataset.field;
+        if (idx >= 0 && idx < cycleColorEntries.length && field) {
+            let val = parseFloat(inp.value);
+            if (isNaN(val) || val < 0) val = 0;
+            if (field === 'hold' && val < 0.1) val = 0.1;
+            if (val > 60) val = 60;
+            cycleColorEntries[idx][field] = Math.round(val * 10);
+        }
+    });
 }

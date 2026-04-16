@@ -112,6 +112,21 @@ const unsigned long TRANSITION_DURATION = 5000; // 5 seconds
 uint8_t transFromR = 0, transFromG = 0, transFromB = 0;
 uint8_t transToR = 0, transToG = 0, transToB = 0;
 
+// Color Cycle State (CC: multi-color cycling from web presets)
+struct CycleEntry {
+  uint8_t r, g, b;
+  unsigned long holdMs;
+  unsigned long transMs;
+};
+const int MAX_CYCLE_ENTRIES = 10;
+CycleEntry cycleEntries[MAX_CYCLE_ENTRIES];
+int cycleEntryCount = 0;
+int cycleCurrentIndex = 0;
+bool isColorCycling = false;
+unsigned long cycleStepStartMs = 0;
+enum CyclePhase { CYCLE_HOLD, CYCLE_TRANSITION };
+CyclePhase cyclePhase = CYCLE_HOLD;
+
 // Send Flash (single tap: flash sent color briefly, then revert)
 bool isSendFlashing = false;
 unsigned long sendFlashStart = 0;
@@ -185,6 +200,7 @@ float hexToHue(String hexColor);
 bool isNighttime();
 void publishSettingsViaMQTT();
 void startColorTransition(uint8_t toR, uint8_t toG, uint8_t toB);
+void parseColorCycle(String payload);
 
 // =============================================================================
 // Setup
@@ -517,7 +533,7 @@ void setupMQTT() {
   espClientSecure.setInsecure();
   mqttClient.setServer(mqtt_server.c_str(), mqtt_port);
   mqttClient.setCallback(mqttCallback);
-  mqttClient.setBufferSize(512); // Larger buffer for JSON settings payloads
+  mqttClient.setBufferSize(1024); // Larger buffer for JSON settings + color cycle payloads
   mqttClient.setKeepAlive(60);   // 60s keep-alive (default 15s is too aggressive)
 }
 
@@ -587,6 +603,20 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
 
   if (topicStr == triggerTopicSub) {
     // --- Incoming Color Trigger ---
+
+    // Check for Color Cycle payload (CC:RRGGBB,hold,trans;...)
+    if (msg.startsWith("CC:")) {
+      parseColorCycle(msg);
+
+      // Update last tap timestamp for the PWA dashboard
+      time_t now;
+      time(&now);
+      lastTapTimestamp = (unsigned long)now;
+      saveState();
+      publishSettingsViaMQTT();
+
+    } else {
+    // --- Single color trigger (original behavior) ---
     // Parse the target color
     String hexColor = msg;
     if (hexColor.startsWith("#")) hexColor.remove(0, 1);
@@ -649,6 +679,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     lastTapTimestamp = (unsigned long)now;
     saveState();
     publishSettingsViaMQTT(); // Inform web app instantly
+    } // end single color else
 
   } else if (topicStr == settingsTopicSub) {
     parseSettings(msg);
@@ -669,6 +700,90 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       Serial.println("Detected stale OFFLINE status — corrected to ONLINE.");
     }
   }
+}
+
+// =============================================================================
+// Color Cycle Payload Parser
+// =============================================================================
+void parseColorCycle(String payload) {
+  // Format: CC:RRGGBB,hold,trans;RRGGBB,hold,trans;...
+  String data = payload.substring(3); // Strip "CC:" prefix
+  cycleEntryCount = 0;
+
+  int startPos = 0;
+  while (startPos < (int)data.length() && cycleEntryCount < MAX_CYCLE_ENTRIES) {
+    int semiPos = data.indexOf(';', startPos);
+    String segment;
+    if (semiPos == -1) {
+      segment = data.substring(startPos);
+      startPos = data.length(); // Done
+    } else {
+      segment = data.substring(startPos, semiPos);
+      startPos = semiPos + 1;
+    }
+
+    // Parse "RRGGBB,hold,trans"
+    int c1 = segment.indexOf(',');
+    int c2 = segment.indexOf(',', c1 + 1);
+    if (c1 == -1 || c2 == -1) continue; // Malformed entry, skip
+
+    String hexStr = segment.substring(0, c1);
+    int holdTenths = segment.substring(c1 + 1, c2).toInt();
+    int transTenths = segment.substring(c2 + 1).toInt();
+
+    long number = strtol(hexStr.c_str(), NULL, 16);
+    cycleEntries[cycleEntryCount].r = (number >> 16) & 0xFF;
+    cycleEntries[cycleEntryCount].g = (number >> 8) & 0xFF;
+    cycleEntries[cycleEntryCount].b = number & 0xFF;
+    cycleEntries[cycleEntryCount].holdMs = (unsigned long)holdTenths * 100UL;
+    cycleEntries[cycleEntryCount].transMs = (unsigned long)transTenths * 100UL;
+    cycleEntryCount++;
+  }
+
+  if (cycleEntryCount < 1) {
+    Serial.println("CC: payload parse failed — no valid entries.");
+    return;
+  }
+
+  Serial.printf("Color Cycle parsed: %d entries\n", cycleEntryCount);
+
+  // Apply night/day brightness and duration settings
+  bool isNight = nightModeEnabled && isNighttime();
+  if (isNight) {
+    currentMaxBrightness = nightMaxBrightness;
+    lampDurationMs = (unsigned long)nightLampOnTimeMinutes * 60000UL;
+    if (nightMaxBrightness == 0) {
+      Serial.println("Nighttime mode: lamp kept OFF (brightness=0).");
+      return;
+    }
+  } else {
+    currentMaxBrightness = dayMaxBrightness;
+    lampDurationMs = (unsigned long)lampOnTimeMinutes * 60000UL;
+  }
+
+  // Initialize cycling state
+  cycleCurrentIndex = 0;
+  cyclePhase = CYCLE_HOLD;
+  cycleStepStartMs = millis();
+  isColorCycling = true;
+  isTransitioning = false;
+
+  // Set first color
+  currentR = cycleEntries[0].r;
+  currentG = cycleEntries[0].g;
+  currentB = cycleEntries[0].b;
+
+  isLampOn = true;
+  lampOnStartTime = millis();
+  isPulsing = true;
+  pulseStartTime = millis();
+
+  // Apply first color immediately
+  setRGB((currentR * currentMaxBrightness) / 255,
+         (currentG * currentMaxBrightness) / 255,
+         (currentB * currentMaxBrightness) / 255);
+
+  Serial.println("Color Cycle started!");
 }
 
 void parseSettings(String payload) {
@@ -889,6 +1004,7 @@ void doActionBasedOnTaps() {
       isLampOn = false;
       isPulsing = false;
       isTransitioning = false;
+      isColorCycling = false;
       setRGB(0, 0, 0);
     } else {
       Serial.println("Double Tap ignored: lamp already off.");
@@ -902,6 +1018,7 @@ void doActionBasedOnTaps() {
       isLampOn = false;
       isPulsing = false;
       isTransitioning = false;
+      isColorCycling = false;
       setRGB(0, 0, 0);
     } else {
       Serial.println("Triple Tap ignored: lamp already off.");
@@ -913,6 +1030,7 @@ void doActionBasedOnTaps() {
       isLampOn = false;
       isPulsing = false;
       isTransitioning = false;
+      isColorCycling = false;
       setRGB(0, 0, 0);
     } else {
       // Reset WiFi (only from OFF state)
@@ -1012,8 +1130,80 @@ void handleLEDs() {
     isLampOn = false;
     isPulsing = false;
     isTransitioning = false;
+    isColorCycling = false;
     setRGB(0, 0, 0);
     Serial.println("Timer expired. Lamp OFF.");
+    return;
+  }
+
+  // Handle color cycling (CC: multi-color presets)
+  if (isColorCycling && cycleEntryCount > 0) {
+    unsigned long stepElapsed = millis() - cycleStepStartMs;
+    CycleEntry &cur = cycleEntries[cycleCurrentIndex];
+    int nextIdx = (cycleCurrentIndex + 1) % cycleEntryCount;
+    CycleEntry &nxt = cycleEntries[nextIdx];
+
+    if (cyclePhase == CYCLE_HOLD) {
+      // During hold: display current color
+      currentR = cur.r;
+      currentG = cur.g;
+      currentB = cur.b;
+
+      if (stepElapsed >= cur.holdMs) {
+        // Move to transition phase
+        cyclePhase = CYCLE_TRANSITION;
+        cycleStepStartMs = millis();
+      }
+    } else {
+      // During transition: interpolate from current to next
+      if (cur.transMs == 0) {
+        // Instant transition
+        currentR = nxt.r;
+        currentG = nxt.g;
+        currentB = nxt.b;
+        cycleCurrentIndex = nextIdx;
+        cyclePhase = CYCLE_HOLD;
+        cycleStepStartMs = millis();
+      } else if (stepElapsed >= cur.transMs) {
+        // Transition complete
+        currentR = nxt.r;
+        currentG = nxt.g;
+        currentB = nxt.b;
+        cycleCurrentIndex = nextIdx;
+        cyclePhase = CYCLE_HOLD;
+        cycleStepStartMs = millis();
+      } else {
+        // Interpolate
+        float t = (float)stepElapsed / (float)cur.transMs;
+        currentR = cur.r + (int)((nxt.r - cur.r) * t);
+        currentG = cur.g + (int)((nxt.g - cur.g) * t);
+        currentB = cur.b + (int)((nxt.b - cur.b) * t);
+      }
+    }
+
+    // Apply brightness and pulsing
+    uint8_t outR = currentR, outG = currentG, outB = currentB;
+    if (isPulsing) {
+      unsigned long pulseElapsed = millis() - pulseStartTime;
+      if (pulseElapsed < PULSE_DURATION_MS) {
+        float phase = (float)(pulseElapsed % 2000) / 2000.0 * 2.0 * PI;
+        float pulseFactor = 0.3 + 0.7 * ((sin(phase) + 1.0) / 2.0);
+        outR = (uint8_t)(currentR * pulseFactor * currentMaxBrightness / 255);
+        outG = (uint8_t)(currentG * pulseFactor * currentMaxBrightness / 255);
+        outB = (uint8_t)(currentB * pulseFactor * currentMaxBrightness / 255);
+      } else {
+        isPulsing = false;
+        outR = (currentR * currentMaxBrightness) / 255;
+        outG = (currentG * currentMaxBrightness) / 255;
+        outB = (currentB * currentMaxBrightness) / 255;
+      }
+    } else {
+      outR = (currentR * currentMaxBrightness) / 255;
+      outG = (currentG * currentMaxBrightness) / 255;
+      outB = (currentB * currentMaxBrightness) / 255;
+    }
+
+    setRGB(outR, outG, outB);
     return;
   }
 

@@ -920,3 +920,248 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     cursor: grabbing;
     fill: #e8e8e8;
 }
+
+/* ==========================================================================
+   Color Cycle Preset — Mode Toggle (Segmented Control)
+   ========================================================================== */
+.cycle-mode-toggle {
+    display: flex;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 10px;
+    padding: 3px;
+    margin-bottom: 1rem;
+    border: 1px solid var(--border);
+}
+
+.cycle-mode-btn {
+    flex: 1;
+    padding: 9px 0;
+    border: none;
+    background: transparent;
+    color: var(--text-dim);
+    font-family: var(--font);
+    font-size: 0.85rem;
+    font-weight: 500;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: var(--ease);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+}
+
+.cycle-mode-btn .material-icons-round {
+    font-size: 1rem;
+}
+
+.cycle-mode-btn.active {
+    background: var(--accent);
+    color: white;
+    box-shadow: 0 2px 10px var(--accent-glow);
+}
+
+/* ==========================================================================
+   Color Cycle Preset — Color Entry List
+   ========================================================================== */
+.cycle-colors-section {
+    display: none;
+}
+
+.cycle-colors-section.visible {
+    display: block;
+    animation: fadeSlideIn 0.3s ease forwards;
+}
+
+.color-entry-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 12px;
+    max-height: 45vh;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.color-entry {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px;
+    position: relative;
+    transition: var(--ease);
+}
+
+.color-entry.selected {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent), 0 2px 12px var(--accent-glow);
+}
+
+.color-entry-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.color-entry-dot {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.15);
+    flex-shrink: 0;
+    cursor: pointer;
+    transition: transform 0.2s, border-color 0.2s;
+}
+
+.color-entry-dot:hover {
+    transform: scale(1.1);
+}
+
+.color-entry.selected .color-entry-dot {
+    border-color: var(--accent);
+}
+
+.color-entry-label {
+    flex: 1;
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    font-weight: 500;
+}
+
+.color-entry-hex {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    font-family: monospace;
+    opacity: 0.7;
+}
+
+.color-entry-remove {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    padding: 2px;
+    display: flex;
+    opacity: 0.5;
+    transition: opacity 0.2s, color 0.2s;
+}
+
+.color-entry-remove:hover {
+    opacity: 1;
+    color: var(--danger);
+}
+
+.color-entry-durations {
+    display: flex;
+    gap: 8px;
+}
+
+.duration-field {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.duration-field label {
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.duration-input-wrap {
+    display: flex;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 8px;
+    gap: 4px;
+}
+
+.duration-input-wrap input {
+    width: 100%;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 0.9rem;
+    outline: none;
+    text-align: left;
+    -moz-appearance: textfield;
+}
+
+.duration-input-wrap input::-webkit-outer-spin-button,
+.duration-input-wrap input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.duration-input-wrap .unit {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    flex-shrink: 0;
+}
+
+/* Add Color Button */
+.btn-add-color {
+    width: 100%;
+    padding: 10px;
+    border-radius: 10px;
+    border: 1px dashed var(--text-dim);
+    background: transparent;
+    color: var(--text-dim);
+    font-family: var(--font);
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: var(--ease);
+    margin-bottom: 1rem;
+}
+
+.btn-add-color:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.btn-add-color .material-icons-round {
+    font-size: 1.1rem;
+}
+
+/* ==========================================================================
+   Preset Button — Multi-Dot Indicator (for cycle presets)
+   ========================================================================== */
+.preset-color-dots {
+    display: flex;
+    gap: 4px;
+    margin-left: auto;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.preset-color-dots .mini-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    box-shadow: 0 0 4px rgba(0, 0, 0, 0.4);
+}
+
+.preset-color-dots .dots-overflow {
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    margin-left: 1px;
+}
+
+/* Cycle icon on preset button */
+.preset-cycle-icon {
+    font-size: 13px !important;
+    color: var(--text-dim);
+    margin-right: 2px;
+    opacity: 0.6;
+}

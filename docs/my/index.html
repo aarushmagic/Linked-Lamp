@@ -244,7 +244,32 @@
             <div class="modal-body">
                 <input type="text" id="presetName" class="preset-name-input" placeholder="Signal Name (e.g. I Love You)"
                     maxlength="20">
-                <div class="color-wheel-wrapper mt-3" id="presetColorPickerContainer"></div>
+
+                <!-- Mode Toggle -->
+                <div class="cycle-mode-toggle mt-3">
+                    <button class="cycle-mode-btn active" id="btnModeSingle" onclick="setPresetMode('single')">
+                        <span class="material-icons-round">palette</span> Single Color
+                    </button>
+                    <button class="cycle-mode-btn" id="btnModeCycle" onclick="setPresetMode('cycle')">
+                        <span class="material-icons-round">autorenew</span> Color Cycle
+                    </button>
+                </div>
+
+                <!-- Single Color Mode (default) -->
+                <div id="singleColorSection">
+                    <div class="color-wheel-wrapper mt-3" id="presetColorPickerContainer"></div>
+                </div>
+
+                <!-- Cycle Color Mode -->
+                <div id="cycleColorsSection" class="cycle-colors-section">
+                    <div class="color-entry-list" id="colorEntryList">
+                        <!-- JS generated -->
+                    </div>
+                    <button class="btn-add-color" id="btnAddColor" onclick="addCycleColorEntry()">
+                        <span class="material-icons-round">add_circle_outline</span> Add Color
+                    </button>
+                    <div class="color-wheel-wrapper" id="cycleColorPickerContainer"></div>
+                </div>
             </div>
 
             <div class="preset-modal-actions mt-3">
