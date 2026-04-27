@@ -170,6 +170,10 @@ unsigned long  lastStatusCheck = 0;
 const unsigned long STATUS_CHECK_INTERVAL = 300000; // 5 minutes
 bool           selfStatusOnline = false; // Tracks our own retained status
 
+// 24-Hour Refresher
+unsigned long lastDailyRefresh = 0;
+const unsigned long DAILY_REFRESH_INTERVAL = 86400000UL; // 24 hours
+
 // MQTT Topics (populated dynamically after config load)
 String triggerTopicSub;
 String triggerTopicPub;
@@ -368,6 +372,20 @@ void handleWifi() {
           mqttClient.publish(statusTopicPub.c_str(), onlineMsg.c_str(), true);
           Serial.println("Status correction: re-published ONLINE (was showing OFFLINE)");
         }
+      }
+
+      // 24-Hour Refresher: Constantly refresh retained messages just in case the broker drops them
+      if (millis() - lastDailyRefresh >= DAILY_REFRESH_INTERVAL) {
+        lastDailyRefresh = millis();
+        
+        // Push Status
+        String onlineMsg = String("ONLINE:") + HW_TYPE;
+        mqttClient.publish(statusTopicPub.c_str(), onlineMsg.c_str(), true);
+        
+        // Push Settings
+        publishSettingsViaMQTT();
+        
+        Serial.println("24-Hour Refresher: Pushed retained status and settings to MQTT.");
       }
     }
   } else {
