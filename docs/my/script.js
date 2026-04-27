@@ -28,6 +28,12 @@ let isMqttConnected = false;
 let myLampOnline = null;       // null = unknown (no status msg received yet)
 let partnerLampOnline = null;  // null = unknown
 
+// Read receipt state
+let partnerLastTapTimestamp = 0;   // Last known tap timestamp from partner lamp
+let pendingReadReceipt = false;    // Whether we're waiting for a delivery confirmation
+let readReceiptTimeout = null;     // Timeout ID for read receipt fallback
+let signalStatusTimer = null;      // Timer for resetting subtitle text
+
 // ==========================================================================
 // MQTT Topic Builder
 // ==========================================================================
@@ -242,6 +248,7 @@ function connectMQTT() {
         mqttClient.subscribe(getTopic(partnerDeviceId, "status"));
         mqttClient.subscribe(getTopic(myDeviceId, "settings")); // Pull retained settings
         mqttClient.subscribe(getTopic(myDeviceId, "presets"));  // Pull retained presets
+        mqttClient.subscribe(getTopic(partnerDeviceId, "settings")); // Read receipts: watch partner's lastTapTimestamp
 
         updateStatusUI();
         applySettingsToUI();
@@ -315,6 +322,23 @@ function connectMQTT() {
                 }
             } catch (e) {
                 console.error("Failed to parse incoming presets payload:", e);
+            }
+
+        } else if (topic === getTopic(partnerDeviceId, "settings")) {
+            // Read receipt: watch partner lamp's lastTapTimestamp for changes
+            try {
+                const partnerSettings = JSON.parse(msg);
+                const newTimestamp = partnerSettings.lastTapTimestamp || 0;
+
+                if (pendingReadReceipt && newTimestamp > partnerLastTapTimestamp) {
+                    // Partner lamp received our signal — confirm delivery!
+                    console.log("Read receipt confirmed! Partner tap timestamp changed:", partnerLastTapTimestamp, "->", newTimestamp);
+                    confirmReadReceipt();
+                }
+
+                partnerLastTapTimestamp = newTimestamp;
+            } catch (e) {
+                console.error("Failed to parse partner settings:", e);
             }
         }
     });
@@ -391,6 +415,60 @@ function sendSignal(hexColorOrPreset) {
         mqttClient.publish(topic, hexColorOrPreset);
         console.log(`Signal sent: ${hexColorOrPreset} → ${topic}`);
     }
+
+    // Start read receipt tracking
+    startReadReceiptTracking();
+}
+
+// ==========================================================================
+// Read Receipt (Delivery Confirmation)
+// ==========================================================================
+function showSignalStatus() {
+    const sub = document.getElementById("signalSubtitle");
+
+    // Clear any existing timers
+    if (signalStatusTimer) clearTimeout(signalStatusTimer);
+    if (readReceiptTimeout) clearTimeout(readReceiptTimeout);
+
+    // Show "Signal Sent!" immediately
+    sub.innerText = "Signal Sent! ✨";
+    sub.classList.remove("receipt-confirmed");
+    sub.classList.add("receipt-pending");
+}
+
+function startReadReceiptTracking() {
+    pendingReadReceipt = true;
+    showSignalStatus();
+
+    // Timeout: if no confirmation within 5 seconds, reset to default text
+    readReceiptTimeout = setTimeout(() => {
+        if (pendingReadReceipt) {
+            pendingReadReceipt = false;
+            resetSignalSubtitle();
+        }
+    }, 5000);
+}
+
+function confirmReadReceipt() {
+    pendingReadReceipt = false;
+    if (readReceiptTimeout) clearTimeout(readReceiptTimeout);
+
+    const sub = document.getElementById("signalSubtitle");
+    sub.innerText = "Signal Sent Successfully! ✨";
+    sub.classList.remove("receipt-pending");
+    sub.classList.add("receipt-confirmed");
+
+    // Reset to default after 4 seconds
+    signalStatusTimer = setTimeout(() => {
+        sub.classList.remove("receipt-confirmed");
+        resetSignalSubtitle();
+    }, 4000);
+}
+
+function resetSignalSubtitle() {
+    const sub = document.getElementById("signalSubtitle");
+    sub.classList.remove("receipt-pending", "receipt-confirmed");
+    sub.innerText = "Tap to turn on " + partnerName + "'s lamp";
 }
 
 function publishSettings() {
@@ -403,8 +481,10 @@ function publishSettings() {
 
     if (window._setSelfPublishing) window._setSelfPublishing(true);
 
-    mqttClient.publish(topic, payload, { retain: true });
-    console.log("Settings published:", payload);
+    mqttClient.publish(topic, payload, { retain: true, qos: 1 }, (err) => {
+        if (err) console.error("Failed to publish settings:", err);
+        else console.log("Settings published to MQTT and retained:", payload);
+    });
 
     // Clear the flag shortly after publishing so we can receive external updates again
     setTimeout(() => {
@@ -422,8 +502,10 @@ function publishPresets() {
 
     if (window._setSelfPublishing) window._setSelfPublishing(true);
 
-    mqttClient.publish(topic, payload, { retain: true });
-    console.log("Presets published to MQTT.");
+    mqttClient.publish(topic, payload, { retain: true, qos: 1 }, (err) => {
+        if (err) console.error("Failed to publish presets:", err);
+        else console.log("Presets published to MQTT and retained:", payload);
+    });
 
     setTimeout(() => {
         if (window._setSelfPublishing) window._setSelfPublishing(false);
@@ -506,8 +588,29 @@ function triggerUpdate() {
 
         mqttClient.publish(getTopic(myDeviceId, "system/ota"), otaUrl);
         alert("Update command sent! Your lamp will restart shortly. This could take upto 5 minutes. Please do not restart your device in the meantime even if it goes offline.");
+
+        // Clear all browser caches and force a hard reload to pick up new CSS/JS
+        forceHardReload();
     } else {
         alert("Not connected to your lamp network.");
+    }
+}
+
+function forceHardReload() {
+    // Clear Cache API (all cached assets)
+    if ('caches' in window) {
+        caches.keys().then(names => {
+            return Promise.all(names.map(name => caches.delete(name)));
+        }).then(() => {
+            console.log("All caches cleared.");
+            // Hard reload bypassing browser cache
+            window.location.reload(true);
+        });
+    } else {
+        // Fallback: reload with cache-busting query param
+        const url = new URL(window.location.href);
+        url.searchParams.set('_cb', Date.now());
+        window.location.replace(url.href);
     }
 }
 
@@ -575,14 +678,10 @@ function initColorPickers() {
     // Bind main send button
     document.getElementById("btnMainSignal").onclick = () => {
         sendSignal(mySettings.defaultColor);
+        // Animate main button press
         const btn = document.getElementById("btnMainSignal");
-        const sub = document.getElementById("signalSubtitle");
         btn.style.transform = "scale(0.88)";
-        sub.innerText = "Signal sent! ✨";
-        setTimeout(() => {
-            btn.style.transform = "";
-            sub.innerText = "Tap to turn on " + partnerName + "'s lamp";
-        }, 1500);
+        setTimeout(() => { btn.style.transform = ""; }, 200);
     };
 }
 
@@ -1184,6 +1283,9 @@ function renderPresets() {
             } else {
                 sendSignal(p.color);
             }
+            // Visual feedback on the preset button itself
+            btn.style.transform = "scale(0.93)";
+            setTimeout(() => { btn.style.transform = ""; }, 200);
         };
 
         grid.appendChild(btn);
@@ -1212,7 +1314,7 @@ function openPresetModal(presetId = null) {
         delBtn.classList.remove("hidden");
 
         if (p.type === 'cycle' && p.colors && p.colors.length > 0) {
-            cycleColorEntries = p.colors.map(c => ({...c}));
+            cycleColorEntries = p.colors.map(c => ({ ...c }));
             selectedCycleIndex = 0;
             setPresetMode('cycle');
         } else {
@@ -1257,7 +1359,7 @@ function savePreset() {
             name,
             color: cycleColorEntries[0].hex,  // First color for backwards compat display
             type: 'cycle',
-            colors: cycleColorEntries.map(c => ({...c}))
+            colors: cycleColorEntries.map(c => ({ ...c }))
         };
 
         if (editingPresetId) {

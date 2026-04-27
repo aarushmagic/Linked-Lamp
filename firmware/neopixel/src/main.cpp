@@ -1011,10 +1011,10 @@ void doActionBasedOnTaps() {
     } else {
       Serial.println("Triple Tap ignored: lamp already off.");
     }
-  } else if (tapCount >- 5) {
+  } else if (tapCount >= 5) {
         if (isLampOn) {
       // Turn off lamp (same as double tap when ON)
-      Serial.println("Triple Tap: Turning OFF (lamp was on).");
+      Serial.println("5+ Tap: Turning OFF (lamp was on).");
       isLampOn = false;
       isPulsing = false;
       isTransitioning = false;
@@ -1022,7 +1022,7 @@ void doActionBasedOnTaps() {
       setRGB(0, 0, 0);
     } else {
       // Reset WiFi (only from OFF state)
-      Serial.println("Triple Tap: Resetting WiFi credentials...");
+      Serial.println("5+ Tap: Resetting WiFi credentials...");
       // Visual feedback: flash red
       setRGB(255, 0, 0);
       delay(300);

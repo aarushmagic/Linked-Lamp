@@ -18,13 +18,19 @@
 ## ✨ Features
 
 - **Touch Gestures** — Tap to send, double-tap to turn off, hold to pick a new color
-- **Breathing Glow** — 20-second pulsing animation when a signal arrives, then steady light
+- **Breathing Glow** — 20-second pulsing animation (sine wave, ~2s cycle) when a signal arrives, then steady light
+- **Smooth Color Transitions** — 5-second gradual fade from current color to new color on every signal
+- **Send Confirmation Flash** — Single tap briefly flashes your sent color for 1 second, then reverts
+- **Color Pick Confirmation** — After hold-release color selection, lamp flashes the picked color for 3 seconds
+- **Color Cycle Presets** — Send multi-color animated sequences from the web app with configurable hold and transition times
 - **Customizable** — Set your default color, lamp-on duration (1–30 min), and max brightness
-- **Nighttime Mode** — Schedule quiet hours with reduced brightness or lamp fully off
-- **Web App** — Send signals, manage presets, and adjust settings from your phone
+- **Nighttime Mode** — Schedule quiet hours with timezone-aware NTP-based timing; reduce brightness or keep the lamp fully off
+- **Web App** — Send signals, manage presets, adjust settings, and check for updates from your phone
 - **Preset Signals** — Quick-send "I Love You", "I Miss You", or custom messages
-- **Ambient Mode** — Optional low-power glow (10% brightness) in your chosen color when the lamp is inactive
-- **OTA Updates** — Firmware updates pushed wirelessly with automatic rollback protection
+- **Ambient Mode** — Optional low-power glow (10% of daytime brightness) in your chosen color when the lamp is inactive
+- **OTA Updates** — Firmware updates pushed wirelessly with automatic rollback protection (firmware is only marked valid after MQTT connects)
+- **Multi-Broker Support** — Works with HiveMQ, Adafruit IO, Eclipse Mosquitto, and any TLS-capable MQTT broker
+- **Resilient Connectivity** — Auto-reconnects WiFi and MQTT; reboots after 5 minutes of WiFi failure; retries MQTT every 5 seconds with escalating recovery strategies
 
 ## 🔧 Hardware Options
 
@@ -103,10 +109,10 @@ After the first visit, credentials are saved — you can just open the page norm
 
 | Action | What Happens |
 |---|---|
-| **Single Tap** | Sends your default color to the other lamp |
+| **Single Tap** | Sends your default color to the other lamp. Flashes the sent color for 1 second as confirmation. |
 | **Double Tap** | Turns off your lamp (if it's on) |
-| **Triple Tap** | Resets WiFi settings (only works when lamp is off) |
-| **Hold 1.5s+** | Cycles through colors — lift your finger to pick one |
+| **5+ Taps** | Resets WiFi settings (only works when lamp is off). Flashes red before restarting. |
+| **Hold 1.5s+** | Cycles through all colors (~6 seconds per full rotation). Lift your finger to pick — the lamp flashes your selection for 3 seconds, then saves it as your new default. |
 
 ## 🔄 Pushing OTA Firmware Updates (For Maintainers)
 

@@ -260,6 +260,20 @@ body {
     margin-top: 1.2rem;
     color: var(--text-dim);
     font-size: 0.9rem;
+    transition: color 0.4s ease, opacity 0.3s ease;
+}
+
+.subtitle.receipt-pending {
+    animation: subtlePulse 2s ease-in-out infinite;
+}
+
+.subtitle.receipt-confirmed {
+    animation: none;
+}
+
+@keyframes subtlePulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
 }
 
 /* ==========================================================================

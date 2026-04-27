@@ -267,7 +267,7 @@
                 <tbody>
                     <tr>
                         <td>Single Tap</td>
-                        <td>Sends your default color to the other lamp</td>
+                        <td>Sends your default color to the other lamp. Your lamp briefly flashes the sent color for 1 second as confirmation, then reverts to its previous state.</td>
                     </tr>
                     <tr>
                         <td>Double Tap</td>
@@ -275,11 +275,11 @@
                     </tr>
                     <tr>
                         <td>Hold (1.5s+)</td>
-                        <td>Cycles through colors — lift your finger to pick one and tap again to send it</td>
+                        <td>Cycles through all colors (~6 seconds per full hue rotation). Lift your finger to select a color — the lamp flashes your pick for 3 seconds, then saves it as your new default.</td>
                     </tr>
                     <tr>
-                        <td>Triple Tap</td>
-                        <td>Resets Wi-Fi settings (only works when the light on the lamp is off)</td>
+                        <td>5+ Taps</td>
+                        <td>Resets Wi-Fi settings (only works when the light on the lamp is off). Flashes red twice before restarting with the "Linked Lamp Setup" hotspot.</td>
                     </tr>
                 </tbody>
             </table>
@@ -326,8 +326,59 @@
             </p>
             <p>
                 Updates are downloaded over Wi-Fi and applied automatically. The lamp reboots after installing. If a new
-                firmware version crashes, the lamp automatically rolls back to the previous working version.
+                firmware version crashes or can't connect to the MQTT broker, the lamp automatically rolls back to the previous working version.
             </p>
+        </div>
+
+        <!-- LED Indicators -->
+        <div class="usage-section">
+            <h2><span class="material-icons-round" style="color: #2ed573;">lightbulb</span> LED Indicators</h2>
+            <p>The lamp uses brief LED flashes to communicate status and confirm actions:</p>
+            <table class="gesture-table">
+                <thead>
+                    <tr>
+                        <th>Indicator</th>
+                        <th>Meaning</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Double green flash</td>
+                        <td>WiFi connected successfully. Only shown on initial power-up (cold boot), not after software restarts.</td>
+                    </tr>
+                    <tr>
+                        <td>Double red flash</td>
+                        <td>WiFi credentials are being reset (triggered by 5+ taps). The lamp restarts with the setup hotspot.</td>
+                    </tr>
+                    <tr>
+                        <td>1-second color flash</td>
+                        <td>Send confirmation. After a single tap, the lamp briefly shows the color you sent, then reverts to its previous state.</td>
+                    </tr>
+                    <tr>
+                        <td>3-second color flash</td>
+                        <td>Color pick confirmation. After holding to select a new default color, the lamp shows your selection for 3 seconds.</td>
+                    </tr>
+                    <tr>
+                        <td>20-second breathing pulse</td>
+                        <td>Signal received. The lamp gently pulses (30–100% brightness, ~2-second cycles) for 20 seconds, then holds a steady glow until the timer expires.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Connectivity & Recovery -->
+        <div class="usage-section">
+            <h2><span class="material-icons-round" style="color: #00d2d3;">wifi</span> Connectivity & Recovery</h2>
+            <p>The lamp is designed to recover from network issues automatically:</p>
+            <ul style="color: var(--text-dim); line-height: 2; padding-left: 20px; margin-bottom: 1rem;">
+                <li><strong>WiFi auto-reconnect</strong> — if WiFi drops, the lamp retries every 15 seconds</li>
+                <li><strong>5-minute reboot</strong> — if WiFi stays disconnected for 5 minutes, the lamp reboots</li>
+                <li><strong>MQTT retry</strong> — retries MQTT every 5 seconds; after 3 failures forces a clean disconnect; after 6 failures forces a full WiFi reconnect</li>
+                <li><strong>Cold boot vs. software restart</strong> — on power cycle the lamp opens the WiFi config portal; on software restart it silently reconnects using saved credentials</li>
+            </ul>
+            <div class="tip-box">
+                <strong>Tip:</strong> Touch gestures continue to work even when the lamp is offline. You can still pick colors and turn the lamp off — signals just won't send until connectivity is restored.
+            </div>
         </div>
 
         <!-- Troubleshooting -->
@@ -344,7 +395,7 @@
                 <tbody>
                     <tr>
                         <td>Lamp won't connect to Wi-Fi</td>
-                        <td>Triple-tap (while powered but lights are off) to reset Wi-Fi, then reconnect via the "Linked
+                        <td>Tap 5+ times (while powered but lights are off) to reset Wi-Fi, then reconnect via the "Linked
                             Lamp Setup" hotspot. Make sure you're using a 2.4 GHz network.</td>
                     </tr>
                     <tr>
@@ -357,6 +408,14 @@
                         <td>Check that the URL contains your correct broker details. Try opening in Chrome or Edge for
                             best compatibility. If possible, tap your phone on the NFC tag sticker on the bottom of your lamp
                             to open the app directly.</td>
+                    </tr>
+                    <tr>
+                        <td>Lamp keeps restarting</td>
+                        <td>This usually means the lamp can't connect to WiFi or the MQTT broker. Check that your WiFi network is online and the MQTT broker credentials are correct. The lamp reboots every 5 minutes if WiFi stays disconnected.</td>
+                    </tr>
+                    <tr>
+                        <td>Lamp shows config portal unexpectedly</td>
+                        <td>This happens after a power cycle (unplugging and replugging), a WiFi reset (5+ taps), or if the lamp was unable to connect. Connect to the "Linked Lamp Setup" hotspot and re-enter your WiFi credentials.</td>
                     </tr>
                 </tbody>
             </table>

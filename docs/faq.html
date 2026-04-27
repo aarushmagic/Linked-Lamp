@@ -193,7 +193,70 @@
             <p style="padding: 15px 0;">
                 Ambient Mode allows your lamp to keep glowing gently in a color of your choice even when it's not active. 
                 <br><br>
-                For power efficiency and subtlety, the brightness in Ambient Mode is <strong>capped at 5%</strong> of your daytime max brightness setting. Ambient Mode automatically turns off during your scheduled Nighttime Mode hours to ensure total darkness while you sleep.
+                For power efficiency and subtlety, the brightness in Ambient Mode is <strong>capped at 10%</strong> of your daytime max brightness setting. Ambient Mode automatically turns off during your scheduled Nighttime Mode hours to ensure total darkness while you sleep.
+            </p>
+        </div>
+
+    </section>
+
+    <section class="faq-container max-w">
+
+        <button class="accordion">What happens when my lamp loses WiFi or can't reach the broker? <span
+                class="material-icons-round icon">expand_more</span></button>
+        <div class="panel">
+            <p style="padding: 15px 0;">
+                The lamp is designed to recover on its own. If WiFi drops, it immediately tries to reconnect every 15 seconds.
+                If it stays disconnected for <strong>5 minutes</strong>, the lamp automatically reboots to get a fresh start.
+                <br><br>
+                If WiFi is working but the MQTT broker is unreachable, the lamp retries MQTT every 5 seconds. After 3 consecutive failures, it forces a clean MQTT disconnect and retries. After 6 failures (~30 seconds), it forces a full WiFi reconnect as a fallback.
+                <br><br>
+                While offline, <strong>touch gestures still work</strong> — you can still hold to pick a color or double-tap to turn off the lamp. The signal just won't be sent until connectivity is restored.
+            </p>
+        </div>
+
+        <button class="accordion">What are Color Cycle presets? <span
+                class="material-icons-round icon">expand_more</span></button>
+        <div class="panel">
+            <p style="padding: 15px 0;">
+                Color Cycle presets let you send <strong>multi-color animated sequences</strong> to a lamp instead of a single static color.
+                Each preset contains up to 10 colors, and each color has its own <strong>hold time</strong> (how long to display it) and <strong>transition time</strong> (how long to smoothly fade to the next color).
+                <br><br>
+                For example, you could create a preset that slowly fades between red, orange, and yellow to represent a sunset, or cycle through someone's favorite colors.
+                Color Cycle presets can be created and sent from the web app.
+            </p>
+        </div>
+
+        <button class="accordion">What do the LED flashes mean? <span
+                class="material-icons-round icon">expand_more</span></button>
+        <div class="panel">
+            <p style="padding: 15px 0;">
+                The lamp uses brief LED flashes to communicate its status:
+                <br><br>
+                • <strong>Double green flash</strong> — WiFi connected successfully (only on initial power-up/cold boot).<br>
+                • <strong>Double red flash</strong> — WiFi credentials are being reset (triggered by 5+ taps when lamp is off).<br>
+                • <strong>1-second flash of your color</strong> — Confirmation that your single tap was sent. The lamp briefly shows the sent color, then reverts to its previous state.<br>
+                • <strong>3-second flash of picked color</strong> — After holding to pick a new default color, the lamp shows your selection for 3 seconds before reverting.<br>
+                • <strong>20-second breathing pulse</strong> — When a signal arrives, the lamp gently pulses (fading between 30% and 100% brightness in ~2-second cycles) for 20 seconds, then holds a steady glow.
+            </p>
+        </div>
+
+        <button class="accordion">How does the lamp handle different time zones? <span
+                class="material-icons-round icon">expand_more</span></button>
+        <div class="panel">
+            <p style="padding: 15px 0;">
+                Each lamp syncs its clock via <strong>NTP</strong> (Network Time Protocol) using internet time servers. You can set a <strong>POSIX timezone string</strong> (e.g., <code>EST5EDT</code>, <code>PST8PDT</code>) for each lamp through the web app.
+                <br><br>
+                This means <strong>Nighttime Mode is timezone-aware</strong> — if you set night mode from 10 PM to 8 AM, the lamp uses your local time, not UTC. Two lamps in different time zones will each respect their own local schedule.
+            </p>
+        </div>
+
+        <button class="accordion">What is OTA rollback protection? <span
+                class="material-icons-round icon">expand_more</span></button>
+        <div class="panel">
+            <p style="padding: 15px 0;">
+                When the lamp receives a firmware update over the air (OTA), it doesn't immediately mark the new firmware as "good." Instead, it waits until the firmware <strong>successfully connects to the MQTT broker</strong>.
+                <br><br>
+                If the new firmware crashes or can't reach the broker, the ESP32's bootloader will <strong>automatically roll back</strong> to the previous working firmware on the next reboot. This ensures a bad update can never permanently brick your lamp.
             </p>
         </div>
 
