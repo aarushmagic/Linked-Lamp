@@ -413,7 +413,7 @@ function sendSignal(hexColorOrPreset) {
     } else {
         // Plain single color
         mqttClient.publish(topic, hexColorOrPreset);
-        console.log(`Signal sent: ${hexColorOrPreset} → ${topic}`);
+        console.log(`Signal sent (but waiting receipt confirmation): ${hexColorOrPreset} → ${topic}`);
     }
 
     // Start read receipt tracking
@@ -431,7 +431,7 @@ function showSignalStatus() {
     if (readReceiptTimeout) clearTimeout(readReceiptTimeout);
 
     // Show "Signal Sent!" immediately
-    sub.innerText = "Signal Sent! ✨";
+    sub.innerText = "Signal Sending...";
     sub.classList.remove("receipt-confirmed");
     sub.classList.add("receipt-pending");
 }
@@ -454,7 +454,7 @@ function confirmReadReceipt() {
     if (readReceiptTimeout) clearTimeout(readReceiptTimeout);
 
     const sub = document.getElementById("signalSubtitle");
-    sub.innerText = "Signal Sent Successfully! ✨";
+    sub.innerText = "Signal Sent! ✨";
     sub.classList.remove("receipt-pending");
     sub.classList.add("receipt-confirmed");
 
