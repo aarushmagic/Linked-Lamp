@@ -95,10 +95,10 @@
         }
         .status-item {
             background: rgba(0,0,0,0.2); border: 1px solid var(--border);
-            border-radius: 10px; padding: 12px 16px;
+            border-radius: 10px; padding: 12px 16px; min-width: 0;
         }
         .status-item .status-label { font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
-        .status-item .status-value { font-size: 1rem; font-weight: 600; margin-top: 4px; }
+        .status-item .status-value { font-size: 1rem; font-weight: 600; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .status-item .status-value.online { color: #2ed573; }
         .status-item .status-value.offline { color: #ff4757; }
 
