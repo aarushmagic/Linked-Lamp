@@ -205,6 +205,8 @@ bool isNighttime();
 void publishSettingsViaMQTT();
 void startColorTransition(uint8_t toR, uint8_t toG, uint8_t toB);
 void parseColorCycle(String payload);
+void serialCommandTask(void *pvParameters);
+void processSerialCommand(String cmd);
 
 // =============================================================================
 // Setup
@@ -300,6 +302,19 @@ void setup() {
   // Configure NTP with user timezone
   configTzTime(userTimezone.c_str(), "pool.ntp.org", "time.nist.gov");
   Serial.println("NTP configured with timezone: " + userTimezone);
+
+  // Start serial command listener on Core 0 (independent of main loop on Core 1)
+  // This allows serial commands like RESET_WIFI even when MQTT connect is blocking
+  xTaskCreatePinnedToCore(
+    serialCommandTask,  // Task function
+    "SerialCmd",        // Name
+    4096,               // Stack size (bytes)
+    NULL,               // Parameters
+    1,                  // Priority (low, just needs to run)
+    NULL,               // Task handle (not needed)
+    0                   // Core 0 (main loop runs on Core 1)
+  );
+  Serial.println("Serial command listener started on Core 0.");
 }
 
 // =============================================================================
@@ -1351,6 +1366,180 @@ float hexToHue(String hexColor) {
 
   if (h < 0) h += 360.0;
   return h;
+}
+
+// =============================================================================
+// Serial Command Task (runs on Core 0, independent of main loop)
+// =============================================================================
+void serialCommandTask(void *pvParameters) {
+  String buffer = "";
+  for (;;) {
+    while (Serial.available()) {
+      char c = Serial.read();
+      if (c == '\n' || c == '\r') {
+        buffer.trim();
+        if (buffer.length() > 0) {
+          processSerialCommand(buffer);
+        }
+        buffer = "";
+      } else {
+        buffer += c;
+      }
+    }
+    vTaskDelay(pdMS_TO_TICKS(50)); // Check every 50ms
+  }
+}
+
+void processSerialCommand(String cmd) {
+  Serial.println("[CMD] Received: " + cmd);
+
+  if (cmd == "RESET_WIFI") {
+    Serial.println("[CMD] Erasing WiFi credentials and rebooting...");
+    wifiManager.resetSettings();
+    rtcBootMarker = 0; // Force cold boot for config portal
+    delay(500);
+    ESP.restart();
+
+  } else if (cmd == "RESET_CONFIG") {
+    Serial.println("[CMD] Deleting /config.json and rebooting...");
+    Serial.println("[CMD] On next boot, lamp will enter SEND_CONFIG mode (30s serial window).");
+    LittleFS.remove("/config.json");
+    delay(500);
+    ESP.restart();
+
+  } else if (cmd == "RESET_ALL") {
+    Serial.println("[CMD] Factory reset: erasing WiFi + config + state...");
+    wifiManager.resetSettings();
+    LittleFS.remove("/config.json");
+    LittleFS.remove("/state.json");
+    rtcBootMarker = 0;
+    delay(500);
+    ESP.restart();
+
+  } else if (cmd.startsWith("SET_CONFIG:")) {
+    String json = cmd.substring(11); // Strip "SET_CONFIG:"
+    json.trim();
+    JsonDocument doc;
+    if (deserializeJson(doc, json)) {
+      Serial.println("[CMD] ERROR: Invalid JSON in SET_CONFIG.");
+      return;
+    }
+    // Write to LittleFS
+    File wf = LittleFS.open("/config.json", "w");
+    if (wf) {
+      serializeJsonPretty(doc, wf);
+      wf.close();
+      Serial.println("[CMD] Config saved to /config.json. Rebooting...");
+      delay(500);
+      ESP.restart();
+    } else {
+      Serial.println("[CMD] ERROR: Failed to write /config.json.");
+    }
+
+  } else if (cmd == "GET_CONFIG") {
+    if (LittleFS.exists("/config.json")) {
+      File f = LittleFS.open("/config.json", "r");
+      if (f) {
+        Serial.println("[CMD] CONFIG_START");
+        while (f.available()) Serial.write(f.read());
+        Serial.println();
+        Serial.println("[CMD] CONFIG_END");
+        f.close();
+      }
+    } else {
+      Serial.println("[CMD] No /config.json found.");
+    }
+
+  } else if (cmd == "GET_STATE") {
+    if (LittleFS.exists("/state.json")) {
+      File f = LittleFS.open("/state.json", "r");
+      if (f) {
+        Serial.println("[CMD] STATE_START");
+        while (f.available()) Serial.write(f.read());
+        Serial.println();
+        Serial.println("[CMD] STATE_END");
+        f.close();
+      }
+    } else {
+      Serial.println("[CMD] No /state.json found.");
+    }
+
+  } else if (cmd == "GET_STATUS") {
+    Serial.println("[CMD] STATUS_START");
+    Serial.println("WiFi: " + String(WiFi.status() == WL_CONNECTED ? "CONNECTED" : "DISCONNECTED"));
+    if (WiFi.status() == WL_CONNECTED) {
+      Serial.println("IP: " + WiFi.localIP().toString());
+      Serial.println("SSID: " + WiFi.SSID());
+      Serial.println("RSSI: " + String(WiFi.RSSI()) + " dBm");
+    }
+    Serial.println("MQTT: " + String(mqttClient.connected() ? "CONNECTED" : "DISCONNECTED"));
+    Serial.println("Device ID: " + device_id);
+    Serial.println("MQTT Server: " + mqtt_server);
+    Serial.println("Uptime: " + String(millis() / 1000) + "s");
+    Serial.println("[CMD] STATUS_END");
+
+  } else if (cmd == "SCAN_WIFI") {
+    Serial.println("[CMD] Scanning for WiFi networks...");
+    int n = WiFi.scanNetworks();
+    Serial.println("[CMD] SCAN_START");
+    if (n == 0) {
+      Serial.println("[CMD] No networks found.");
+    } else {
+      for (int i = 0; i < n; i++) {
+        // Format: SSID,RSSI,encryption(0=open,else=secured)
+        Serial.println(WiFi.SSID(i) + "," + String(WiFi.RSSI(i)) + "," + String(WiFi.encryptionType(i)));
+      }
+    }
+    Serial.println("[CMD] SCAN_END");
+    WiFi.scanDelete();
+
+  } else if (cmd.startsWith("SET_WIFI:")) {
+    String data = cmd.substring(9); // Strip "SET_WIFI:"
+    int commaPos = data.indexOf(',');
+    if (commaPos == -1) {
+      Serial.println("[CMD] ERROR: Format is SET_WIFI:ssid,password");
+      return;
+    }
+    String ssid = data.substring(0, commaPos);
+    String password = data.substring(commaPos + 1);
+    ssid.trim();
+    password.trim();
+    if (ssid.length() == 0) {
+      Serial.println("[CMD] ERROR: SSID cannot be empty.");
+      return;
+    }
+    Serial.println("[CMD] Setting WiFi credentials...");
+    Serial.println("[CMD] SSID: " + ssid);
+    Serial.println("[CMD] Password: " + String(password.length() > 0 ? "(set)" : "(open network)"));
+    // Store credentials in NVS via WiFi.begin(), then reboot to connect
+    wifiManager.resetSettings(); // Clear old credentials first
+    WiFi.begin(ssid.c_str(), password.c_str());
+    delay(1000); // Give NVS time to persist
+    Serial.println("[CMD] WiFi credentials saved. Rebooting...");
+    ESP.restart();
+
+  } else if (cmd == "REBOOT") {
+    Serial.println("[CMD] Rebooting...");
+    delay(500);
+    ESP.restart();
+
+  } else if (cmd == "HELP") {
+    Serial.println("[CMD] Available commands:");
+    Serial.println("  RESET_WIFI    - Clear WiFi credentials and reboot (opens config portal)");
+    Serial.println("  SCAN_WIFI     - Scan for nearby WiFi networks");
+    Serial.println("  SET_WIFI:s,p  - Set new WiFi credentials (SSID,password) and reboot");
+    Serial.println("  RESET_CONFIG  - Delete MQTT config and reboot (enters SEND_CONFIG mode)");
+    Serial.println("  RESET_ALL     - Factory reset: clear WiFi + config + state");
+    Serial.println("  SET_CONFIG:{} - Set new config JSON and reboot");
+    Serial.println("  GET_CONFIG    - Print current /config.json");
+    Serial.println("  GET_STATE     - Print current /state.json");
+    Serial.println("  GET_STATUS    - Print WiFi/MQTT connection status");
+    Serial.println("  REBOOT        - Restart the device");
+    Serial.println("  HELP          - Show this help message");
+
+  } else {
+    Serial.println("[CMD] Unknown command. Type HELP for available commands.");
+  }
 }
 
 // =============================================================================

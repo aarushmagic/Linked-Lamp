@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linked Lamp | WiFi Tool</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <link rel="stylesheet" href="landing.css">
+    <link rel="icon" type="image/png" href="images/logo.png">
+    <style>
+        .tool-container { max-width: 700px; margin: 12vh auto 10vh; }
+        .tool-header { text-align: center; margin-bottom: 40px; }
+        .tool-header h1 { font-size: 2.8rem; margin-bottom: 0.8rem; }
+
+        .tool-card {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: var(--radius); padding: 30px; backdrop-filter: blur(20px);
+            margin-bottom: 20px;
+        }
+        .tool-card h3 { font-size: 1.3rem; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; }
+        .tool-card p { color: var(--text-dim); font-size: 0.95rem; margin-bottom: 15px; }
+
+        /* Connection bar */
+        .connect-bar {
+            display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+        }
+        .connect-bar .status-dot {
+            width: 10px; height: 10px; border-radius: 50%; background: #ff4757;
+            flex-shrink: 0; transition: background 0.3s;
+        }
+        .connect-bar .status-dot.connected { background: #2ed573; box-shadow: 0 0 8px rgba(46,213,115,0.5); }
+        .connect-bar .status-text { color: var(--text-dim); font-size: 0.9rem; flex: 1; }
+
+        .tool-btn {
+            padding: 12px 24px; border-radius: 10px; font-size: 0.95rem; font-weight: 600;
+            font-family: var(--font); cursor: pointer; transition: all 0.3s ease;
+            display: inline-flex; align-items: center; gap: 8px; border: none;
+        }
+        .tool-btn.primary { background: var(--accent); color: white; }
+        .tool-btn.primary:hover { background: var(--accent-hover); transform: translateY(-2px); box-shadow: 0 4px 15px rgba(107,76,255,0.4); }
+        .tool-btn.outline { background: transparent; border: 1px solid var(--border); color: white; }
+        .tool-btn.outline:hover { border-color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.05); }
+        .tool-btn.danger { background: rgba(255,71,87,0.15); border: 1px solid rgba(255,71,87,0.3); color: #ff4757; }
+        .tool-btn.danger:hover { background: rgba(255,71,87,0.25); }
+        .tool-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; }
+
+        /* Network list */
+        .network-list { max-height: 300px; overflow-y: auto; margin: 15px 0; }
+        .network-list::-webkit-scrollbar { width: 6px; }
+        .network-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
+        .network-item {
+            display: flex; align-items: center; gap: 12px; padding: 14px 16px;
+            border: 1px solid var(--border); border-radius: 12px; margin-bottom: 8px;
+            cursor: pointer; transition: all 0.2s ease; background: rgba(0,0,0,0.2);
+        }
+        .network-item:hover { border-color: var(--accent); background: rgba(107,76,255,0.08); }
+        .network-item.selected { border-color: var(--accent); background: rgba(107,76,255,0.12); box-shadow: 0 0 0 1px var(--accent); }
+        .network-item .net-icon { font-size: 1.4rem; color: var(--text-dim); }
+        .network-item .net-info { flex: 1; }
+        .network-item .net-ssid { font-weight: 600; font-size: 1rem; }
+        .network-item .net-meta { font-size: 0.8rem; color: var(--text-dim); margin-top: 2px; }
+        .network-item .net-signal { font-size: 0.8rem; color: var(--text-dim); }
+        .network-item .net-lock { font-size: 1rem; color: var(--text-dim); }
+
+        /* Password field */
+        .wifi-form { margin-top: 15px; display: none; }
+        .wifi-form.visible { display: block; }
+        .form-row { margin-bottom: 15px; }
+        .form-row label { display: block; margin-bottom: 6px; font-weight: 500; font-size: 0.95rem; }
+        .form-row input {
+            width: 100%; padding: 12px 15px; border-radius: 10px;
+            background: rgba(0,0,0,0.3); border: 1px solid var(--border);
+            color: white; font-family: var(--font); font-size: 1rem; outline: none;
+        }
+        .form-row input:focus { border-color: var(--accent); }
+        .form-row .hint { font-size: 0.8rem; color: #888; margin-top: 4px; }
+
+        /* Log area */
+        .serial-log {
+            background: #0a0c14; border: 1px solid var(--border); border-radius: 10px;
+            padding: 15px; max-height: 200px; overflow-y: auto; font-family: monospace;
+            font-size: 0.8rem; color: #a5b1c2; margin-top: 15px; display: none;
+            scrollbar-width: none;
+        }
+        .serial-log::-webkit-scrollbar { display: none; }
+        .serial-log.visible { display: block; }
+        .serial-log .log-success { color: #2ed573; }
+        .serial-log .log-error { color: #ff4757; }
+        .serial-log .log-cmd { color: var(--accent); }
+
+        /* Status info */
+        .status-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px;
+        }
+        .status-item {
+            background: rgba(0,0,0,0.2); border: 1px solid var(--border);
+            border-radius: 10px; padding: 12px 16px;
+        }
+        .status-item .status-label { font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+        .status-item .status-value { font-size: 1rem; font-weight: 600; margin-top: 4px; }
+        .status-item .status-value.online { color: #2ed573; }
+        .status-item .status-value.offline { color: #ff4757; }
+
+        /* Scan spinner */
+        .scanning-indicator {
+            text-align: center; padding: 30px; color: var(--text-dim); display: none;
+        }
+        .scanning-indicator.visible { display: block; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .spin-icon { animation: spin 1.5s linear infinite; display: inline-block; }
+
+        /* Success toast */
+        .toast {
+            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(100px);
+            background: #2ed573; color: #070911; padding: 14px 28px; border-radius: 12px;
+            font-weight: 600; font-family: var(--font); z-index: 9999;
+            transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1); display: flex; align-items: center; gap: 8px;
+        }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+
+        /* Browser warning */
+        .browser-warning {
+            background: rgba(255,165,2,0.1); border: 1px solid rgba(255,165,2,0.3);
+            border-radius: var(--radius); padding: 25px; text-align: center; margin-bottom: 20px;
+        }
+        .browser-warning .material-icons-round { font-size: 3rem; color: #ffa502; margin-bottom: 10px; }
+        .browser-warning h3 { margin-bottom: 8px; }
+        .browser-warning p { color: var(--text-dim); }
+
+        .action-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 15px; }
+
+        @media (max-width: 768px) {
+            .tool-header h1 { font-size: 2rem; }
+            .status-grid { grid-template-columns: 1fr; }
+            .connect-bar { flex-direction: column; align-items: stretch; }
+            .action-row { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar scrolled">
+        <div class="nav-content max-w">
+            <div class="logo">
+                <a href="index.html" style="color:inherit; text-decoration:none; display:flex; align-items:center; gap:10px;">
+                    <img src="images/logo.png" alt="Linked Lamp" style="height: 28px; width: 28px; object-fit: contain;">
+                    <span class="logo-text">Linked Lamp</span>
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="tool-container max-w">
+        <div class="tool-header">
+            <h1>WiFi Configuration Tool</h1>
+            <p class="hero-subtitle" style="margin:0 auto;">Connect your lamp via USB to scan for networks, change WiFi settings, or troubleshoot connectivity issues.</p>
+        </div>
+
+        <!-- Browser warning (hidden by default) -->
+        <div class="browser-warning" id="browserWarning" style="display:none;">
+            <span class="material-icons-round">warning</span>
+            <h3>Browser Not Supported</h3>
+            <p>This tool requires <strong>Web Serial API</strong>, which is only available in <strong>Google Chrome</strong> or <strong>Microsoft Edge</strong> on desktop. Please switch to one of those browsers.</p>
+        </div>
+
+        <!-- Step 1: Connect -->
+        <div class="tool-card" id="cardConnect">
+            <h3><span class="material-icons-round" style="color:var(--accent);">usb</span> Connect Your Lamp</h3>
+            <p>Plug your Linked Lamp into your computer via USB, then click Connect. The lamp must already have firmware flashed.</p>
+            <div class="connect-bar">
+                <button class="tool-btn primary" id="btnConnect" onclick="connectSerial()">
+                    <span class="material-icons-round">cable</span> Connect
+                </button>
+                <div class="status-dot" id="statusDot"></div>
+                <span class="status-text" id="statusText">Not connected</span>
+            </div>
+        </div>
+
+        <!-- Step 2: Device Status -->
+        <div class="tool-card" id="cardStatus" style="display:none;">
+            <h3><span class="material-icons-round" style="color:#2ed573;">info</span> Device Status</h3>
+            <p>Current connection info from your lamp.</p>
+            <div class="status-grid" id="statusGrid"></div>
+            <div class="action-row">
+                <button class="tool-btn outline" onclick="refreshStatus()">
+                    <span class="material-icons-round">refresh</span> Refresh
+                </button>
+            </div>
+        </div>
+
+        <!-- Step 3: WiFi Networks -->
+        <div class="tool-card" id="cardNetworks" style="display:none;">
+            <h3><span class="material-icons-round" style="color:var(--accent);">wifi</span> Available Networks</h3>
+            <p>Select a 2.4 GHz network to connect your lamp to.</p>
+
+            <button class="tool-btn outline" id="btnScan" onclick="scanNetworks()">
+                <span class="material-icons-round">search</span> Scan for Networks
+            </button>
+
+            <div class="scanning-indicator" id="scanSpinner">
+                <span class="material-icons-round spin-icon" style="font-size:2rem;">wifi_find</span>
+                <p style="margin-top:10px;">Scanning for nearby networks...</p>
+            </div>
+
+            <div class="network-list" id="networkList"></div>
+
+            <div class="wifi-form" id="wifiForm">
+                <div class="form-row">
+                    <label>Network Name (SSID)</label>
+                    <input type="text" id="inputSSID" readonly>
+                </div>
+                <div class="form-row">
+                    <label>Password</label>
+                    <input type="password" id="inputPassword" placeholder="Enter WiFi password">
+                    <span class="hint" id="passwordHint">Required for secured networks.</span>
+                </div>
+                <div class="action-row">
+                    <button class="tool-btn primary" id="btnSetWifi" onclick="setWifi()">
+                        <span class="material-icons-round">wifi</span> Connect to Network
+                    </button>
+                    <button class="tool-btn outline" onclick="cancelWifiForm()">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Manual SSID entry -->
+        <div class="tool-card" id="cardManual" style="display:none;">
+            <h3><span class="material-icons-round" style="color:var(--accent);">edit</span> Manual Entry</h3>
+            <p>Can't find your network? Enter the details manually. Make sure the network is 2.4 GHz.</p>
+            <div class="form-row">
+                <label>Network Name (SSID)</label>
+                <input type="text" id="manualSSID" placeholder="Enter network name exactly">
+            </div>
+            <div class="form-row">
+                <label>Password</label>
+                <input type="password" id="manualPassword" placeholder="Enter WiFi password (leave empty for open)">
+            </div>
+            <div class="action-row">
+                <button class="tool-btn primary" onclick="setWifiManual()">
+                    <span class="material-icons-round">wifi</span> Connect to Network
+                </button>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="tool-card" id="cardActions" style="display:none;">
+            <h3><span class="material-icons-round" style="color:#ffa502;">build</span> Advanced Actions</h3>
+            <p>Reset WiFi credentials or reboot the device.</p>
+            <div class="action-row">
+                <button class="tool-btn danger" onclick="resetWifi()">
+                    <span class="material-icons-round">delete_forever</span> Reset WiFi
+                </button>
+                <button class="tool-btn outline" onclick="rebootDevice()">
+                    <span class="material-icons-round">restart_alt</span> Reboot
+                </button>
+            </div>
+        </div>
+
+        <!-- Serial Log -->
+        <div class="tool-card" id="cardLog" style="display:none;">
+            <h3><span class="material-icons-round" style="color:var(--text-dim);">terminal</span> Serial Log</h3>
+            <div class="serial-log visible" id="serialLog"></div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"><span class="material-icons-round">check_circle</span> <span id="toastMsg"></span></div>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-content max-w">
+            <div class="footer-brand">
+                <img src="images/logo.png" alt="Linked Lamp" style="height:24px;width:24px;object-fit:contain;"> Linked Lamp
+            </div>
+            <p>&copy; 2026 Aarush Magic. An Open Source Project.</p>
+            <div class="footer-links">
+                <a href="privacy.html">Privacy</a>
+                <a href="terms.html">Terms</a>
+                <a href="https://github.com/aarushmagic/Linked-Lamp">GitHub Repository</a>
+            </div>
+        </div>
+    </footer>
+
+<script>
+// =================================================================
+// Web Serial WiFi Configuration Tool
+// =================================================================
+let port = null;
+let reader = null;
+let writer = null;
+let readBuffer = '';
+let isConnected = false;
+let selectedSSID = '';
+let selectedEncryption = 0;
+
+// Check browser support
+if (!('serial' in navigator)) {
+    document.getElementById('browserWarning').style.display = 'block';
+    document.getElementById('btnConnect').disabled = true;
+}
+
+// ---- Serial Connection ----
+async function connectSerial() {
+    try {
+        port = await navigator.serial.requestPort();
+        await port.open({ baudRate: 115200 });
+        isConnected = true;
+
+        document.getElementById('statusDot').classList.add('connected');
+        document.getElementById('statusText').textContent = 'Connected';
+        document.getElementById('btnConnect').innerHTML = '<span class="material-icons-round">link_off</span> Disconnect';
+        document.getElementById('btnConnect').onclick = disconnectSerial;
+
+        // Show all cards
+        ['cardStatus','cardNetworks','cardManual','cardActions','cardLog'].forEach(id => {
+            document.getElementById(id).style.display = 'block';
+        });
+
+        writer = port.writable.getWriter();
+        startReading();
+
+        // Auto-fetch status
+        await sendCommand('GET_STATUS');
+    } catch (e) {
+        logEntry('Connection failed: ' + e.message, 'error');
+    }
+}
+
+async function disconnectSerial() {
+    try {
+        isConnected = false;
+        if (reader) { await reader.cancel(); reader.releaseLock(); reader = null; }
+        if (writer) { writer.releaseLock(); writer = null; }
+        if (port) { await port.close(); port = null; }
+    } catch (e) { /* ignore */ }
+
+    document.getElementById('statusDot').classList.remove('connected');
+    document.getElementById('statusText').textContent = 'Disconnected';
+    document.getElementById('btnConnect').innerHTML = '<span class="material-icons-round">cable</span> Connect';
+    document.getElementById('btnConnect').onclick = connectSerial;
+    ['cardStatus','cardNetworks','cardManual','cardActions','cardLog'].forEach(id => {
+        document.getElementById(id).style.display = 'none';
+    });
+}
+
+async function startReading() {
+    const decoder = new TextDecoderStream();
+    const readableStreamClosed = port.readable.pipeTo(decoder.writable);
+    reader = decoder.readable.getReader();
+
+    try {
+        while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            if (value) {
+                readBuffer += value;
+                processBuffer();
+            }
+        }
+    } catch (e) {
+        if (isConnected) logEntry('Read error: ' + e.message, 'error');
+    } finally {
+        reader.releaseLock();
+    }
+}
+
+function processBuffer() {
+    const lines = readBuffer.split('\n');
+    readBuffer = lines.pop(); // keep incomplete line
+    for (const raw of lines) {
+        const line = raw.replace(/\r/g, '').trim();
+        if (!line) continue;
+        handleLine(line);
+        logEntry(line);
+    }
+}
+
+async function sendCommand(cmd) {
+    if (!writer) return;
+    const encoder = new TextEncoder();
+    await writer.write(encoder.encode(cmd + '\n'));
+    logEntry('> ' + cmd, 'cmd');
+}
+
+// ---- Response Parsing ----
+let parseMode = null; // 'status', 'scan'
+let parsedData = [];
+
+function handleLine(line) {
+    // Status parsing
+    if (line.includes('[CMD] STATUS_START')) { parseMode = 'status'; parsedData = []; return; }
+    if (line.includes('[CMD] STATUS_END')) { parseMode = null; renderStatus(parsedData); return; }
+
+    // Scan parsing
+    if (line.includes('[CMD] SCAN_START')) { parseMode = 'scan'; parsedData = []; return; }
+    if (line.includes('[CMD] SCAN_END')) {
+        parseMode = null;
+        document.getElementById('scanSpinner').classList.remove('visible');
+        renderNetworks(parsedData);
+        return;
+    }
+
+    if (parseMode === 'status') { parsedData.push(line); }
+    if (parseMode === 'scan') {
+        if (!line.startsWith('[CMD]')) parsedData.push(line);
+    }
+
+    // Toast on WiFi set success
+    if (line.includes('WiFi credentials saved')) showToast('WiFi credentials saved! Device rebooting...');
+    if (line.includes('Erasing WiFi credentials')) showToast('WiFi reset! Device rebooting...');
+    if (line.includes('Rebooting')) {
+        setTimeout(() => { disconnectSerial(); }, 1500);
+    }
+}
+
+// ---- Status Display ----
+function renderStatus(lines) {
+    const grid = document.getElementById('statusGrid');
+    grid.innerHTML = '';
+    const map = {};
+    for (const l of lines) {
+        const idx = l.indexOf(':');
+        if (idx === -1) continue;
+        const key = l.substring(0, idx).trim();
+        const val = l.substring(idx + 1).trim();
+        map[key] = val;
+    }
+    const items = [
+        { label: 'WiFi', value: map['WiFi'] || 'Unknown', cls: (map['WiFi']||'').includes('CONNECTED') ? 'online' : 'offline' },
+        { label: 'MQTT', value: map['MQTT'] || 'Unknown', cls: (map['MQTT']||'').includes('CONNECTED') ? 'online' : 'offline' },
+        { label: 'SSID', value: map['SSID'] || 'N/A' },
+        { label: 'IP Address', value: map['IP'] || 'N/A' },
+        { label: 'Signal', value: map['RSSI'] || 'N/A' },
+        { label: 'Device ID', value: map['Device ID'] || 'N/A' },
+        { label: 'MQTT Server', value: map['MQTT Server'] || 'N/A' },
+        { label: 'Uptime', value: map['Uptime'] || 'N/A' },
+    ];
+    for (const item of items) {
+        const div = document.createElement('div');
+        div.className = 'status-item';
+        div.innerHTML = `<div class="status-label">${item.label}</div><div class="status-value ${item.cls||''}">${item.value}</div>`;
+        grid.appendChild(div);
+    }
+}
+
+async function refreshStatus() { await sendCommand('GET_STATUS'); }
+
+// ---- WiFi Scanning ----
+async function scanNetworks() {
+    document.getElementById('networkList').innerHTML = '';
+    document.getElementById('scanSpinner').classList.add('visible');
+    document.getElementById('wifiForm').classList.remove('visible');
+    document.getElementById('btnScan').disabled = true;
+    parsedData = [];
+    await sendCommand('SCAN_WIFI');
+    // Re-enable after timeout in case response is slow
+    setTimeout(() => { document.getElementById('btnScan').disabled = false; }, 15000);
+}
+
+function renderNetworks(lines) {
+    document.getElementById('btnScan').disabled = false;
+    const list = document.getElementById('networkList');
+    list.innerHTML = '';
+
+    // Parse and deduplicate
+    const seen = new Set();
+    const networks = [];
+    for (const l of lines) {
+        // Format: SSID,RSSI,encryption
+        // Split from the right since SSID might not contain commas but be safe
+        const parts = l.split(',');
+        if (parts.length < 3) continue;
+        const enc = parseInt(parts[parts.length - 1]);
+        const rssi = parseInt(parts[parts.length - 2]);
+        const ssid = parts.slice(0, parts.length - 2).join(',');
+        if (!ssid || seen.has(ssid)) continue;
+        seen.add(ssid);
+        networks.push({ ssid, rssi, encrypted: enc !== 0 });
+    }
+
+    // Sort by signal strength
+    networks.sort((a, b) => b.rssi - a.rssi);
+
+    if (networks.length === 0) {
+        list.innerHTML = '<p style="text-align:center;color:var(--text-dim);padding:20px;">No networks found. Make sure the lamp is powered on and try again.</p>';
+        return;
+    }
+
+    for (const net of networks) {
+        const div = document.createElement('div');
+        div.className = 'network-item';
+        div.onclick = () => selectNetwork(net.ssid, net.encrypted, div);
+
+        const signalIcon = net.rssi > -50 ? 'signal_wifi_4_bar' :
+                           net.rssi > -65 ? 'network_wifi_3_bar' :
+                           net.rssi > -75 ? 'network_wifi_2_bar' : 'network_wifi_1_bar';
+
+        div.innerHTML = `
+            <span class="material-icons-round net-icon">${signalIcon}</span>
+            <div class="net-info">
+                <div class="net-ssid">${escHtml(net.ssid)}</div>
+                <div class="net-meta">${net.rssi} dBm ${net.encrypted ? '· Secured' : '· Open'}</div>
+            </div>
+            ${net.encrypted ? '<span class="material-icons-round net-lock">lock</span>' : '<span class="material-icons-round net-lock" style="color:#2ed573;">lock_open</span>'}
+        `;
+        list.appendChild(div);
+    }
+}
+
+function selectNetwork(ssid, encrypted, el) {
+    document.querySelectorAll('.network-item').forEach(n => n.classList.remove('selected'));
+    el.classList.add('selected');
+    selectedSSID = ssid;
+    selectedEncryption = encrypted;
+
+    document.getElementById('inputSSID').value = ssid;
+    document.getElementById('wifiForm').classList.add('visible');
+    document.getElementById('inputPassword').value = '';
+
+    if (!encrypted) {
+        document.getElementById('inputPassword').style.display = 'none';
+        document.getElementById('passwordHint').textContent = 'This is an open network. No password needed.';
+    } else {
+        document.getElementById('inputPassword').style.display = 'block';
+        document.getElementById('passwordHint').textContent = 'Required for secured networks.';
+        document.getElementById('inputPassword').focus();
+    }
+}
+
+function cancelWifiForm() {
+    document.getElementById('wifiForm').classList.remove('visible');
+    document.querySelectorAll('.network-item').forEach(n => n.classList.remove('selected'));
+}
+
+// ---- Set WiFi ----
+async function setWifi() {
+    const ssid = document.getElementById('inputSSID').value;
+    const pass = document.getElementById('inputPassword').value;
+    if (!ssid) return;
+    if (selectedEncryption && !pass) {
+        showToast('Please enter the WiFi password.');
+        return;
+    }
+    document.getElementById('btnSetWifi').disabled = true;
+    await sendCommand('SET_WIFI:' + ssid + ',' + pass);
+    setTimeout(() => { document.getElementById('btnSetWifi').disabled = false; }, 5000);
+}
+
+async function setWifiManual() {
+    const ssid = document.getElementById('manualSSID').value.trim();
+    const pass = document.getElementById('manualPassword').value;
+    if (!ssid) { showToast('Please enter a network name.'); return; }
+    await sendCommand('SET_WIFI:' + ssid + ',' + pass);
+}
+
+// ---- Reset WiFi ----
+async function resetWifi() {
+    if (!confirm('This will erase all saved WiFi credentials and reboot the lamp into setup mode (captive portal). Continue?')) return;
+    await sendCommand('RESET_WIFI');
+}
+
+async function rebootDevice() {
+    await sendCommand('REBOOT');
+}
+
+// ---- Helpers ----
+function logEntry(text, type) {
+    const log = document.getElementById('serialLog');
+    const div = document.createElement('div');
+    div.className = type === 'error' ? 'log-error' : type === 'cmd' ? 'log-cmd' : type === 'success' ? 'log-success' : '';
+    div.textContent = text;
+    log.appendChild(div);
+    log.scrollTop = log.scrollHeight;
+}
+
+function showToast(msg) {
+    const t = document.getElementById('toast');
+    document.getElementById('toastMsg').textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+function escHtml(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+}
+</script>
+</body>
+</html>

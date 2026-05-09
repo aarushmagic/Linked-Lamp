@@ -88,14 +88,15 @@
             <div class="logo">
                 <a href="index.html"
                     style="color:inherit; text-decoration:none; display:flex; align-items:center; gap:10px;">
-                    <img src="images/logo.png" alt="Linked Lamp" style="height: 28px; width: 28px; object-fit: contain;">
+                    <img src="images/logo.png" alt="Linked Lamp"
+                        style="height: 28px; width: 28px; object-fit: contain;">
                     <span class="logo-text">Linked Lamp</span>
                 </a>
             </div>
-</div>
+        </div>
     </nav>
 
-<header class="faq-header max-w">
+    <header class="faq-header max-w">
         <h1>Frequently Asked Questions</h1>
         <p class="hero-subtitle">Everything you need to know about the Linked Lamp.</p>
     </header>
@@ -122,7 +123,8 @@
         <div class="panel">
             <p style="padding: 15px 0;">
                 Yes! Any Linked Lamp can connect to any other Linked Lamp, regardless of which lighting method was used.
-                One person can build a PCB version and the other can build a NeoPixel version — they'll work together perfectly.
+                One person can build a PCB version and the other can build a NeoPixel version — they'll work together
+                perfectly.
             </p>
         </div>
 
@@ -167,14 +169,23 @@
                 class="material-icons-round icon">expand_more</span></button>
         <div class="panel">
             <p style="padding: 15px 0;">
-                No, you don't have to pay. The Linked Lamp system requires an MQTT broker to pass messages between lamps, but any broker that supports TLS encryption on port 8883 will work. 
+                No, you don't have to pay. The Linked Lamp system requires an MQTT broker to pass messages between
+                lamps, but any broker that supports TLS encryption on port 8883 will work.
                 <br><br>
                 <strong>Recommended Free Options:</strong><br>
-                &bull; <strong>HiveMQ Cloud:</strong> The "Serverless Multi-tenant" free tier provides more than enough bandwidth.<br>
-                &bull; <strong>Adafruit IO:</strong> Excellent real-time broker but limits free accounts to 10 "feeds". Each lamp takes up 4 feeds, so a pair fits perfectly under the limit.<br>
-                &bull; <strong>Eclipse Mosquitto:</strong> Open-source broker for power users. Note: The Web Dashboard requires secure WebSocket (WSS) support. If you self-host Mosquitto, ensure you bind WSS correctly. The dashboard connects to 8884 by default, but you can override this by appending your custom WSS port directly to the Broker URL during setup (e.g., <code>mqtt.mydomain.com:8081</code>). The firmware will still intelligently use the standard TLS port (8883) while providing the custom port to the dashboard.
+                &bull; <strong>HiveMQ Cloud:</strong> The "Serverless Multi-tenant" free tier provides more than enough
+                bandwidth.<br>
+                &bull; <strong>Adafruit IO:</strong> Excellent real-time broker but limits free accounts to 10 "feeds".
+                Each lamp takes up 4 feeds, so a pair fits perfectly under the limit.<br>
+                &bull; <strong>Eclipse Mosquitto:</strong> Open-source broker for power users. Note: The Web Dashboard
+                requires secure WebSocket (WSS) support. If you self-host Mosquitto, ensure you bind WSS correctly. The
+                dashboard connects to 8884 by default, but you can override this by appending your custom WSS port
+                directly to the Broker URL during setup (e.g., <code>mqtt.mydomain.com:8081</code>). The firmware will
+                still intelligently use the standard TLS port (8883) while providing the custom port to the dashboard.
                 <br><br>
-                <em>Please note: Cloud brokers like HiveMQ and Adafruit IO are third-party proprietary software. They are subject to change their pricing or Terms of Service at any time, and we are not affiliated with or responsible for them.</em>
+                <em>Please note: Cloud brokers like HiveMQ and Adafruit IO are third-party proprietary software. They
+                    are subject to change their pricing or Terms of Service at any time, and we are not affiliated with
+                    or responsible for them.</em>
             </p>
         </div>
 
@@ -184,6 +195,34 @@
             <p style="padding: 15px 0;">
                 The ESP32 only supports <strong>2.4 GHz Wi-Fi</strong>. It won't connect to 5 GHz-only
                 networks. Most modern routers broadcast both bands, so this is rarely an issue.
+                <br><br>
+                Having WiFi trouble? Use the <a href="wifi-tool.html" style="color:var(--accent);">WiFi Configuration
+                    Tool</a> to scan for nearby networks and update your lamp's WiFi settings directly from your browser
+                over USB.
+            </p>
+        </div>
+
+        <button class="accordion">My lamp can't connect to WiFi or I changed my WiFi password <span
+                class="material-icons-round icon">expand_more</span></button>
+        <div class="panel">
+            <p style="padding: 15px 0;">
+                If your lamp can't connect to WiFi (e.g. you changed your router password, moved to a new location, or
+                it's stuck trying to connect), you can fix it without re-flashing:
+                <br><br>
+                <strong>Option 1 — 5-tap reset (easiest):</strong> With the lamp off (powered but not lit), tap the
+                touch sensor 5+ times
+                quickly. The lamp will flash red, erase its WiFi credentials, and reboot into setup mode. It will create
+                a WiFi hotspot called <strong>"Linked Lamp Setup"</strong> — connect to it from your phone and pick your
+                network from the captive portal.
+                <br><br>
+                <strong>Option 2 — WiFi Tool:</strong> Open the <a href="wifi-tool.html"
+                    style="color:var(--accent);">WiFi Configuration Tool</a> in Chrome or Edge, plug your lamp in via
+                USB, and scan for available networks. Select your network, enter the password, and your lamp will reboot
+                and connect.
+                <br><br>
+                <strong>Option 3 — Serial monitor (advanced):</strong> Open any serial monitor at 115200 baud and type
+                <code>RESET_WIFI</code> to clear credentials, or <code>SET_WIFI:YourNetwork,YourPassword</code> to
+                directly set new ones. These commands work even when the lamp is stuck.
             </p>
         </div>
 
@@ -191,26 +230,30 @@
                 class="material-icons-round icon">expand_more</span></button>
         <div class="panel">
             <p style="padding: 15px 0;">
-                Ambient Mode allows your lamp to keep glowing gently in a color of your choice even when it's not active. 
+                Ambient Mode allows your lamp to keep glowing gently in a color of your choice even when it's not
+                active.
                 <br><br>
-                For power efficiency and subtlety, the brightness in Ambient Mode is <strong>capped at 10%</strong> of your daytime max brightness setting. Ambient Mode automatically turns off during your scheduled Nighttime Mode hours to ensure total darkness while you sleep.
+                For power efficiency and subtlety, the brightness in Ambient Mode is <strong>capped at 10%</strong> of
+                your daytime max brightness setting. Ambient Mode automatically turns off during your scheduled
+                Nighttime Mode hours to ensure total darkness while you sleep.
             </p>
         </div>
-
-    </section>
-
-    <section class="faq-container max-w">
 
         <button class="accordion">What happens when my lamp loses WiFi or can't reach the broker? <span
                 class="material-icons-round icon">expand_more</span></button>
         <div class="panel">
             <p style="padding: 15px 0;">
-                The lamp is designed to recover on its own. If WiFi drops, it immediately tries to reconnect every 15 seconds.
-                If it stays disconnected for <strong>5 minutes</strong>, the lamp automatically reboots to get a fresh start.
+                The lamp is designed to recover on its own. If WiFi drops, it immediately tries to reconnect every 15
+                seconds.
+                If it stays disconnected for <strong>5 minutes</strong>, the lamp automatically reboots to get a fresh
+                start.
                 <br><br>
-                If WiFi is working but the MQTT broker is unreachable, the lamp retries MQTT every 5 seconds. After 3 consecutive failures, it forces a clean MQTT disconnect and retries. After 6 failures (~30 seconds), it forces a full WiFi reconnect as a fallback.
+                If WiFi is working but the MQTT broker is unreachable, the lamp retries MQTT every 5 seconds. After 3
+                consecutive failures, it forces a clean MQTT disconnect and retries. After 6 failures (~30 seconds), it
+                forces a full WiFi reconnect as a fallback.
                 <br><br>
-                While offline, <strong>touch gestures still work</strong> — you can still hold to pick a color or double-tap to turn off the lamp. The signal just won't be sent until connectivity is restored.
+                While offline, <strong>touch gestures still work</strong> — you can still hold to pick a color or
+                double-tap to turn off the lamp. The signal just won't be sent until connectivity is restored.
             </p>
         </div>
 
@@ -218,10 +261,13 @@
                 class="material-icons-round icon">expand_more</span></button>
         <div class="panel">
             <p style="padding: 15px 0;">
-                Color Cycle presets let you send <strong>multi-color animated sequences</strong> to a lamp instead of a single static color.
-                Each preset contains up to 10 colors, and each color has its own <strong>hold time</strong> (how long to display it) and <strong>transition time</strong> (how long to smoothly fade to the next color).
+                Color Cycle presets let you send <strong>multi-color animated sequences</strong> to a lamp instead of a
+                single static color.
+                Each preset contains up to 10 colors, and each color has its own <strong>hold time</strong> (how long to
+                display it) and <strong>transition time</strong> (how long to smoothly fade to the next color).
                 <br><br>
-                For example, you could create a preset that slowly fades between red, orange, and yellow to represent a sunset, or cycle through someone's favorite colors.
+                For example, you could create a preset that slowly fades between red, orange, and yellow to represent a
+                sunset, or cycle through someone's favorite colors.
                 Color Cycle presets can be created and sent from the web app.
             </p>
         </div>
@@ -232,11 +278,16 @@
             <p style="padding: 15px 0;">
                 The lamp uses brief LED flashes to communicate its status:
                 <br><br>
-                • <strong>Double green flash</strong> — WiFi connected successfully (only on initial power-up/cold boot).<br>
-                • <strong>Double red flash</strong> — WiFi credentials are being reset (triggered by 5+ taps when lamp is off).<br>
-                • <strong>1-second flash of your color</strong> — Confirmation that your single tap was sent. The lamp briefly shows the sent color, then reverts to its previous state.<br>
-                • <strong>3-second flash of picked color</strong> — After holding to pick a new default color, the lamp shows your selection for 3 seconds before reverting.<br>
-                • <strong>20-second breathing pulse</strong> — When a signal arrives, the lamp gently pulses (fading between 30% and 100% brightness in ~2-second cycles) for 20 seconds, then holds a steady glow.
+                • <strong>Double green flash</strong> — WiFi connected successfully (only on initial power-up/cold
+                boot).<br>
+                • <strong>Double red flash</strong> — WiFi credentials are being reset (triggered by 5+ taps when lamp
+                is off).<br>
+                • <strong>1-second flash of your color</strong> — Confirmation that your single tap was sent. The lamp
+                briefly shows the sent color, then reverts to its previous state.<br>
+                • <strong>3-second flash of picked color</strong> — After holding to pick a new default color, the lamp
+                shows your selection for 3 seconds before reverting.<br>
+                • <strong>20-second breathing pulse</strong> — When a signal arrives, the lamp gently pulses (fading
+                between 30% and 100% brightness in ~2-second cycles) for 20 seconds, then holds a steady glow.
             </p>
         </div>
 
@@ -244,9 +295,13 @@
                 class="material-icons-round icon">expand_more</span></button>
         <div class="panel">
             <p style="padding: 15px 0;">
-                Each lamp syncs its clock via <strong>NTP</strong> (Network Time Protocol) using internet time servers. You can set a <strong>POSIX timezone string</strong> (e.g., <code>EST5EDT</code>, <code>PST8PDT</code>) for each lamp through the web app.
+                Each lamp syncs its clock via <strong>NTP</strong> (Network Time Protocol) using internet time servers.
+                You can set a <strong>POSIX timezone string</strong> (e.g., <code>EST5EDT</code>, <code>PST8PDT</code>)
+                for each lamp through the web app.
                 <br><br>
-                This means <strong>Nighttime Mode is timezone-aware</strong> — if you set night mode from 10 PM to 8 AM, the lamp uses your local time, not UTC. Two lamps in different time zones will each respect their own local schedule.
+                This means <strong>Nighttime Mode is timezone-aware</strong> — if you set night mode from 10 PM to 8 AM,
+                the lamp uses your local time, not UTC. Two lamps in different time zones will each respect their own
+                local schedule.
             </p>
         </div>
 
@@ -254,9 +309,13 @@
                 class="material-icons-round icon">expand_more</span></button>
         <div class="panel">
             <p style="padding: 15px 0;">
-                When the lamp receives a firmware update over the air (OTA), it doesn't immediately mark the new firmware as "good." Instead, it waits until the firmware <strong>successfully connects to the MQTT broker</strong>.
+                When the lamp receives a firmware update over the air (OTA), it doesn't immediately mark the new
+                firmware as "good." Instead, it waits until the firmware <strong>successfully connects to the MQTT
+                    broker</strong>.
                 <br><br>
-                If the new firmware crashes or can't reach the broker, the ESP32's bootloader will <strong>automatically roll back</strong> to the previous working firmware on the next reboot. This ensures a bad update can never permanently brick your lamp.
+                If the new firmware crashes or can't reach the broker, the ESP32's bootloader will <strong>automatically
+                    roll back</strong> to the previous working firmware on the next reboot. This ensures a bad update
+                can never permanently brick your lamp.
             </p>
         </div>
 
@@ -279,7 +338,8 @@
     <footer>
         <div class="footer-content max-w">
             <div class="footer-brand">
-                <img src="images/logo.png" alt="Linked Lamp" style="height: 24px; width: 24px; object-fit: contain;"> Linked
+                <img src="images/logo.png" alt="Linked Lamp" style="height: 24px; width: 24px; object-fit: contain;">
+                Linked
                 Lamp
             </div>
             <p>&copy; 2026 Aarush Magic. An Open Source Project.</p>
@@ -317,7 +377,7 @@
         }
 
         // Hamburger menu toggle
-</script>
+    </script>
 </body>
 
 </html>
