@@ -414,6 +414,53 @@
             animation: plugPulse 2s ease infinite;
             margin-bottom: 20px;
         }
+
+        .usb-help-banner {
+            background: rgba(255, 165, 2, 0.08);
+            border: 1px solid rgba(255, 165, 2, 0.25);
+            border-radius: var(--radius);
+            padding: 18px 22px;
+            margin-top: 20px;
+            display: none;
+            align-items: flex-start;
+            gap: 14px;
+            text-align: left;
+            animation: fadeSlideIn 0.35s ease;
+        }
+
+        .usb-help-banner.active {
+            display: flex;
+        }
+
+        .usb-help-banner .material-icons-round {
+            font-size: 1.6rem;
+            color: #ffa502;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .usb-help-banner p {
+            margin: 0;
+            color: var(--text-dim);
+            font-size: 0.92rem;
+            line-height: 1.6;
+        }
+
+        .usb-help-banner a {
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        @keyframes fadeSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-8px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
     </style>
 </head>
 
@@ -535,6 +582,16 @@
                     <span class="material-icons-round">bolt</span> Connect & Flash
                 </button>
 
+                <div class="usb-help-banner" id="usbHelpA">
+                    <span class="material-icons-round">usb_off</span>
+                    <p>
+                        <strong>Don't see your ESP32 in the list?</strong><br>
+                        This usually means the USB cable is charge-only (no data), or the correct drivers
+                        aren't installed. <a href="faq.html#faq-usb-not-detected" target="_blank">See how to fix
+                            this →</a>
+                    </p>
+                </div>
+
                 <div class="flash-progress" id="progressA">
                     <div class="progress-percent" id="percentA">0%</div>
                     <div class="progress-bar-track">
@@ -583,6 +640,16 @@
                 <button class="flash-btn" id="btnFlashB" onclick="startFlash('B')">
                     <span class="material-icons-round">bolt</span> Connect & Flash
                 </button>
+
+                <div class="usb-help-banner" id="usbHelpB">
+                    <span class="material-icons-round">usb_off</span>
+                    <p>
+                        <strong>Don't see your ESP32 in the list?</strong><br>
+                        This usually means the USB cable is charge-only (no data), or the correct drivers
+                        aren't installed. <a href="faq.html#faq-usb-not-detected" target="_blank">See how to fix
+                            this →</a>
+                    </p>
+                </div>
 
                 <div class="flash-progress" id="progressB">
                     <div class="progress-percent" id="percentB">0%</div>
@@ -1017,6 +1084,12 @@
                 logEl.appendChild(div);
                 btn.disabled = false;
                 btn.innerHTML = '<span class="material-icons-round">refresh</span> Retry';
+
+                // Show USB help banner if user dismissed the serial port picker without selecting
+                if (err.message.includes('No serial port selected')) {
+                    const helpBanner = document.getElementById('usbHelp' + lampId);
+                    if (helpBanner) helpBanner.classList.add('active');
+                }
             } finally {
                 flashInProgress = false;
             }

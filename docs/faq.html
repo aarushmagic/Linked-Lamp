@@ -143,6 +143,37 @@
             </p>
         </div>
 
+        <button class="accordion" id="faq-usb-not-detected">My ESP32 doesn't show up when I plug it in via USB <span
+                class="material-icons-round icon">expand_more</span></button>
+        <div class="panel">
+            <p style="padding: 15px 0;">
+                If you connect your ESP32 via USB but it doesn't appear in the serial port list (in the browser
+                popup, Device Manager, or PlatformIO), try these steps:
+                <br><br>
+                <strong>1. Make sure you're using a data transfer cable.</strong><br>
+                Many USB cables (especially short ones bundled with power banks or chargers) are
+                <strong>charge-only</strong> and do not carry data. If your cable charges the board but doesn't
+                show a serial port, swap it for a known data-capable USB cable. Data cables are usually slightly
+                thicker and are often labeled "data" or "sync."
+                <br><br>
+                <strong>2. Install the correct USB-to-Serial drivers.</strong><br>
+                Most ESP32 dev boards use either a <strong>CP2102</strong> or <strong>CP2104</strong> USB-to-UART
+                bridge chip made by Silicon Labs. Your operating system may not include these drivers by default.
+                <br><br>
+                <strong>To install the drivers:</strong><br>
+                &bull; Go to the <a href="https://www.silabs.com/developers/usb-to-uart-bridge-vcp-drivers?tab=downloads"
+                    target="_blank" style="color:var(--accent);">Silicon Labs CP210x VCP Drivers</a> page.<br>
+                &bull; Download the driver for your operating system (Windows, macOS, or Linux).<br>
+                &bull; Run the installer and follow the on-screen prompts.<br>
+                &bull; <strong>Restart your computer</strong> after installation.<br>
+                &bull; Reconnect your ESP32 via USB. It should now appear as a COM port (Windows) or
+                <code>/dev/ttyUSB0</code> (Linux/macOS).
+                <br><br>
+                After completing both steps, the ESP32 should show up in the serial port picker when you click
+                <strong>"Connect & Flash"</strong> on the setup page.
+            </p>
+        </div>
+
         <button class="accordion">How do software updates work? <span
                 class="material-icons-round icon">expand_more</span></button>
         <div class="panel">
@@ -202,7 +233,7 @@
             </p>
         </div>
 
-        <button class="accordion">My lamp can't connect to WiFi or I changed my WiFi password <span
+        <button class="accordion" id="faq-wifi-not-connecting">My lamp can't connect to WiFi or I changed my WiFi password <span
                 class="material-icons-round icon">expand_more</span></button>
         <div class="panel">
             <p style="padding: 15px 0;">
@@ -375,6 +406,25 @@
                 }
             });
         }
+
+        // Deep-link: auto-open a specific FAQ if the URL hash matches an accordion's id
+        function openFaqByHash() {
+            const hash = window.location.hash.replace('#', '');
+            if (!hash) return;
+            const target = document.getElementById(hash);
+            if (target && target.classList.contains('accordion')) {
+                target.classList.add('active');
+                const panel = target.nextElementSibling;
+                if (panel) {
+                    panel.style.maxHeight = panel.scrollHeight + 30 + "px";
+                    panel.style.paddingTop = "10px";
+                    panel.style.paddingBottom = "20px";
+                }
+                setTimeout(() => target.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+            }
+        }
+        openFaqByHash();
+        window.addEventListener('hashchange', openFaqByHash);
 
         // Hamburger menu toggle
     </script>
