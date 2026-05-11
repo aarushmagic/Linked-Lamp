@@ -720,7 +720,7 @@ function triggerUpdate() {
         const fwFile = (hwType === "neopixel") ? "firmware-neo.bin" : "firmware.bin";
         const otaUrl = new URL("../flash/" + fwFile, window.location.href).href;
 
-        mqttClient.publish(getTopic(myDeviceId, "system/ota"), otaUrl);
+        mqttClient.publish(getTopic(myDeviceId, "color_trigger"), "OTA:" + otaUrl);
         alert("Update command sent! Your lamp will restart shortly. This could take upto 5 minutes. Please do not restart your device in the meantime even if it goes offline.");
 
         // Clear all browser caches and force a hard reload to pick up new CSS/JS
