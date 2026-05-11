@@ -38,7 +38,7 @@ You'll need an **ESP32-WROOM** dev board, a **TTP223** touch sensor, and a 3D-pr
 
 | | PCB | NeoPixel |
 |---|---|---|
-| **Light Source** | 6× Common Anode RGB LEDs on a custom PCB | WS2812B NeoPixel Ring (up to 24 LEDs, 66mm) |
+| **Light Source** | 6× Common Anode RGB LEDs on a custom PCB | WS2812B NeoPixel Ring (up to 16 LEDs, 66mm) |
 | **Soldering** | Through-hole components onto PCB | 3 wires to the ESP32 |
 | **Brightness** | Standard | Slightly brighter |
 

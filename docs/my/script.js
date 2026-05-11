@@ -27,6 +27,10 @@ let partnerName = "Partner";
 let isMqttConnected = false;
 let myLampOnline = null;       // null = unknown (no status msg received yet)
 let partnerLampOnline = null;  // null = unknown
+let mySupLampOnline = null;    // Supplementary lamp status (null = no supplementary)
+let partnerSupLampOnline = null;
+let hasMySupLamp = false;      // Whether supplementary status topic exists
+let hasPartnerSupLamp = false;
 
 // Read receipt state
 let partnerLastTapTimestamp = 0;   // Last known tap timestamp from partner lamp
@@ -244,11 +248,16 @@ function connectMQTT() {
         console.log("MQTT Connected!");
         isMqttConnected = true;
 
+        // Primary status topics
         mqttClient.subscribe(getTopic(myDeviceId, "status"));
         mqttClient.subscribe(getTopic(partnerDeviceId, "status"));
-        mqttClient.subscribe(getTopic(myDeviceId, "settings")); // Pull retained settings
-        mqttClient.subscribe(getTopic(myDeviceId, "presets"));  // Pull retained presets
-        mqttClient.subscribe(getTopic(partnerDeviceId, "settings")); // Read receipts: watch partner's lastTapTimestamp
+        // Supplementary status topics (ll_A2_status, ll_B2_status)
+        mqttClient.subscribe(getSupTopic(myDeviceId));
+        mqttClient.subscribe(getSupTopic(partnerDeviceId));
+        // Settings
+        mqttClient.subscribe(getTopic(myDeviceId, "settings"));
+        mqttClient.subscribe(getTopic(myDeviceId, "presets"));
+        mqttClient.subscribe(getTopic(partnerDeviceId, "settings"));
 
         updateStatusUI();
         applySettingsToUI();
@@ -331,7 +340,6 @@ function connectMQTT() {
                 const newTimestamp = partnerSettings.lastTapTimestamp || 0;
 
                 if (pendingReadReceipt && newTimestamp > partnerLastTapTimestamp) {
-                    // Partner lamp received our signal — confirm delivery!
                     console.log("Read receipt confirmed! Partner tap timestamp changed:", partnerLastTapTimestamp, "->", newTimestamp);
                     confirmReadReceipt();
                 }
@@ -340,6 +348,34 @@ function connectMQTT() {
             } catch (e) {
                 console.error("Failed to parse partner settings:", e);
             }
+
+        // Supplementary status topics
+        } else if (topic === getSupTopic(myDeviceId)) {
+            if (msg.length === 0) {
+                // Empty retained message = supplementary doesn't exist
+                hasMySupLamp = false;
+                mySupLampOnline = null;
+            } else if (msg.startsWith("ONLINE")) {
+                hasMySupLamp = true;
+                mySupLampOnline = true;
+            } else {
+                hasMySupLamp = true;
+                mySupLampOnline = false;
+            }
+            updateStatusUI();
+
+        } else if (topic === getSupTopic(partnerDeviceId)) {
+            if (msg.length === 0) {
+                hasPartnerSupLamp = false;
+                partnerSupLampOnline = null;
+            } else if (msg.startsWith("ONLINE")) {
+                hasPartnerSupLamp = true;
+                partnerSupLampOnline = true;
+            } else {
+                hasPartnerSupLamp = true;
+                partnerSupLampOnline = false;
+            }
+            updateStatusUI();
         }
     });
 
@@ -349,8 +385,18 @@ function connectMQTT() {
         isMqttConnected = false;
         myLampOnline = null;
         partnerLampOnline = null;
+        mySupLampOnline = null;
+        partnerSupLampOnline = null;
         updateStatusUI();
     });
+}
+
+// Helper: supplementary status topic (ll_A2_status / ll_B2_status)
+function getSupTopic(deviceId) {
+    if (mqtt_server.includes("adafruit") && mqtt_user) {
+        return `${mqtt_user}/f/ll_${deviceId}2_status`;
+    }
+    return `linkedlamp/${deviceId}2/status`;
 }
 
 function updateStatusUI() {
@@ -363,31 +409,96 @@ function updateStatusUI() {
         return;
     }
 
-    // If we haven't received any status messages from firmware yet,
-    // just show "Online" based on broker connectivity
     if (myLampOnline === null && partnerLampOnline === null) {
         dot.className = "dot connecting";
         text.innerText = "Connecting";
         return;
     }
 
-    // If we have status info from firmware LWT, show detailed status.
-    // Default an unknown (null) lamp to offline to prevent false "Both Online" claims.
-    const myStatus = myLampOnline === null ? false : myLampOnline;
-    const partnerStatus = partnerLampOnline === null ? false : partnerLampOnline;
+    // Check if any supplementary lamps exist
+    const anySupplementary = hasMySupLamp || hasPartnerSupLamp;
 
-    if (myStatus && partnerStatus) {
-        dot.className = "dot online";
-        text.innerText = "Both Online";
-    } else if (myStatus && !partnerStatus) {
-        dot.className = "dot partial";
-        text.innerText = partnerName + " Offline";
-    } else if (!myStatus && partnerStatus) {
-        dot.className = "dot partial";
-        text.innerText = "Your Lamp Offline";
+    if (!anySupplementary) {
+        // Simple mode: no supplementary lamps, show original status
+        const myStatus = myLampOnline === null ? false : myLampOnline;
+        const partnerStatus = partnerLampOnline === null ? false : partnerLampOnline;
+
+        if (myStatus && partnerStatus) {
+            dot.className = "dot online";
+            text.innerText = "Both Online";
+        } else if (myStatus && !partnerStatus) {
+            dot.className = "dot partial";
+            text.innerText = partnerName + " Offline";
+        } else if (!myStatus && partnerStatus) {
+            dot.className = "dot partial";
+            text.innerText = "Your Lamp Offline";
+        } else {
+            dot.className = "dot offline";
+            text.innerText = "Lamps Offline";
+        }
     } else {
-        dot.className = "dot offline";
-        text.innerText = "Lamps Offline";
+        // Multi-lamp mode: count total lamps and offline lamps
+        const lamps = [];
+        lamps.push({ name: "My Lamp", online: myLampOnline === true, mine: true });
+        if (hasMySupLamp) lamps.push({ name: "My Lamp 2", online: mySupLampOnline === true, mine: true });
+        lamps.push({ name: partnerName + "'s Lamp", online: partnerLampOnline === true, mine: false });
+        if (hasPartnerSupLamp) lamps.push({ name: partnerName + "'s Lamp 2", online: partnerSupLampOnline === true, mine: false });
+
+        const totalLamps = lamps.length;
+        const offlineLamps = lamps.filter(l => !l.online);
+        const offlineCount = offlineLamps.length;
+        const anyMineOffline = offlineLamps.some(l => l.mine);
+
+        if (offlineCount === 0) {
+            dot.className = "dot online";
+            text.innerText = "All Online";
+        } else if (offlineCount === totalLamps) {
+            dot.className = "dot offline";
+            text.innerText = "All Offline";
+        } else if (anyMineOffline) {
+            // Orange: at least one of MY lamps is offline
+            dot.className = "dot mine-offline";
+            text.innerText = offlineCount === 1 ? "One Offline" : offlineCount + " Offline";
+        } else {
+            // Yellow: only partner lamps offline
+            dot.className = "dot partial";
+            text.innerText = offlineCount === 1 ? "One Offline" : offlineCount + " Offline";
+        }
+    }
+}
+
+// Show detailed status popup when clicking the status indicator
+function showStatusPopup() {
+    // Build lamp list
+    const lamps = [];
+    lamps.push({ name: "My Lamp", online: myLampOnline === true });
+    if (hasMySupLamp) lamps.push({ name: "My Lamp 2", online: mySupLampOnline === true });
+    lamps.push({ name: partnerName + "'s Lamp", online: partnerLampOnline === true });
+    if (hasPartnerSupLamp) lamps.push({ name: partnerName + "'s Lamp 2", online: partnerSupLampOnline === true });
+
+    let html = '<div class="status-popup-content">';
+    html += '<h3>Lamp Status</h3>';
+    lamps.forEach(l => {
+        const dotClass = l.online ? 'status-dot-green' : 'status-dot-red';
+        const label = l.online ? 'Online' : 'Offline';
+        html += `<div class="status-lamp-row"><span class="status-lamp-dot ${dotClass}"></span><span class="status-lamp-name">${l.name}</span><span class="status-lamp-label">${label}</span></div>`;
+    });
+    html += '</div>';
+
+    const popup = document.getElementById("statusPopup");
+    popup.innerHTML = html;
+    popup.style.display = "block";
+
+    // Close on click outside
+    setTimeout(() => {
+        document.addEventListener("click", closeStatusPopup, { once: true });
+    }, 10);
+}
+
+function closeStatusPopup(e) {
+    const popup = document.getElementById("statusPopup");
+    if (popup && !popup.contains(e?.target)) {
+        popup.style.display = "none";
     }
 }
 

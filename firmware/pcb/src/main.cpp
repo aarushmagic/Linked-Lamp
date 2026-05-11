@@ -50,6 +50,10 @@ String mqtt_user    = "";
 String mqtt_pass    = "";
 String ota_url      = "";  // Optional: base URL for auto-OTA checks
 
+// Role: "primary", "secondary", or "" (unset = auto-detect on first boot)
+String role = "";
+bool   isSupplementary = false;
+
 // Last Tap Time (Epoch)
 unsigned long lastTapTimestamp = 0;
 
@@ -178,8 +182,9 @@ const unsigned long DAILY_REFRESH_INTERVAL = 86400000UL; // 24 hours
 String triggerTopicSub;
 String triggerTopicPub;
 String settingsTopicSub;
-String otaTopicSub;
 String statusTopicPub;
+String partnerStatusTopicSub;    // Partner's primary status (for web UI detection)
+String partnerSupStatusTopicSub; // Partner's secondary status (for web UI detection)
 
 // =============================================================================
 // Function Prototypes
@@ -207,6 +212,7 @@ void startColorTransition(uint8_t toR, uint8_t toG, uint8_t toB);
 void parseColorCycle(String payload);
 void serialCommandTask(void *pvParameters);
 void processSerialCommand(String cmd);
+void detectRole();
 
 // =============================================================================
 // Setup
@@ -239,25 +245,34 @@ void setup() {
 
   // Determine Target ID
   target_id = (device_id == "A") ? "B" : "A";
+  isSupplementary = (role == "secondary");
   Serial.println("My Device ID: " + device_id);
   Serial.println("Target Device ID: " + target_id);
+  Serial.println("Role: " + (role.length() > 0 ? role : "UNSET (will auto-detect)"));
 
   // Build MQTT Topics (Auto-detect Adafruit IO to use required feeds/ routing)
   String topicPrefix = "linkedlamp/";
   String d_sep = "/";
-  String suf_ota = "system/ota";
 
   if (mqtt_server.indexOf("adafruit") != -1 && mqtt_user.length() > 0) {
     topicPrefix = mqtt_user + "/f/ll_";
     d_sep = "_";
-    suf_ota = "system_ota"; // Adafruit doesn't support nested slashes in feed names mapping
   }
 
   triggerTopicSub  = topicPrefix + device_id + d_sep + "color_trigger";
   settingsTopicSub = topicPrefix + device_id + d_sep + "settings";
-  otaTopicSub      = topicPrefix + device_id + d_sep + suf_ota;
   triggerTopicPub  = topicPrefix + target_id + d_sep + "color_trigger";
-  statusTopicPub   = topicPrefix + device_id + d_sep + "status";
+
+  // Status topic depends on role: primary uses ll_A_status, secondary uses ll_A2_status
+  if (isSupplementary) {
+    statusTopicPub = topicPrefix + device_id + "2" + d_sep + "status";
+  } else {
+    statusTopicPub = topicPrefix + device_id + d_sep + "status";
+  }
+
+  // Partner status topics
+  partnerStatusTopicSub    = topicPrefix + target_id + d_sep + "status";
+  partnerSupStatusTopicSub = topicPrefix + target_id + "2" + d_sep + "status";
 
   // --- WiFi Setup (from sample.cpp pattern) ---
   WiFi.setAutoReconnect(true);
@@ -295,6 +310,11 @@ void setup() {
 
   // MQTT Setup
   setupMQTT();
+
+  // Auto-detect role on first boot (no role saved)
+  if (role.length() == 0) {
+    Serial.println("Role unset — will auto-detect after WiFi/MQTT connects...");
+  }
 
   // OTA Rollback Protection: firmware is NOT marked valid until MQTT connects successfully.
   // If this firmware can't reach MQTT, the bootloader will auto-revert on next boot.
@@ -534,7 +554,8 @@ void loadState() {
     ambientModeEnabled    = doc["ambientMode"]      | false;
     ambientColor          = doc["ambientColor"]     | "#0000FF";
     lastTapTimestamp      = doc["lastTapTimestamp"] | 0UL;
-    Serial.println("State loaded. Default color: " + defaultColor);
+    if (doc["role"].is<const char*>()) role = doc["role"].as<String>();
+    Serial.println("State loaded. Default color: " + defaultColor + ", Role: " + (role.length() > 0 ? role : "unset"));
   }
   f.close();
 }
@@ -553,6 +574,7 @@ void saveState() {
   doc["ambientMode"]  = ambientModeEnabled;
   doc["ambientColor"] = ambientColor;
   doc["lastTapTimestamp"] = lastTapTimestamp;
+  doc["role"]         = role;
 
   File f = LittleFS.open("/state.json", "w");
   if (f) {
@@ -577,7 +599,6 @@ void handleMqttReconnect() {
   if (millis() - lastMqttReconnectAttempt < MQTT_RECONNECT_INTERVAL) return;
   lastMqttReconnectAttempt = millis();
 
-  // Force clean disconnect after repeated failures
   if (mqttFailCount >= 3) {
     Serial.println("Multiple MQTT failures — forcing clean disconnect...");
     mqttClient.disconnect();
@@ -588,26 +609,33 @@ void handleMqttReconnect() {
   Serial.print("Attempting MQTT connection...");
   String clientId = "LinkedLamp-" + device_id + "-" + String(random(0xffff), HEX);
 
-  // Connect with Last Will and Testament
-  if (mqttClient.connect(clientId.c_str(), mqtt_user.c_str(), mqtt_pass.c_str(),
-                          statusTopicPub.c_str(), 1, true, "OFFLINE")) {
+  bool connected = false;
+  if (role.length() == 0) {
+    connected = mqttClient.connect(clientId.c_str(), mqtt_user.c_str(), mqtt_pass.c_str());
+  } else {
+    connected = mqttClient.connect(clientId.c_str(), mqtt_user.c_str(), mqtt_pass.c_str(),
+                            statusTopicPub.c_str(), 1, true, "OFFLINE");
+  }
+
+  if (connected) {
     Serial.println("Connected to MQTT!");
     mqttFailCount = 0;
 
-    // Announce ONLINE with retained message
+    if (role.length() == 0) {
+      detectRole();
+      return;
+    }
+
     String onlineMsg = String("ONLINE:") + HW_TYPE;
     mqttClient.publish(statusTopicPub.c_str(), onlineMsg.c_str(), true);
-    selfStatusOnline = false; // Will be confirmed when we receive our own retained msg
+    selfStatusOnline = false;
     lastStatusCheck = millis();
-    Serial.println("Published " + onlineMsg + " status.");
+    Serial.println("Published " + onlineMsg + " status to " + statusTopicPub);
 
-    // Subscribe to all topics
     mqttClient.subscribe(triggerTopicSub.c_str());
     mqttClient.subscribe(settingsTopicSub.c_str());
-    mqttClient.subscribe(otaTopicSub.c_str());
-    mqttClient.subscribe(statusTopicPub.c_str()); // Self-monitor for stale OFFLINE
+    mqttClient.subscribe(statusTopicPub.c_str());
 
-    // OTA Rollback Protection: mark this firmware as valid once we've proven we can connect
     esp_ota_mark_app_valid_cancel_rollback();
     Serial.println("Firmware marked as valid (rollback cancelled).");
 
@@ -615,7 +643,6 @@ void handleMqttReconnect() {
     mqttFailCount++;
     Serial.printf("Failed, rc=%d (attempt %d)\n", mqttClient.state(), mqttFailCount);
 
-    // After 6 failures (~30s), force WiFi reconnect
     if (mqttFailCount >= 6) {
       Serial.println("Too many MQTT failures — forcing WiFi reconnect...");
       mqttFailCount = 0;
@@ -630,27 +657,27 @@ void handleMqttReconnect() {
 
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
   String topicStr(topic);
-  String msg((char*)payload, length); // Avoid byte-by-byte fragmentation
+  String msg((char*)payload, length);
 
   Serial.println("MQTT [" + topicStr + "] " + msg);
 
   if (topicStr == triggerTopicSub) {
-    // --- Incoming Color Trigger ---
+    if (msg.startsWith("OTA:")) {
+      String url = msg.substring(4);
+      Serial.println("OTA triggered via color_trigger! URL: " + url);
+      performOTA(url);
+      return;
+    }
 
-    // Check for Color Cycle payload (CC:RRGGBB,hold,trans;...)
     if (msg.startsWith("CC:")) {
       parseColorCycle(msg);
 
-      // Update last tap timestamp for the PWA dashboard
       time_t now;
       time(&now);
       lastTapTimestamp = (unsigned long)now;
-      saveState();
       publishSettingsViaMQTT();
 
     } else {
-    // --- Single color trigger (original behavior) ---
-    // Parse the target color
     String hexColor = msg;
     if (hexColor.startsWith("#")) hexColor.remove(0, 1);
     long number = strtol(hexColor.c_str(), NULL, 16);
@@ -658,15 +685,12 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     uint8_t newG = (number >> 8)  & 0xFF;
     uint8_t newB =  number        & 0xFF;
 
-    // Determine if nighttime
     bool isNight = nightModeEnabled && isNighttime();
 
-    // Apply appropriate settings
     if (isNight) {
       currentMaxBrightness = nightMaxBrightness;
       lampDurationMs = (unsigned long)nightLampOnTimeMinutes * 60000UL;
 
-      // If night brightness is 0, keep lamp off entirely
       if (nightMaxBrightness == 0) {
         Serial.println("Nighttime mode: lamp kept OFF (brightness=0).");
         return;
@@ -676,7 +700,6 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       lampDurationMs = (unsigned long)lampOnTimeMinutes * 60000UL;
     }
 
-    // If lamp is currently off, reset displayed color to black so we fade FROM black (or from ambient!)
     if (!isLampOn) {
       if (ambientModeEnabled && !(nightModeEnabled && isNighttime())) {
         String hexColor = ambientColor;
@@ -686,7 +709,6 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
         uint8_t ambG = (number >> 8)  & 0xFF;
         uint8_t ambB =  number        & 0xFF;
         int ambientBrightness = max(1, dayMaxBrightness / 10);
-        // Scale so that when handleLEDs scales by currentMaxBrightness, it equals ambientBrightness
         currentR = min(255, (ambR * ambientBrightness) / max(1, currentMaxBrightness));
         currentG = min(255, (ambG * ambientBrightness) / max(1, currentMaxBrightness));
         currentB = min(255, (ambB * ambientBrightness) / max(1, currentMaxBrightness));
@@ -697,7 +719,6 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       }
     }
 
-    // Start gradual color transition (fade from current color to new color)
     startColorTransition(newR, newG, newB);
 
     isLampOn = true;
@@ -706,28 +727,20 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     pulseStartTime = millis();
     Serial.println("Trigger received! Lamp ON with gradual transition.");
 
-    // Update last tap timestamp for the PWA dashboard
     time_t now;
     time(&now);
     lastTapTimestamp = (unsigned long)now;
-    saveState();
-    publishSettingsViaMQTT(); // Inform web app instantly
+    publishSettingsViaMQTT();
     } // end single color else
 
   } else if (topicStr == settingsTopicSub) {
     parseSettings(msg);
 
-  } else if (topicStr == otaTopicSub) {
-    Serial.println("OTA triggered via MQTT! URL: " + msg);
-    performOTA(msg);
-
   } else if (topicStr == statusTopicPub) {
-    // Self-status monitoring: detect and correct stale OFFLINE retained messages
     if (msg.startsWith("ONLINE")) {
       selfStatusOnline = true;
     } else {
       selfStatusOnline = false;
-      // Immediately attempt to correct stale OFFLINE
       String onlineMsg = String("ONLINE:") + HW_TYPE;
       mqttClient.publish(statusTopicPub.c_str(), onlineMsg.c_str(), true);
       Serial.println("Detected stale OFFLINE status — corrected to ONLINE.");
@@ -821,28 +834,56 @@ void parseColorCycle(String payload) {
 
 void parseSettings(String payload) {
   JsonDocument doc;
-  if (deserializeJson(doc, payload)) return; // Parse error
+  if (deserializeJson(doc, payload)) return;
 
-  if (doc["defaultColor"].is<const char*>()) {
-    defaultColor = doc["defaultColor"].as<String>();
-  }
-  if (doc["dayTimeMin"].is<int>())   lampOnTimeMinutes      = doc["dayTimeMin"];
-  if (doc["dayBright"].is<int>())    dayMaxBrightness       = doc["dayBright"];
-  if (doc["nightMode"].is<bool>())   nightModeEnabled       = doc["nightMode"];
-  if (doc["nightTimeMin"].is<int>()) nightLampOnTimeMinutes = doc["nightTimeMin"];
-  if (doc["nightBright"].is<int>())  nightMaxBrightness     = doc["nightBright"];
-  if (doc["nightStart"].is<const char*>()) nightStartTime   = doc["nightStart"].as<String>();
-  if (doc["nightEnd"].is<const char*>())   nightEndTime     = doc["nightEnd"].as<String>();
-  if (doc["timezone"].is<const char*>()) {
-    userTimezone = doc["timezone"].as<String>();
+  String newDefaultColor = doc["defaultColor"] | defaultColor;
+  int    newDayTimeMin   = doc["dayTimeMin"]   | lampOnTimeMinutes;
+  int    newDayBright    = doc["dayBright"]     | dayMaxBrightness;
+  bool   newNightMode    = doc["nightMode"]     | nightModeEnabled;
+  int    newNightTimeMin = doc["nightTimeMin"]  | nightLampOnTimeMinutes;
+  int    newNightBright  = doc["nightBright"]   | nightMaxBrightness;
+  String newNightStart   = doc["nightStart"]    | nightStartTime;
+  String newNightEnd     = doc["nightEnd"]      | nightEndTime;
+  String newTimezone     = doc["timezone"]      | userTimezone;
+  bool   newAmbientMode  = doc["ambientMode"]   | ambientModeEnabled;
+  String newAmbientColor = doc["ambientColor"]  | ambientColor;
+  unsigned long newLastTap = doc["lastTapTimestamp"] | lastTapTimestamp;
+
+  bool changed = (newDefaultColor != defaultColor)
+              || (newDayTimeMin != lampOnTimeMinutes)
+              || (newDayBright != dayMaxBrightness)
+              || (newNightMode != nightModeEnabled)
+              || (newNightTimeMin != nightLampOnTimeMinutes)
+              || (newNightBright != nightMaxBrightness)
+              || (newNightStart != nightStartTime)
+              || (newNightEnd != nightEndTime)
+              || (newTimezone != userTimezone)
+              || (newAmbientMode != ambientModeEnabled)
+              || (newAmbientColor != ambientColor);
+
+  defaultColor          = newDefaultColor;
+  lampOnTimeMinutes     = newDayTimeMin;
+  dayMaxBrightness      = newDayBright;
+  nightModeEnabled      = newNightMode;
+  nightLampOnTimeMinutes = newNightTimeMin;
+  nightMaxBrightness    = newNightBright;
+  nightStartTime        = newNightStart;
+  nightEndTime          = newNightEnd;
+  ambientModeEnabled    = newAmbientMode;
+  ambientColor          = newAmbientColor;
+  lastTapTimestamp       = newLastTap;
+
+  if (newTimezone != userTimezone || changed) {
+    userTimezone = newTimezone;
     configTzTime(userTimezone.c_str(), "pool.ntp.org", "time.nist.gov");
-    Serial.println("Timezone updated: " + userTimezone);
   }
-  if (doc["ambientMode"].is<bool>()) ambientModeEnabled = doc["ambientMode"];
-  if (doc["ambientColor"].is<const char*>()) ambientColor = doc["ambientColor"].as<String>();
 
-  saveState();
-  Serial.println("Settings updated from web interface.");
+  if (changed) {
+    saveState();
+    Serial.println("Settings updated from web interface (saved to flash).");
+  } else {
+    Serial.println("Settings received (no changes, skipping flash write).");
+  }
 }
 
 // =============================================================================
@@ -869,6 +910,60 @@ void publishSettingsViaMQTT() {
   serializeJson(doc, payload);
   mqttClient.publish(settingsTopicSub.c_str(), payload.c_str(), true); // retained
   Serial.println("Settings published to MQTT: " + payload);
+}
+
+// =============================================================================
+// Role Auto-Detection (runs once on first boot when role is unset)
+// =============================================================================
+static volatile bool roleDetectGotRetained = false;
+
+void roleDetectCallback(char* topic, byte* payload, unsigned int length) {
+  String msg((char*)payload, length);
+  if (msg.length() > 0) {
+    roleDetectGotRetained = true;
+    Serial.println("Role detect: received retained message on primary status: " + msg);
+  }
+}
+
+void detectRole() {
+  Serial.println("=== Role Auto-Detection ===");
+
+  String topicPrefix = "linkedlamp/";
+  String d_sep = "/";
+  if (mqtt_server.indexOf("adafruit") != -1 && mqtt_user.length() > 0) {
+    topicPrefix = mqtt_user + "/f/ll_";
+    d_sep = "_";
+  }
+  String primaryStatusTopic = topicPrefix + device_id + d_sep + "status";
+
+  roleDetectGotRetained = false;
+  mqttClient.setCallback(roleDetectCallback);
+  mqttClient.subscribe(primaryStatusTopic.c_str());
+
+  unsigned long detectStart = millis();
+  while (millis() - detectStart < 3000) {
+    mqttClient.loop();
+    if (roleDetectGotRetained) break;
+    delay(50);
+  }
+
+  mqttClient.unsubscribe(primaryStatusTopic.c_str());
+
+  if (roleDetectGotRetained) {
+    role = "secondary";
+    Serial.println("Primary lamp detected — this lamp will be SECONDARY.");
+  } else {
+    role = "primary";
+    Serial.println("No primary lamp found — this lamp will be PRIMARY.");
+  }
+
+  mqttClient.setCallback(mqttCallback);
+  mqttClient.disconnect();
+
+  saveState();
+  Serial.println("Role saved. Rebooting to apply...");
+  delay(500);
+  ESP.restart();
 }
 
 // =============================================================================
@@ -1475,6 +1570,8 @@ void processSerialCommand(String cmd) {
     Serial.println("MQTT: " + String(mqttClient.connected() ? "CONNECTED" : "DISCONNECTED"));
     Serial.println("Device ID: " + device_id);
     Serial.println("MQTT Server: " + mqtt_server);
+    Serial.println("Role: " + (role.length() > 0 ? role : "unset"));
+    Serial.println("Status Topic: " + statusTopicPub);
     Serial.println("Uptime: " + String(millis() / 1000) + "s");
     Serial.println("[CMD] STATUS_END");
 
@@ -1486,7 +1583,6 @@ void processSerialCommand(String cmd) {
       Serial.println("[CMD] No networks found.");
     } else {
       for (int i = 0; i < n; i++) {
-        // Format: SSID,RSSI,encryption(0=open,else=secured)
         Serial.println(WiFi.SSID(i) + "," + String(WiFi.RSSI(i)) + "," + String(WiFi.encryptionType(i)));
       }
     }
@@ -1494,7 +1590,7 @@ void processSerialCommand(String cmd) {
     WiFi.scanDelete();
 
   } else if (cmd.startsWith("SET_WIFI:")) {
-    String data = cmd.substring(9); // Strip "SET_WIFI:"
+    String data = cmd.substring(9);
     int commaPos = data.indexOf(',');
     if (commaPos == -1) {
       Serial.println("[CMD] ERROR: Format is SET_WIFI:ssid,password");
@@ -1511,11 +1607,64 @@ void processSerialCommand(String cmd) {
     Serial.println("[CMD] Setting WiFi credentials...");
     Serial.println("[CMD] SSID: " + ssid);
     Serial.println("[CMD] Password: " + String(password.length() > 0 ? "(set)" : "(open network)"));
-    // Store credentials in NVS via WiFi.begin(), then reboot to connect
-    wifiManager.resetSettings(); // Clear old credentials first
+    wifiManager.resetSettings();
     WiFi.begin(ssid.c_str(), password.c_str());
-    delay(1000); // Give NVS time to persist
+    delay(1000);
     Serial.println("[CMD] WiFi credentials saved. Rebooting...");
+    ESP.restart();
+
+  } else if (cmd == "MAKE_PRIMARY") {
+    Serial.println("[CMD] Promoting lamp to PRIMARY role...");
+    String topicPrefix = "linkedlamp/";
+    String d_sep = "/";
+    if (mqtt_server.indexOf("adafruit") != -1 && mqtt_user.length() > 0) {
+      topicPrefix = mqtt_user + "/f/ll_";
+      d_sep = "_";
+    }
+    String secStatusTopic = topicPrefix + device_id + "2" + d_sep + "status";
+    if (mqttClient.connected()) {
+      mqttClient.publish(secStatusTopic.c_str(), "", true);
+      mqttClient.loop();
+      delay(200);
+      Serial.println("[CMD] Cleared secondary status topic: " + secStatusTopic);
+    } else {
+      Serial.println("[CMD] WARNING: MQTT not connected, could not clear secondary status.");
+    }
+    role = "primary";
+    saveState();
+    Serial.println("[CMD] Role set to PRIMARY. Rebooting...");
+    delay(500);
+    ESP.restart();
+
+  } else if (cmd == "MAKE_SECONDARY") {
+    Serial.println("[CMD] Demoting lamp to SECONDARY role...");
+    String topicPrefix = "linkedlamp/";
+    String d_sep = "/";
+    if (mqtt_server.indexOf("adafruit") != -1 && mqtt_user.length() > 0) {
+      topicPrefix = mqtt_user + "/f/ll_";
+      d_sep = "_";
+    }
+    String priStatusTopic = topicPrefix + device_id + d_sep + "status";
+    if (mqttClient.connected()) {
+      mqttClient.publish(priStatusTopic.c_str(), "", true);
+      mqttClient.loop();
+      delay(200);
+      Serial.println("[CMD] Cleared primary status topic: " + priStatusTopic);
+    } else {
+      Serial.println("[CMD] WARNING: MQTT not connected, could not clear primary status.");
+    }
+    role = "secondary";
+    saveState();
+    Serial.println("[CMD] Role set to SECONDARY. Rebooting...");
+    delay(500);
+    ESP.restart();
+
+  } else if (cmd == "RESET_ROLE") {
+    Serial.println("[CMD] Clearing role (will auto-detect on next boot)...");
+    role = "";
+    saveState();
+    Serial.println("[CMD] Role cleared. Rebooting...");
+    delay(500);
     ESP.restart();
 
   } else if (cmd == "REBOOT") {
@@ -1525,17 +1674,20 @@ void processSerialCommand(String cmd) {
 
   } else if (cmd == "HELP") {
     Serial.println("[CMD] Available commands:");
-    Serial.println("  RESET_WIFI    - Clear WiFi credentials and reboot (opens config portal)");
-    Serial.println("  SCAN_WIFI     - Scan for nearby WiFi networks");
-    Serial.println("  SET_WIFI:s,p  - Set new WiFi credentials (SSID,password) and reboot");
-    Serial.println("  RESET_CONFIG  - Delete MQTT config and reboot (enters SEND_CONFIG mode)");
-    Serial.println("  RESET_ALL     - Factory reset: clear WiFi + config + state");
-    Serial.println("  SET_CONFIG:{} - Set new config JSON and reboot");
-    Serial.println("  GET_CONFIG    - Print current /config.json");
-    Serial.println("  GET_STATE     - Print current /state.json");
-    Serial.println("  GET_STATUS    - Print WiFi/MQTT connection status");
-    Serial.println("  REBOOT        - Restart the device");
-    Serial.println("  HELP          - Show this help message");
+    Serial.println("  RESET_WIFI      - Clear WiFi credentials and reboot (opens config portal)");
+    Serial.println("  SCAN_WIFI       - Scan for nearby WiFi networks");
+    Serial.println("  SET_WIFI:s,p    - Set new WiFi credentials (SSID,password) and reboot");
+    Serial.println("  RESET_CONFIG    - Delete MQTT config and reboot (enters SEND_CONFIG mode)");
+    Serial.println("  RESET_ALL       - Factory reset: clear WiFi + config + state");
+    Serial.println("  SET_CONFIG:{}   - Set new config JSON and reboot");
+    Serial.println("  GET_CONFIG      - Print current /config.json");
+    Serial.println("  GET_STATE       - Print current /state.json");
+    Serial.println("  GET_STATUS      - Print WiFi/MQTT/role status");
+    Serial.println("  MAKE_PRIMARY    - Promote to primary (clears secondary status, reboots)");
+    Serial.println("  MAKE_SECONDARY  - Demote to secondary (clears primary status, reboots)");
+    Serial.println("  RESET_ROLE      - Clear role (auto-detect on next boot)");
+    Serial.println("  REBOOT          - Restart the device");
+    Serial.println("  HELP            - Show this help message");
 
   } else {
     Serial.println("[CMD] Unknown command. Type HELP for available commands.");
