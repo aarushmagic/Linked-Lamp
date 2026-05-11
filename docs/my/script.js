@@ -465,40 +465,63 @@ function updateStatusUI() {
             text.innerText = offlineCount === 1 ? "One Offline" : offlineCount + " Offline";
         }
     }
+
+    // Live update popup if it's open
+    const popup = document.getElementById("statusPopup");
+    if (popup && popup.style.display === "block") {
+        updateStatusPopupContent();
+    }
 }
 
-// Show detailed status popup when clicking the status indicator
-function showStatusPopup() {
+// Show or hide detailed status popup
+function toggleStatusPopup(e) {
+    const popup = document.getElementById("statusPopup");
+    
+    // If it's already open and the click was on the indicator (not inside the popup itself), close it
+    if (popup.style.display === "block" && !popup.contains(e.target)) {
+        popup.style.display = "none";
+        document.removeEventListener("click", closeStatusPopup);
+        return;
+    }
+
+    updateStatusPopupContent();
+    popup.style.display = "block";
+
+    // Close on click outside
+    document.removeEventListener("click", closeStatusPopup);
+    setTimeout(() => {
+        document.addEventListener("click", closeStatusPopup);
+    }, 10);
+}
+
+function updateStatusPopupContent() {
+    const popup = document.getElementById("statusPopup");
+    if (!popup) return;
+
     // Build lamp list
     const lamps = [];
     lamps.push({ name: "My Lamp", online: myLampOnline === true });
-    if (hasMySupLamp) lamps.push({ name: "My Lamp 2", online: mySupLampOnline === true });
+    if (hasMySupLamp) lamps.push({ name: "My Second Lamp", online: mySupLampOnline === true });
     lamps.push({ name: partnerName + "'s Lamp", online: partnerLampOnline === true });
-    if (hasPartnerSupLamp) lamps.push({ name: partnerName + "'s Lamp 2", online: partnerSupLampOnline === true });
+    if (hasPartnerSupLamp) lamps.push({ name: partnerName + "'s Second Lamp", online: partnerSupLampOnline === true });
 
     let html = '<div class="status-popup-content">';
     html += '<h3>Lamp Status</h3>';
     lamps.forEach(l => {
         const dotClass = l.online ? 'status-dot-green' : 'status-dot-red';
-        const label = l.online ? 'Online' : 'Offline';
-        html += `<div class="status-lamp-row"><span class="status-lamp-dot ${dotClass}"></span><span class="status-lamp-name">${l.name}</span><span class="status-lamp-label">${label}</span></div>`;
+        html += `<div class="status-lamp-row"><span class="status-lamp-dot ${dotClass}"></span><span class="status-lamp-name">${l.name}</span></div>`;
     });
     html += '</div>';
 
-    const popup = document.getElementById("statusPopup");
     popup.innerHTML = html;
-    popup.style.display = "block";
-
-    // Close on click outside
-    setTimeout(() => {
-        document.addEventListener("click", closeStatusPopup, { once: true });
-    }, 10);
 }
 
 function closeStatusPopup(e) {
     const popup = document.getElementById("statusPopup");
-    if (popup && !popup.contains(e?.target)) {
+    const indicator = document.getElementById("statusIndicator");
+    if (popup && !indicator.contains(e?.target)) {
         popup.style.display = "none";
+        document.removeEventListener("click", closeStatusPopup);
     }
 }
 

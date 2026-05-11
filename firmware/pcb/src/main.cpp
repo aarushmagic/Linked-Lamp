@@ -1633,6 +1633,7 @@ void processSerialCommand(String cmd) {
     role = "primary";
     saveState();
     Serial.println("[CMD] Role set to PRIMARY. Rebooting...");
+    if (mqttClient.connected()) mqttClient.disconnect();
     delay(500);
     ESP.restart();
 
@@ -1656,14 +1657,26 @@ void processSerialCommand(String cmd) {
     role = "secondary";
     saveState();
     Serial.println("[CMD] Role set to SECONDARY. Rebooting...");
+    if (mqttClient.connected()) mqttClient.disconnect();
     delay(500);
     ESP.restart();
 
   } else if (cmd == "RESET_ROLE") {
     Serial.println("[CMD] Clearing role (will auto-detect on next boot)...");
+    
+    if (mqttClient.connected() && statusTopicPub.length() > 0) {
+      mqttClient.publish(statusTopicPub.c_str(), "", true);
+      mqttClient.loop();
+      delay(200);
+      Serial.println("[CMD] Cleared current status topic: " + statusTopicPub);
+    } else if (!mqttClient.connected()) {
+      Serial.println("[CMD] WARNING: MQTT not connected, could not clear current status.");
+    }
+
     role = "";
     saveState();
     Serial.println("[CMD] Role cleared. Rebooting...");
+    if (mqttClient.connected()) mqttClient.disconnect();
     delay(500);
     ESP.restart();
 
