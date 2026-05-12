@@ -55,6 +55,8 @@ String ota_url      = "";  // Optional: base URL for auto-OTA checks
 // Role: "primary", "secondary", or "" (unset = auto-detect on first boot)
 String role = "";
 bool   isSupplementary = false;
+volatile bool isRebooting = false;
+volatile bool pauseCore1 = false;
 
 // Last Tap Time (Epoch)
 unsigned long lastTapTimestamp = 0;
@@ -340,6 +342,8 @@ void setup() {
 // Main Loop (NO delay() calls)
 // =============================================================================
 void loop() {
+  if (pauseCore1) { delay(10); return; }
+  if (isRebooting) return;
   wifiManager.process();
   handleWifi();
   handleTouch();
@@ -1645,6 +1649,8 @@ void processSerialCommand(String cmd) {
 
   } else if (cmd == "MAKE_PRIMARY") {
     Serial.println("[CMD] Promoting lamp to PRIMARY role...");
+    pauseCore1 = true;
+    delay(50);
     // Build secondary status topic to clear
     String topicPrefix = "linkedlamp/";
     String d_sep = "/";
@@ -1667,12 +1673,15 @@ void processSerialCommand(String cmd) {
     role = "primary";
     saveState();
     Serial.println("[CMD] Role set to PRIMARY. Rebooting...");
+    isRebooting = true;
     if (mqttClient.connected()) mqttClient.disconnect();
     delay(500);
     ESP.restart();
 
   } else if (cmd == "MAKE_SECONDARY") {
     Serial.println("[CMD] Demoting lamp to SECONDARY role...");
+    pauseCore1 = true;
+    delay(50);
     // Build primary status topic to clear
     String topicPrefix = "linkedlamp/";
     String d_sep = "/";
@@ -1695,12 +1704,15 @@ void processSerialCommand(String cmd) {
     role = "secondary";
     saveState();
     Serial.println("[CMD] Role set to SECONDARY. Rebooting...");
+    isRebooting = true;
     if (mqttClient.connected()) mqttClient.disconnect();
     delay(500);
     ESP.restart();
 
   } else if (cmd == "RESET_ROLE") {
     Serial.println("[CMD] Clearing role (will auto-detect on next boot)...");
+    pauseCore1 = true;
+    delay(50);
     
     if (mqttClient.connected() && statusTopicPub.length() > 0) {
       mqttClient.publish(statusTopicPub.c_str(), "", true);
@@ -1714,6 +1726,7 @@ void processSerialCommand(String cmd) {
     role = "";
     saveState();
     Serial.println("[CMD] Role cleared. Rebooting...");
+    isRebooting = true;
     if (mqttClient.connected()) mqttClient.disconnect();
     delay(500);
     ESP.restart();

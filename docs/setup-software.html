@@ -486,8 +486,7 @@
             <span class="material-icons-round">warning</span>
             <div>
                 <p><strong>Both lamps must be flashed at the same time.</strong></p>
-                <p>Do not proceed unless both lamps are fully assembled and ready to be programmed. If you need to
-                    reflash the firmware on one lamp, <strong>both lamps must be reflashed</strong>.</p>
+                <p>We recommend flashing the software onto the ESP32 boards <strong>before</strong> attaching them to the lamp or soldering them. If you need to reflash the firmware on one lamp later, <strong>both lamps must be reflashed</strong>.</p>
             </div>
         </div>
 
@@ -578,6 +577,10 @@
 
                 <p>Click the button below to flash the firmware and your personal configuration in one go.</p>
 
+                <div class="tip-box" style="text-align: left; margin-top: 15px; margin-bottom: 20px;">
+                    <strong>Tip:</strong> Depending on your ESP32 board, if it fails to flash, you may need to press and hold the <strong>BOOT</strong> button on the ESP32 when the flashing process starts, and let go once it begins flashing.
+                </div>
+
                 <button class="flash-btn" id="btnFlashA" onclick="startFlash('A')">
                     <span class="material-icons-round">bolt</span> Connect & Flash
                 </button>
@@ -636,6 +639,10 @@
                 </div>
 
                 <p>Click the button below to flash this lamp too.</p>
+
+                <div class="tip-box" style="text-align: left; margin-top: 15px; margin-bottom: 20px;">
+                    <strong>Tip:</strong> Depending on your ESP32 board, if it fails to flash, you may need to press and hold the <strong>BOOT</strong> button on the ESP32 when the flashing process starts, and let go once it begins flashing.
+                </div>
 
                 <button class="flash-btn" id="btnFlashB" onclick="startFlash('B')">
                     <span class="material-icons-round">bolt</span> Connect & Flash
@@ -727,6 +734,10 @@
                     (→ arrow in the bottom blue bar) to flash the main firmware.</p>
             </div>
 
+            <div class="tip-box" style="text-align: left; margin-bottom: 20px;">
+                <strong>Tip:</strong> Depending on your ESP32 board, if it fails to flash, you may need to press and hold the <strong>BOOT</strong> button on the ESP32 when the upload process starts, and let go once it begins flashing.
+            </div>
+
             <p>Wait for both to say <strong>SUCCESS</strong>. If they do, Lamp A is fully programmed!</p>
 
             <div class="step-actions">
@@ -758,6 +769,10 @@
             <div class="alert-box">
                 <p><strong>1. Upload Filesystem Image</strong> (Pushes the new "B" config)</p>
                 <p style="margin-bottom: 0;"><strong>2. Upload</strong> (Flashes the firmware)</p>
+            </div>
+
+            <div class="tip-box" style="text-align: left; margin-bottom: 20px;">
+                <strong>Tip:</strong> Depending on your ESP32 board, if it fails to flash, you may need to press and hold the <strong>BOOT</strong> button on the ESP32 when the upload process starts, and let go once it begins flashing.
             </div>
 
             <p>Wait for both to say <strong>SUCCESS</strong>. You're done programming!</p>
