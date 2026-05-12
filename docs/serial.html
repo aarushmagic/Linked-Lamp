@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Linked Lamp | Serial Monitor</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <link rel="icon" type="image/png" href="images/logo.png">
+    <style>
+        :root {
+            --bg: #070911;
+            --bg-card: rgba(255, 255, 255, 0.03);
+            --border: rgba(255, 255, 255, 0.06);
+            --text: #ffffff;
+            --text-dim: #9ca3af;
+            --accent: #6b4cff;
+            --accent-hover: #8970ff;
+            --accent-glow: rgba(107, 76, 255, 0.35);
+            --danger: #ff4757;
+            --success: #2ed573;
+            --warning: #ffa502;
+            --font: 'Outfit', sans-serif;
+            --mono: 'JetBrains Mono', 'Consolas', monospace;
+            --radius: 14px;
+            --ease: 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--font);
+            height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border);
+            background: rgba(7, 9, 17, 0.85);
+            backdrop-filter: blur(16px);
+            flex-shrink: 0;
+        }
+
+        .header-left { display: flex; align-items: center; gap: 12px; }
+
+        .header-left h1 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            letter-spacing: -0.3px;
+        }
+
+        .header-left h1 a { color: inherit; text-decoration: none; }
+
+        .header-left .divider {
+            width: 1px;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .header-left .page-label {
+            font-size: 0.9rem;
+            color: var(--text-dim);
+            font-weight: 400;
+        }
+
+        .header-right { display: flex; align-items: center; gap: 10px; }
+
+        .icon-btn {
+            background: none;
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: var(--ease);
+            font-size: 0;
+        }
+
+        .icon-btn:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .icon-btn .material-icons-round { font-size: 20px; }
+
+        /* Connection bar */
+        .conn-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 24px;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-card);
+            flex-shrink: 0;
+            flex-wrap: wrap;
+        }
+
+        .conn-btn {
+            padding: 8px 20px;
+            border-radius: 8px;
+            font-family: var(--font);
+            font-size: 0.85rem;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: var(--ease);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .conn-btn.connect {
+            background: var(--accent);
+            color: white;
+        }
+
+        .conn-btn.connect:hover {
+            background: var(--accent-hover);
+            box-shadow: 0 4px 15px var(--accent-glow);
+        }
+
+        .conn-btn.disconnect {
+            background: rgba(255, 71, 87, 0.15);
+            color: var(--danger);
+            border: 1px solid rgba(255, 71, 87, 0.3);
+        }
+
+        .conn-btn.disconnect:hover { background: rgba(255, 71, 87, 0.25); }
+
+        .conn-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.82rem;
+            color: var(--text-dim);
+        }
+
+        .conn-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--danger);
+            flex-shrink: 0;
+        }
+
+        .conn-dot.connected { background: var(--success); box-shadow: 0 0 8px rgba(46, 213, 115, 0.5); }
+
+        .baud-select {
+            padding: 6px 10px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
+            color: var(--text);
+            font-family: var(--mono);
+            font-size: 0.8rem;
+            margin-left: auto;
+        }
+
+        .baud-select option { background: #1a1d2e; }
+
+        /* Terminal */
+        .terminal-wrap {
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .terminal {
+            height: 100%;
+            overflow-y: auto;
+            padding: 16px 24px;
+            font-family: var(--mono);
+            font-size: 0.82rem;
+            line-height: 1.7;
+            white-space: pre-wrap;
+            word-break: break-all;
+            scroll-behavior: smooth;
+        }
+
+        .terminal::-webkit-scrollbar { width: 6px; }
+        .terminal::-webkit-scrollbar-track { background: transparent; }
+        .terminal::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+
+        .line-tx { color: var(--accent); }
+        .line-rx { color: #c8d6e5; }
+        .line-sys { color: var(--warning); font-style: italic; }
+        .line-err { color: var(--danger); }
+
+        .terminal .timestamp {
+            color: rgba(255,255,255,0.2);
+            margin-right: 8px;
+            font-size: 0.75rem;
+        }
+
+        /* Input bar */
+        .input-bar {
+            display: flex;
+            gap: 8px;
+            padding: 12px 24px;
+            border-top: 1px solid var(--border);
+            background: rgba(7, 9, 17, 0.9);
+            backdrop-filter: blur(16px);
+            flex-shrink: 0;
+        }
+
+        .input-bar input {
+            flex: 1;
+            padding: 10px 16px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
+            color: var(--text);
+            font-family: var(--mono);
+            font-size: 0.85rem;
+            outline: none;
+            transition: var(--ease);
+        }
+
+        .input-bar input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+        .input-bar input::placeholder { color: rgba(255,255,255,0.2); }
+        .input-bar input:disabled { opacity: 0.4; }
+
+        .send-btn {
+            padding: 10px 20px;
+            border-radius: 10px;
+            background: var(--accent);
+            color: white;
+            border: none;
+            font-family: var(--font);
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: var(--ease);
+        }
+
+        .send-btn:hover { background: var(--accent-hover); }
+        .send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        /* Info Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(8px);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal-overlay.open { display: flex; }
+
+        .modal {
+            background: #12141f;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            max-width: 520px;
+            width: 100%;
+            max-height: 80vh;
+            overflow-y: auto;
+            padding: 28px;
+            position: relative;
+        }
+
+        .modal::-webkit-scrollbar { width: 4px; }
+        .modal::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+        .modal h2 {
+            font-size: 1.15rem;
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .modal h2 .material-icons-round { color: var(--accent); font-size: 22px; }
+
+        .modal-close {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: none;
+            border: none;
+            color: var(--text-dim);
+            cursor: pointer;
+            font-size: 0;
+        }
+
+        .modal-close:hover { color: var(--text); }
+
+        .cmd-list { list-style: none; }
+
+        .cmd-list li {
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            display: flex;
+            gap: 12px;
+            align-items: baseline;
+        }
+
+        .cmd-list li:last-child { border-bottom: none; }
+
+        .cmd-name {
+            font-family: var(--mono);
+            font-size: 0.8rem;
+            color: var(--accent);
+            white-space: nowrap;
+            flex-shrink: 0;
+            min-width: 145px;
+            cursor: pointer;
+            transition: var(--ease);
+        }
+
+        .cmd-name:hover { color: var(--accent-hover); text-decoration: underline; }
+
+        .cmd-desc {
+            font-size: 0.82rem;
+            color: var(--text-dim);
+            line-height: 1.4;
+        }
+
+        /* Not supported banner */
+        .not-supported {
+            display: none;
+            padding: 20px 24px;
+            background: rgba(255, 71, 87, 0.08);
+            border-bottom: 1px solid rgba(255, 71, 87, 0.2);
+            color: var(--danger);
+            font-size: 0.9rem;
+            text-align: center;
+        }
+
+        @media (max-width: 600px) {
+            .header { padding: 12px 16px; }
+            .conn-bar { padding: 10px 16px; }
+            .terminal { padding: 12px 16px; font-size: 0.75rem; }
+            .input-bar { padding: 10px 16px; }
+            .header-left .divider, .header-left .page-label { display: none; }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="header-left">
+            <h1><a href="index.html">Linked Lamp</a></h1>
+            <div class="divider"></div>
+            <span class="page-label">Serial Monitor</span>
+        </div>
+        <div class="header-right">
+            <button class="icon-btn" id="btnInfo" title="Command Reference">
+                <span class="material-icons-round">info</span>
+            </button>
+            <button class="icon-btn" id="btnClear" title="Clear Terminal">
+                <span class="material-icons-round">delete_sweep</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Browser support warning -->
+    <div class="not-supported" id="notSupported">
+        Your browser does not support the Web Serial API. Please use Chrome or Edge on desktop.
+    </div>
+
+    <!-- Connection bar -->
+    <div class="conn-bar">
+        <button class="conn-btn connect" id="btnConnect">
+            <span class="material-icons-round" style="font-size:16px">usb</span>
+            Connect
+        </button>
+        <div class="conn-status">
+            <div class="conn-dot" id="connDot"></div>
+            <span id="connLabel">Disconnected</span>
+        </div>
+        <select class="baud-select" id="baudRate" title="Baud Rate">
+            <option value="9600">9600</option>
+            <option value="19200">19200</option>
+            <option value="38400">38400</option>
+            <option value="57600">57600</option>
+            <option value="115200" selected>115200</option>
+            <option value="230400">230400</option>
+            <option value="460800">460800</option>
+            <option value="921600">921600</option>
+        </select>
+    </div>
+
+    <!-- Terminal output -->
+    <div class="terminal-wrap">
+        <div class="terminal" id="terminal">
+            <div class="line-sys"><span class="timestamp">--:--:--</span>Welcome to the Linked Lamp Serial Monitor. Click "Connect" to begin.</div>
+        </div>
+    </div>
+
+    <!-- Input bar -->
+    <div class="input-bar">
+        <input type="text" id="cmdInput" placeholder="Type a command (e.g. HELP)..." disabled autocomplete="off"
+            spellcheck="false">
+        <button class="send-btn" id="btnSend" disabled>Send</button>
+    </div>
+
+    <!-- Info Modal -->
+    <div class="modal-overlay" id="infoModal">
+        <div class="modal">
+            <button class="modal-close" id="modalClose">
+                <span class="material-icons-round">close</span>
+            </button>
+            <h2><span class="material-icons-round">terminal</span> Command Reference</h2>
+            <ul class="cmd-list">
+                <li>
+                    <span class="cmd-name" data-cmd="HELP">HELP</span>
+                    <span class="cmd-desc">Show all available commands</span>
+                </li>
+                <li>
+                    <span class="cmd-name" data-cmd="GET_STATUS">GET_STATUS</span>
+                    <span class="cmd-desc">Print WiFi, MQTT, and role status</span>
+                </li>
+                <li>
+                    <span class="cmd-name" data-cmd="GET_CONFIG">GET_CONFIG</span>
+                    <span class="cmd-desc">Print the current /config.json</span>
+                </li>
+                <li>
+                    <span class="cmd-name" data-cmd="GET_STATE">GET_STATE</span>
+                    <span class="cmd-desc">Print the current /state.json</span>
+                </li>
+                <li>
+                    <span class="cmd-name" data-cmd="SET_CONFIG:{}">SET_CONFIG:{}</span>
+                    <span class="cmd-desc">Set new MQTT config JSON and reboot</span>
+                </li>
+                <li>
+                    <span class="cmd-name" data-cmd="SET_WIFI:ssid,pass">SET_WIFI:s,p</span>
+                    <span class="cmd-desc">Set new WiFi credentials and reboot</span>
+                </li>
+                <li>
+                    <span class="cmd-name" data-cmd="SCAN_WIFI">SCAN_WIFI</span>
+                    <span class="cmd-desc">Scan for nearby WiFi networks</span>
+                </li>
+                <li>
+                    <span class="cmd-name" data-cmd="RESET_WIFI">RESET_WIFI</span>
+                    <span class="cmd-desc">Clear WiFi credentials and reboot (opens config portal)</span>
+                </li>
+                <li>
+                    <span class="cmd-name" data-cmd="RESET_CONFIG">RESET_CONFIG</span>
+                    <span class="cmd-desc">Delete MQTT config and reboot</span>
+                </li>
+                <li>
+                    <span class="cmd-name" data-cmd="MAKE_PRIMARY">MAKE_PRIMARY</span>
+                    <span class="cmd-desc">Promote to primary lamp (clears secondary status, reboots)</span>
+                </li>
+                <li>
+                    <span class="cmd-name" data-cmd="MAKE_SECONDARY">MAKE_SECONDARY</span>
+                    <span class="cmd-desc">Demote to secondary lamp (clears primary status, reboots)</span>
+                </li>
+                <li>
+                    <span class="cmd-name" data-cmd="RESET_ROLE">RESET_ROLE</span>
+                    <span class="cmd-desc">Clear role and auto-detect on next boot</span>
+                </li>
+                <li>
+                    <span class="cmd-name" data-cmd="REBOOT">REBOOT</span>
+                    <span class="cmd-desc">Restart the device</span>
+                </li>
+                <li>
+                    <span class="cmd-name" data-cmd="RESET_ALL">RESET_ALL</span>
+                    <span class="cmd-desc">Factory reset — clear WiFi + config + state</span>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // ====== State ======
+        let port = null;
+        let reader = null;
+        let writer = null;
+        let readableStreamClosed = null;
+        let isConnected = false;
+
+        // ====== DOM ======
+        const terminal = document.getElementById("terminal");
+        const cmdInput = document.getElementById("cmdInput");
+        const btnSend = document.getElementById("btnSend");
+        const btnConnect = document.getElementById("btnConnect");
+        const btnClear = document.getElementById("btnClear");
+        const btnInfo = document.getElementById("btnInfo");
+        const infoModal = document.getElementById("infoModal");
+        const modalClose = document.getElementById("modalClose");
+        const connDot = document.getElementById("connDot");
+        const connLabel = document.getElementById("connLabel");
+        const baudSelect = document.getElementById("baudRate");
+
+        // ====== Browser support check ======
+        if (!("serial" in navigator)) {
+            document.getElementById("notSupported").style.display = "block";
+            btnConnect.disabled = true;
+            btnConnect.style.opacity = "0.4";
+        }
+
+        // ====== Terminal helpers ======
+        function timestamp() {
+            const d = new Date();
+            return d.toLocaleTimeString("en-US", { hour12: false });
+        }
+
+        function appendLine(text, cls = "line-rx") {
+            const div = document.createElement("div");
+            div.className = cls;
+            div.innerHTML = `<span class="timestamp">${timestamp()}</span>${escapeHtml(text)}`;
+            terminal.appendChild(div);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        function escapeHtml(s) {
+            const d = document.createElement("div");
+            d.textContent = s;
+            return d.innerHTML;
+        }
+
+        // ====== Connect / Disconnect ======
+        btnConnect.addEventListener("click", async () => {
+            if (isConnected) {
+                await disconnectSerial();
+            } else {
+                await connectSerial();
+            }
+        });
+
+        async function connectSerial() {
+            try {
+                port = await navigator.serial.requestPort();
+                const baud = parseInt(baudSelect.value);
+                await port.open({ baudRate: baud });
+
+                appendLine(`Connected at ${baud} baud`, "line-sys");
+                setConnected(true);
+
+                // Start reading
+                const decoder = new TextDecoderStream();
+                readableStreamClosed = port.readable.pipeTo(decoder.writable);
+                reader = decoder.readable.getReader();
+
+                const encoder = new TextEncoderStream();
+                encoder.readable.pipeTo(port.writable);
+                writer = encoder.writable.getWriter();
+
+                readLoop();
+            } catch (e) {
+                if (e.name !== "NotFoundError") {
+                    appendLine("Connection failed: " + e.message, "line-err");
+                }
+            }
+        }
+
+        async function readLoop() {
+            let lineBuffer = "";
+            try {
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    if (value) {
+                        lineBuffer += value;
+                        const lines = lineBuffer.split("\n");
+                        lineBuffer = lines.pop(); // keep incomplete line in buffer
+                        for (const line of lines) {
+                            const trimmed = line.replace(/\r$/, "");
+                            if (trimmed.length > 0) appendLine(trimmed, "line-rx");
+                        }
+                    }
+                }
+            } catch (e) {
+                if (isConnected) appendLine("Read error: " + e.message, "line-err");
+            }
+            if (isConnected) await disconnectSerial();
+        }
+
+        async function disconnectSerial() {
+            setConnected(false);
+            try {
+                if (reader) { await reader.cancel(); reader = null; }
+                if (readableStreamClosed) { await readableStreamClosed.catch(() => { }); readableStreamClosed = null; }
+                if (writer) { await writer.close().catch(() => { }); writer = null; }
+                if (port) { await port.close().catch(() => { }); port = null; }
+            } catch (e) { /* best-effort cleanup */ }
+            appendLine("Disconnected", "line-sys");
+        }
+
+        function setConnected(state) {
+            isConnected = state;
+            cmdInput.disabled = !state;
+            btnSend.disabled = !state;
+            connDot.className = "conn-dot" + (state ? " connected" : "");
+            connLabel.textContent = state ? "Connected" : "Disconnected";
+            btnConnect.textContent = state ? "Disconnect" : "Connect";
+            btnConnect.className = "conn-btn " + (state ? "disconnect" : "connect");
+            if (state) cmdInput.focus();
+        }
+
+        // ====== Send command ======
+        async function sendCommand() {
+            const cmd = cmdInput.value.trim();
+            if (!cmd || !writer) return;
+            appendLine("→ " + cmd, "line-tx");
+            await writer.write(cmd + "\n");
+            cmdInput.value = "";
+            cmdInput.focus();
+        }
+
+        btnSend.addEventListener("click", sendCommand);
+        cmdInput.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") sendCommand();
+        });
+
+        // ====== Clear ======
+        btnClear.addEventListener("click", () => {
+            terminal.innerHTML = "";
+            appendLine("Terminal cleared", "line-sys");
+        });
+
+        // ====== Info Modal ======
+        btnInfo.addEventListener("click", () => infoModal.classList.add("open"));
+        modalClose.addEventListener("click", () => infoModal.classList.remove("open"));
+        infoModal.addEventListener("click", (e) => {
+            if (e.target === infoModal) infoModal.classList.remove("open");
+        });
+
+        // Click-to-insert command from modal
+        document.querySelectorAll(".cmd-name[data-cmd]").forEach(el => {
+            el.addEventListener("click", () => {
+                cmdInput.value = el.dataset.cmd;
+                infoModal.classList.remove("open");
+                if (isConnected) cmdInput.focus();
+            });
+        });
+    </script>
+</body>
+
+</html>
