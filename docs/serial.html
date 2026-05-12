@@ -29,7 +29,13 @@
             --ease: 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
         }
 
-        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        *,
+        *::before,
+        *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
         body {
             background: var(--bg);
@@ -53,7 +59,11 @@
             flex-shrink: 0;
         }
 
-        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
 
         .header-left h1 {
             font-size: 1.2rem;
@@ -61,7 +71,10 @@
             letter-spacing: -0.3px;
         }
 
-        .header-left h1 a { color: inherit; text-decoration: none; }
+        .header-left h1 a {
+            color: inherit;
+            text-decoration: none;
+        }
 
         .header-left .divider {
             width: 1px;
@@ -75,7 +88,11 @@
             font-weight: 400;
         }
 
-        .header-right { display: flex; align-items: center; gap: 10px; }
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
 
         .icon-btn {
             background: none;
@@ -98,7 +115,9 @@
             border-color: rgba(255, 255, 255, 0.15);
         }
 
-        .icon-btn .material-icons-round { font-size: 20px; }
+        .icon-btn .material-icons-round {
+            font-size: 20px;
+        }
 
         /* Connection bar */
         .conn-bar {
@@ -142,7 +161,9 @@
             border: 1px solid rgba(255, 71, 87, 0.3);
         }
 
-        .conn-btn.disconnect:hover { background: rgba(255, 71, 87, 0.25); }
+        .conn-btn.disconnect:hover {
+            background: rgba(255, 71, 87, 0.25);
+        }
 
         .conn-status {
             display: flex;
@@ -160,7 +181,10 @@
             flex-shrink: 0;
         }
 
-        .conn-dot.connected { background: var(--success); box-shadow: 0 0 8px rgba(46, 213, 115, 0.5); }
+        .conn-dot.connected {
+            background: var(--success);
+            box-shadow: 0 0 8px rgba(46, 213, 115, 0.5);
+        }
 
         .baud-select {
             padding: 6px 10px;
@@ -173,7 +197,9 @@
             margin-left: auto;
         }
 
-        .baud-select option { background: #1a1d2e; }
+        .baud-select option {
+            background: #1a1d2e;
+        }
 
         /* Terminal */
         .terminal-wrap {
@@ -194,17 +220,38 @@
             scroll-behavior: smooth;
         }
 
-        .terminal::-webkit-scrollbar { width: 6px; }
-        .terminal::-webkit-scrollbar-track { background: transparent; }
-        .terminal::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+        .terminal::-webkit-scrollbar {
+            width: 6px;
+        }
 
-        .line-tx { color: var(--accent); }
-        .line-rx { color: #c8d6e5; }
-        .line-sys { color: var(--warning); font-style: italic; }
-        .line-err { color: var(--danger); }
+        .terminal::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .terminal::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+
+        .line-tx {
+            color: var(--accent);
+        }
+
+        .line-rx {
+            color: #c8d6e5;
+        }
+
+        .line-sys {
+            color: var(--warning);
+            font-style: italic;
+        }
+
+        .line-err {
+            color: var(--danger);
+        }
 
         .terminal .timestamp {
-            color: rgba(255,255,255,0.2);
+            color: rgba(255, 255, 255, 0.2);
             margin-right: 8px;
             font-size: 0.75rem;
         }
@@ -233,9 +280,18 @@
             transition: var(--ease);
         }
 
-        .input-bar input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
-        .input-bar input::placeholder { color: rgba(255,255,255,0.2); }
-        .input-bar input:disabled { opacity: 0.4; }
+        .input-bar input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+
+        .input-bar input::placeholder {
+            color: rgba(255, 255, 255, 0.2);
+        }
+
+        .input-bar input:disabled {
+            opacity: 0.4;
+        }
 
         .send-btn {
             padding: 10px 20px;
@@ -250,8 +306,14 @@
             transition: var(--ease);
         }
 
-        .send-btn:hover { background: var(--accent-hover); }
-        .send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .send-btn:hover {
+            background: var(--accent-hover);
+        }
+
+        .send-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
 
         /* Info Modal */
         .modal-overlay {
@@ -266,7 +328,9 @@
             padding: 20px;
         }
 
-        .modal-overlay.open { display: flex; }
+        .modal-overlay.open {
+            display: flex;
+        }
 
         .modal {
             background: #12141f;
@@ -280,8 +344,14 @@
             position: relative;
         }
 
-        .modal::-webkit-scrollbar { width: 4px; }
-        .modal::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+        .modal::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .modal::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+        }
 
         .modal h2 {
             font-size: 1.15rem;
@@ -291,7 +361,10 @@
             gap: 8px;
         }
 
-        .modal h2 .material-icons-round { color: var(--accent); font-size: 22px; }
+        .modal h2 .material-icons-round {
+            color: var(--accent);
+            font-size: 22px;
+        }
 
         .modal-close {
             position: absolute;
@@ -304,9 +377,13 @@
             font-size: 0;
         }
 
-        .modal-close:hover { color: var(--text); }
+        .modal-close:hover {
+            color: var(--text);
+        }
 
-        .cmd-list { list-style: none; }
+        .cmd-list {
+            list-style: none;
+        }
 
         .cmd-list li {
             padding: 10px 0;
@@ -316,7 +393,9 @@
             align-items: baseline;
         }
 
-        .cmd-list li:last-child { border-bottom: none; }
+        .cmd-list li:last-child {
+            border-bottom: none;
+        }
 
         .cmd-name {
             font-family: var(--mono);
@@ -329,7 +408,10 @@
             transition: var(--ease);
         }
 
-        .cmd-name:hover { color: var(--accent-hover); text-decoration: underline; }
+        .cmd-name:hover {
+            color: var(--accent-hover);
+            text-decoration: underline;
+        }
 
         .cmd-desc {
             font-size: 0.82rem;
@@ -337,23 +419,82 @@
             line-height: 1.4;
         }
 
-        /* Not supported banner */
+        /* Not supported full-screen overlay */
         .not-supported {
             display: none;
-            padding: 20px 24px;
-            background: rgba(255, 71, 87, 0.08);
-            border-bottom: 1px solid rgba(255, 71, 87, 0.2);
-            color: var(--danger);
-            font-size: 0.9rem;
+            flex: 1;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
             text-align: center;
+            padding: 40px 24px;
+            gap: 16px;
+        }
+
+        .not-supported .material-icons-round {
+            font-size: 64px;
+            color: var(--danger);
+            opacity: 0.8;
+        }
+
+        .not-supported h2 {
+            font-size: 1.4rem;
+            color: var(--text);
+            font-weight: 600;
+        }
+
+        .not-supported p {
+            color: var(--text-dim);
+            font-size: 0.95rem;
+            max-width: 400px;
+            line-height: 1.6;
+        }
+
+        .not-supported .home-btn {
+            margin-top: 8px;
+            padding: 12px 28px;
+            border-radius: 10px;
+            background: var(--accent);
+            color: white;
+            border: none;
+            font-family: var(--font);
+            font-weight: 600;
+            font-size: 0.95rem;
+            text-decoration: none;
+            transition: var(--ease);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .not-supported .home-btn:hover {
+            background: var(--accent-hover);
+            box-shadow: 0 4px 15px var(--accent-glow);
+            transform: translateY(-2px);
         }
 
         @media (max-width: 600px) {
-            .header { padding: 12px 16px; }
-            .conn-bar { padding: 10px 16px; }
-            .terminal { padding: 12px 16px; font-size: 0.75rem; }
-            .input-bar { padding: 10px 16px; }
-            .header-left .divider, .header-left .page-label { display: none; }
+            .header {
+                padding: 12px 16px;
+            }
+
+            .conn-bar {
+                padding: 10px 16px;
+            }
+
+            .terminal {
+                padding: 12px 16px;
+                font-size: 0.75rem;
+            }
+
+            .input-bar {
+                padding: 10px 16px;
+            }
+
+            .header-left .divider,
+            .header-left .page-label {
+                display: none;
+            }
         }
     </style>
 </head>
@@ -376,9 +517,15 @@
         </div>
     </div>
 
-    <!-- Browser support warning -->
+    <!-- Browser not supported (full-screen) -->
     <div class="not-supported" id="notSupported">
-        Your browser does not support the Web Serial API. Please use Chrome or Edge on desktop.
+        <span class="material-icons-round">usb_off</span>
+        <h2>Browser Not Supported</h2>
+        <p>The Serial Monitor requires the Web Serial API, which is only available in <strong>Google Chrome</strong> or <strong>Microsoft Edge</strong> on desktop.</p>
+        <a href="index.html" class="home-btn">
+            <span class="material-icons-round" style="font-size:18px">arrow_back</span>
+            Return Home
+        </a>
     </div>
 
     <!-- Connection bar -->
@@ -406,7 +553,8 @@
     <!-- Terminal output -->
     <div class="terminal-wrap">
         <div class="terminal" id="terminal">
-            <div class="line-sys"><span class="timestamp">--:--:--</span>Welcome to the Linked Lamp Serial Monitor. Click "Connect" to begin.</div>
+            <div class="line-sys"><span class="timestamp">--:--:--</span>Welcome to the Linked Lamp Serial Monitor.
+                Click "Connect" to begin.</div>
         </div>
     </div>
 
@@ -508,9 +656,12 @@
 
         // ====== Browser support check ======
         if (!("serial" in navigator)) {
-            document.getElementById("notSupported").style.display = "block";
-            btnConnect.disabled = true;
-            btnConnect.style.opacity = "0.4";
+            document.getElementById("notSupported").style.display = "flex";
+            // Hide the functional UI
+            document.querySelector(".conn-bar").style.display = "none";
+            document.querySelector(".terminal-wrap").style.display = "none";
+            document.querySelector(".input-bar").style.display = "none";
+            document.querySelector(".header-right").style.display = "none";
         }
 
         // ====== Terminal helpers ======
@@ -562,7 +713,36 @@
 
                 readLoop();
             } catch (e) {
-                if (e.name !== "NotFoundError") {
+                if (e.name === "NotFoundError") {
+                    appendLine("No device selected.", "line-sys");
+                    appendLine("Your lamp should appear as \"CP2102 USB to UART Bridge Controller\" or \"Silicon Labs CP210x\" in the port list.", "line-sys");
+                    appendLine("", "line-sys");
+                    appendLine("If your lamp doesn't appear, you may need to install the CP210x USB driver:", "line-sys");
+                    // Clickable download link
+                    const linkDiv = document.createElement("div");
+                    linkDiv.className = "line-sys";
+                    linkDiv.innerHTML = `<span class="timestamp">${timestamp()}</span>→ <a href="https://www.silabs.com/developers/usb-to-uart-bridge-vcp-drivers?tab=downloads" target="_blank" style="color: var(--accent); text-decoration: underline;">Download CP210x Drivers from Silicon Labs</a>`;
+                    terminal.appendChild(linkDiv);
+                    appendLine("", "line-sys");
+                    // Auto-detect OS and show relevant instructions
+                    const ua = navigator.userAgent.toLowerCase();
+                    if (ua.includes("win")) {
+                        appendLine("Windows Installation Instructions:", "line-sys");
+                        appendLine("  1. Download \"CP210x Windows Drivers\" from the link above", "line-sys");
+                        appendLine("  2. Unzip the downloaded file", "line-sys");
+                        appendLine("  3. Run CP210xVCPInstaller_x64.exe and follow the prompts", "line-sys");
+                    } else if (ua.includes("mac")) {
+                        appendLine("macOS Installation Instructions:", "line-sys");
+                        appendLine("  1. Download \"CP210x VCP Mac OSX Driver\" from the link above", "line-sys");
+                        appendLine("  2. Open the downloaded .dmg file", "line-sys");
+                        appendLine("  3. Run the installer inside and follow the prompts", "line-sys");
+                    } else {
+                        appendLine("Linux Installation Instructions — the CP210x driver is usually built-in.", "line-sys");
+                        appendLine("If not, download the Linux driver from the link above.", "line-sys");
+                    }
+                    appendLine("After installing, unplug and replug your lamp, then try connecting again.", "line-sys");
+                    terminal.scrollTop = terminal.scrollHeight;
+                } else {
                     appendLine("Connection failed: " + e.message, "line-err");
                 }
             }
