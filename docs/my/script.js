@@ -500,21 +500,46 @@ function updateStatusPopupContent() {
 
     // Build lamp list
     const lamps = [];
-    lamps.push({ name: "My Lamp", online: myLampOnline === true });
-    if (hasMySupLamp) lamps.push({ name: "My Second Lamp", online: mySupLampOnline === true });
-    lamps.push({ name: partnerName + "'s Lamp", online: partnerLampOnline === true });
-    if (hasPartnerSupLamp) lamps.push({ name: partnerName + "'s Second Lamp", online: partnerSupLampOnline === true });
+    lamps.push({ id: 'primary', name: "My Lamp", online: myLampOnline === true, mine: true });
+    if (hasMySupLamp) lamps.push({ id: 'secondary', name: "My Second Lamp", online: mySupLampOnline === true, mine: true });
+    lamps.push({ id: 'partner_primary', name: partnerName + "'s Lamp", online: partnerLampOnline === true, mine: false });
+    if (hasPartnerSupLamp) lamps.push({ id: 'partner_secondary', name: partnerName + "'s Second Lamp", online: partnerSupLampOnline === true, mine: false });
 
     let html = '<div class="status-popup-content">';
     html += '<h3>Lamp Status</h3>';
     lamps.forEach(l => {
         const dotClass = l.online ? 'status-dot-green' : 'status-dot-red';
-        html += `<div class="status-lamp-row"><span class="status-lamp-dot ${dotClass}"></span><span class="status-lamp-name">${l.name}</span></div>`;
+        let rowHtml = `<div class="status-lamp-row"`;
+        
+        if (!l.online && l.mine) {
+            rowHtml += ` onclick="promptRemoveLamp('${l.id}', '${l.name}')" style="cursor: pointer;" title="Click to remove offline lamp"`;
+        }
+        
+        rowHtml += `><span class="status-lamp-dot ${dotClass}"></span><span class="status-lamp-name">${l.name}</span></div>`;
+        html += rowHtml;
     });
     html += '</div>';
 
     popup.innerHTML = html;
 }
+
+window.promptRemoveLamp = function(lampId, lampName) {
+    if (confirm(`Do you wish to remove ${lampName} from your group?`)) {
+        let topic = "";
+        if (lampId === 'primary') {
+            topic = getTopic(myDeviceId, "status");
+        } else if (lampId === 'secondary') {
+            topic = getSupTopic(myDeviceId);
+        }
+        
+        if (topic && mqttClient && mqttClient.connected) {
+            mqttClient.publish(topic, "", { retain: true, qos: 1 }, (err) => {
+                if (err) console.error("Failed to clear lamp status:", err);
+                else console.log(`Cleared status topic: ${topic}`);
+            });
+        }
+    }
+};
 
 function closeStatusPopup(e) {
     const popup = document.getElementById("statusPopup");
