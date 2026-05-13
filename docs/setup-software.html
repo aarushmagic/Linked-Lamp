@@ -456,6 +456,7 @@
                 opacity: 0;
                 transform: translateY(-8px);
             }
+
             to {
                 opacity: 1;
                 transform: translateY(0);
@@ -486,7 +487,9 @@
             <span class="material-icons-round">warning</span>
             <div>
                 <p><strong>Both lamps must be flashed at the same time.</strong></p>
-                <p>We recommend flashing the software onto the ESP32 boards <strong>before</strong> attaching them to the lamp or soldering them. If you need to reflash the firmware on one lamp later, <strong>both lamps must be reflashed</strong>.</p>
+                <p>We recommend flashing the software onto the ESP32 boards <strong>before</strong> attaching them to
+                    the lamp or soldering them. If you need to reflash the firmware on one lamp later, <strong>both
+                        lamps must be reflashed</strong>.</p>
             </div>
         </div>
 
@@ -578,7 +581,8 @@
                 <p>Click the button below to flash the firmware and your personal configuration in one go.</p>
 
                 <div class="tip-box" style="text-align: left; margin-top: 15px; margin-bottom: 20px;">
-                    <strong>Tip:</strong> Depending on your ESP32 board, if it fails to flash, you may need to press and hold the <strong>BOOT</strong> button on the ESP32 when the flashing process starts, and let go once it begins flashing.
+                    <strong>Tip:</strong> Depending on your ESP32 board, if the progress bar gets stuck at 15%, press
+                    and hold the <strong>BOOT</strong> button on the ESP32 and let go once the bar starts to rise
                 </div>
 
                 <button class="flash-btn" id="btnFlashA" onclick="startFlash('A')">
@@ -641,7 +645,8 @@
                 <p>Click the button below to flash this lamp too.</p>
 
                 <div class="tip-box" style="text-align: left; margin-top: 15px; margin-bottom: 20px;">
-                    <strong>Tip:</strong> Depending on your ESP32 board, if it fails to flash, you may need to press and hold the <strong>BOOT</strong> button on the ESP32 when the flashing process starts, and let go once it begins flashing.
+                    <strong>Tip:</strong> Depending on your ESP32 board, if the progress bar gets stuck at 15%, press
+                    and hold the <strong>BOOT</strong> button on the ESP32 and let go once the bar starts to rise
                 </div>
 
                 <button class="flash-btn" id="btnFlashB" onclick="startFlash('B')">
@@ -735,7 +740,9 @@
             </div>
 
             <div class="tip-box" style="text-align: left; margin-bottom: 20px;">
-                <strong>Tip:</strong> Depending on your ESP32 board, if it fails to flash, you may need to press and hold the <strong>BOOT</strong> button on the ESP32 when the upload process starts, and let go once it begins flashing.
+                <strong>Tip:</strong> Depending on your ESP32 board, if it fails to flash, you may need to press and
+                hold the <strong>BOOT</strong> button on the ESP32 when the upload process starts, and let go once it
+                begins flashing.
             </div>
 
             <p>Wait for both to say <strong>SUCCESS</strong>. If they do, Lamp A is fully programmed!</p>
@@ -772,7 +779,9 @@
             </div>
 
             <div class="tip-box" style="text-align: left; margin-bottom: 20px;">
-                <strong>Tip:</strong> Depending on your ESP32 board, if it fails to flash, you may need to press and hold the <strong>BOOT</strong> button on the ESP32 when the upload process starts, and let go once it begins flashing.
+                <strong>Tip:</strong> Depending on your ESP32 board, if it fails to flash, you may need to press and
+                hold the <strong>BOOT</strong> button on the ESP32 when the upload process starts, and let go once it
+                begins flashing.
             </div>
 
             <p>Wait for both to say <strong>SUCCESS</strong>. You're done programming!</p>
