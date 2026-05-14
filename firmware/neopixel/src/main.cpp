@@ -687,6 +687,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       publishSettingsViaMQTT();
 
     } else {
+    isColorCycling = false; // Stop any active cycle immediately
     // --- Single color trigger (original behavior) ---
     // Parse the target color
     String hexColor = msg;
@@ -1440,8 +1441,8 @@ void setColor(String hexColor) {
 }
 
 void setRGB(uint8_t r, uint8_t g, uint8_t b) {
-  // Apply the same color to all NeoPixels in the ring with gamma correction
-  uint32_t color = strip.gamma32(strip.Color(r, g, b));
+  // Apply the same color to all NeoPixels in the ring
+  uint32_t color = strip.Color(r, g, b);
   strip.fill(color);
   strip.show();
 }
