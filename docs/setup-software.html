@@ -477,6 +477,9 @@
                     <span class="logo-text">Linked Lamp</span>
                 </a>
             </div>
+            <div class="nav-links" style="margin-left: auto;">
+                <a href="my/" class="nav-btn primary">Dashboard</a>
+            </div>
         </div>
     </nav>
 
@@ -797,20 +800,21 @@
             <div style="text-align: center; margin-bottom: 30px;">
                 <span class="material-icons-round" style="font-size: 4rem; color: #2ed573;">celebration</span>
                 <h2 style="margin-top: 10px;">Setup Complete!</h2>
-                <p>Here are the private Web App URLs used to control the lamps. <br><strong>Save these! Send the second
+                <p>Here are the Unique IDs (UIDs) used to connect your lamps to the Dashboard. <br><strong>Save these! Send the second
                         one to your partner.</strong></p>
             </div>
 
-            <label style="color: white; font-weight: 500; display: block; margin-bottom: 8px;">URL for <span
+            <label style="color: white; font-weight: 500; display: block; margin-bottom: 8px;"><span
                     id="res_name1" style="color:var(--accent);">Device A</span></label>
             <div class="url-display" id="url_out1"></div>
 
-            <label style="color: white; font-weight: 500; display: block; margin-bottom: 8px; margin-top:20px;">URL for
-                <span id="res_name2" style="color:var(--accent);">Device B</span></label>
+            <label style="color: white; font-weight: 500; display: block; margin-bottom: 8px; margin-top:20px;"><span id="res_name2" style="color:var(--accent);">Device B</span></label>
             <div class="url-display" id="url_out2"></div>
 
             <p style="text-align: center; margin-top: 30px;">
-                <a href="usage.html" class="btn primary-btn">How to Use Your Lamps →</a>
+                <a href="my/" class="btn primary-btn" target="_blank" style="background: var(--accent); color: white;">Open Dashboard</a>
+                <br>
+                <a href="usage.html" class="btn outline-btn" style="margin-top: 15px;">How to Use Your Lamps →</a>
                 <br>
                 <a href="index.html" class="btn outline-btn" style="margin-top: 15px;">Return Home</a>
             </p>
@@ -1026,17 +1030,50 @@
             const mUser = document.getElementById("in_mqtt_user").value.trim();
             const mPw = document.getElementById("in_mqtt_pw").value.trim();
 
-            const paramsA = new URLSearchParams({ s: url, u: mUser, p: mPw, id: 'A', name: n2 });
-            const paramsB = new URLSearchParams({ s: url, u: mUser, p: mPw, id: 'B', name: n1 });
+            // Generate UID strings (Base64url encoded)
+            const uidA = _encodeUID(url, mUser, mPw, 'A', n2);
+            const uidB = _encodeUID(url, mUser, mPw, 'B', n1);
 
-            const fullUrlA = `${baseDomain}?${paramsA.toString()}`;
-            const fullUrlB = `${baseDomain}?${paramsB.toString()}`;
+            // Build new UID-based URLs
+            const fullUrlA = `${baseDomain}?uid=${uidA}`;
+            const fullUrlB = `${baseDomain}?uid=${uidB}`;
 
-            document.getElementById("res_name1").innerText = n1 + "'s Link";
-            document.getElementById("res_name2").innerText = n2 + "'s Link";
+            document.getElementById("res_name1").innerText = n1 + "'s Personalized Token";
+            document.getElementById("res_name2").innerText = n2 + "'s Personalized Token";
 
-            document.getElementById("url_out1").innerHTML = `<a href="${fullUrlA}" target="_blank" style="color:#2ed573; text-decoration:none;">${fullUrlA}</a>`;
-            document.getElementById("url_out2").innerHTML = `<a href="${fullUrlB}" target="_blank" style="color:#2ed573; text-decoration:none;">${fullUrlB}</a>`;
+            document.getElementById("url_out1").innerHTML = `
+                <a href="${fullUrlA}" target="_blank" style="color:#2ed573; text-decoration:none; word-break:break-all; font-family: monospace; font-size: 1.1rem; display: block; text-align: center;">${uidA}</a>
+                <div style="margin-top: 12px; display: flex; justify-content: center;">
+                    <button class="copy-btn" onclick="copyText('${uidA}', this)" style="position:static; font-size: 0.78rem;">Copy UID</button>
+                </div>
+            `;
+            document.getElementById("url_out2").innerHTML = `
+                <a href="${fullUrlB}" target="_blank" style="color:#2ed573; text-decoration:none; word-break:break-all; font-family: monospace; font-size: 1.1rem; display: block; text-align: center;">${uidB}</a>
+                <div style="margin-top: 12px; display: flex; justify-content: center;">
+                    <button class="copy-btn" onclick="copyText('${uidB}', this)" style="position:static; font-size: 0.78rem;">Copy UID</button>
+                </div>
+            `;
+        }
+
+        // UID encoder (mirrors the one in my/script.js)
+        function _encodeUID(server, user, pass, deviceId, partnerNameVal) {
+            const obj = { s: server, u: user, p: pass, id: deviceId };
+            if (partnerNameVal) obj.name = partnerNameVal;
+            const json = JSON.stringify(obj);
+            const b64 = btoa(unescape(encodeURIComponent(json)));
+            return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        }
+
+        function copyText(text, btnEle) {
+            navigator.clipboard.writeText(text).then(() => {
+                const orig = btnEle.innerText;
+                btnEle.innerText = "Copied!";
+                btnEle.style.background = "#2ed573";
+                setTimeout(() => {
+                    btnEle.innerText = orig;
+                    btnEle.style.background = "rgba(255,255,255,0.1)";
+                }, 2000);
+            });
         }
 
         // =====================================================================
@@ -1138,3 +1175,4 @@
 </body>
 
 </html>
+

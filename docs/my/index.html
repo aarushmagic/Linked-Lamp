@@ -213,6 +213,13 @@
                     </button>
                 </div>
 
+                <!-- Switch Accounts (PWA only, hidden by default) -->
+                <div class="settings-card" id="accountSwitcherCard" style="display: none;">
+                    <button id="btnSwitchAccounts" class="action-btn secondary-btn" onclick="openAccountSwitcher()" style="display: none;">
+                        <span class="material-icons-round">swap_horiz</span> Switch Accounts
+                    </button>
+                </div>
+
                 <div style="height: 80px;"></div>
             </div>
 
@@ -359,39 +366,101 @@
         </div>
     </div>
 
-    <!-- ============ Missing Credentials Popup ============ -->
-    <div id="missingCredentialsModal" class="modal">
-        <div class="modal-content timepicker-modal" style="text-align: center; max-width: 360px;">
-            <span class="material-icons-round"
-                style="font-size: 3rem; color: var(--accent); margin-bottom: 20px;">link_off</span>
-            <h2 style="margin-bottom: 15px;">Connection Details Missing</h2>
-            <p class="desc" style="margin-bottom: 25px; line-height: 1.5;">
-                We couldn't link to your lamp because your connection details are missing. Please access this page using
-                your <strong>Special Customized Link</strong> or via the NFC tag on the bottom of your lamp (if
-                available).
-            </p>
-            <p class="desc" style="margin-bottom: 25px; line-height: 1.5;">
-                Try asking the person who set up the lamp for the link. If you are that person, you can generate a new
-                link by following the setup process again. Note, in this case, all connected lamps will need to be
-                reflashed and new links will be generated for all lamps.
-            </p>
-            <div id="pwaManualInputBlock"
-                style="display: none; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; margin-bottom: 15px; border: 1px solid rgba(255,255,255,0.1);">
-                <p class="desc" style="margin-bottom: 12px; font-size: 0.85rem;">
-                    <strong>App Users:</strong> If your connection was lost after adding to your Home Screen, copy the
-                    link from your browser and paste it here:
-                </p>
-                <input type="text" id="manualLinkInput" placeholder="Paste link here (https://...)"
-                    style="width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 8px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); color: white; font-family: monospace; font-size: 0.85rem; outline: none;">
-                <button class="action-btn primary-btn" onclick="saveManualLink()"
-                    style="font-size: 0.9rem; padding: 10px;">Connect Lamp</button>
-                <p id="manualLinkError" style="color: #ff4757; font-size: 0.8rem; margin-top: 8px; display: none;">
-                    Invalid link format. Make sure it contains connection parameters.</p>
+    <!-- ============ Missing Credentials / UID Input Modal ============ -->
+    <div id="missingCredentialsModal" class="modal" style="background: var(--bg); flex-direction: column; justify-content: center; align-items: center; padding: 2rem;">
+        <div class="uid-input-modal" style="text-align: center; max-width: 400px; width: 100%;">
+            <div style="width: 80px; height: 80px; border-radius: 20px; background: rgba(107, 76, 255, 0.12); border: 1px solid rgba(107, 76, 255, 0.25); display: flex; align-items: center; justify-content: center; margin: 0 auto 24px;">
+                <span class="material-icons-round" style="font-size: 3.5rem; color: var(--accent);">link</span>
             </div>
-            <div class="preset-modal-actions" style="flex-direction: column; gap: 10px; margin-top: 10px; padding: 0;">
-                <button class="action-btn primary-btn" onclick="window.location.href='../setup-software.html'">Go to
-                    Setup
-                    Guide</button>
+            
+            <h2 style="font-size: 1.8rem; margin-bottom: 12px; font-weight: 700;">Connect Your Lamp</h2>
+            
+            <p class="desc" style="margin-bottom: 30px; line-height: 1.6; font-size: 0.95rem;">
+                Enter your <strong>Unique ID</strong> to link this device. You can find it in the setup
+                instructions or ask the person who set up the lamp group.
+            </p>
+
+            <div style="background: var(--bg-card); padding: 20px; border-radius: 16px; margin-bottom: 20px; border: 1px solid var(--border); box-shadow: 0 8px 24px rgba(0,0,0,0.2);">
+                <input type="text" id="uidInput" placeholder="Paste your Unique ID here"
+                    style="width: 100%; padding: 14px 16px; margin-bottom: 16px; border-radius: 10px; background: rgba(0,0,0,0.4); border: 1px solid var(--border); color: white; font-family: monospace; font-size: 0.9rem; outline: none; box-sizing: border-box; transition: border-color 0.2s;"
+                    autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+                    onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+                
+                <button class="action-btn primary-btn" onclick="connectWithUID()"
+                    style="font-size: 1rem; padding: 14px;">
+                    <span class="material-icons-round" style="font-size: 20px;">bolt</span> Connect
+                </button>
+                
+                <p id="uidInputError" style="color: var(--danger); font-size: 0.85rem; margin-top: 12px; display: none; font-weight: 500;"></p>
+            </div>
+
+            <p class="desc" style="margin-bottom: 24px; line-height: 1.5; font-size: 0.8rem; color: rgba(255,255,255,0.4);">
+                You can also paste your full lamp URL here if you have that instead. Both formats will work.
+            </p>
+
+            <div style="margin-top: auto; padding-top: 20px;">
+                <button class="action-btn secondary-btn" onclick="window.location.href='../setup-software.html'"
+                    style="font-size: 0.9rem; background: transparent; border: 1px solid var(--border);">
+                    <span class="material-icons-round" style="font-size: 18px;">build</span> Set Up New Lamps
+                </button>
+            </div>
+        </div>
+    </div>
+    <!-- ============ PWA Install Prompt Overlay (Mobile Only) ============ -->
+    <div id="pwaInstallOverlay" class="pwa-install-overlay" style="display: none;">
+        <div class="pwa-install-content">
+            <div class="pwa-install-icon">
+                <span class="material-icons-round" style="font-size: 3.5rem; color: var(--accent);">get_app</span>
+            </div>
+            <h2>Get the App</h2>
+            <p class="desc" style="margin-bottom: 20px; line-height: 1.5; text-align: center;">
+                Install Linked Lamp on your home screen for a better experience — instant access, fullscreen mode, and multi-account support.
+            </p>
+
+            <div id="pwaInstallInstructions" class="pwa-instructions">
+                <!-- JS injects OS/browser-specific steps here -->
+            </div>
+
+            <button id="pwaInstallNativeBtn" class="action-btn primary-btn" onclick="triggerNativePWAInstall()"
+                style="display: none; margin-top: 15px;">
+                <span class="material-icons-round" style="font-size: 18px;">download</span> Install Now
+            </button>
+
+            <div class="pwa-dismiss-link" style="margin-top: 24px;">
+                <a href="javascript:void(0)" onclick="dismissPWAPrompt()" style="color: var(--text-dim); font-size: 0.82rem; text-decoration: none;">
+                    Continue in Browser
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ Account Switcher Modal (PWA Only) ============ -->
+    <div id="accountSwitcherModal" class="modal">
+        <div class="modal-content timepicker-modal account-switcher-modal" style="max-width: 380px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin: 0;">Switch Accounts</h2>
+                <button class="icon-btn" onclick="closeAccountSwitcher()">
+                    <span class="material-icons-round">close</span>
+                </button>
+            </div>
+
+            <div id="accountList" class="account-list">
+                <!-- JS renders account items here -->
+            </div>
+
+            <button class="action-btn secondary-btn" onclick="showAddAccountInput()" style="margin-top: 12px; font-size: 0.9rem;">
+                <span class="material-icons-round" style="font-size: 18px;">add</span> Add Account
+            </button>
+
+            <div id="addAccountSection" style="display: none; margin-top: 15px; background: rgba(255,255,255,0.04); padding: 15px; border-radius: 12px; border: 1px solid var(--border);">
+                <p class="desc" style="margin-bottom: 10px; font-size: 0.82rem;">Enter the Unique ID for the new account:</p>
+                <input type="text" id="newAccountUidInput" placeholder="Paste Unique ID here"
+                    style="width: 100%; padding: 10px; border-radius: 8px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); color: white; font-family: monospace; font-size: 0.82rem; outline: none; margin-bottom: 10px; box-sizing: border-box;"
+                    autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+                <button class="action-btn primary-btn" onclick="addNewAccount()" style="font-size: 0.85rem; padding: 9px;">
+                    <span class="material-icons-round" style="font-size: 16px;">add_circle</span> Add
+                </button>
+                <p id="newAccountError" style="color: #ff4757; font-size: 0.78rem; margin-top: 8px; display: none;"></p>
             </div>
         </div>
     </div>

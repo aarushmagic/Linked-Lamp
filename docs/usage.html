@@ -206,10 +206,13 @@
                     <span class="logo-text">Linked Lamp</span>
                 </a>
             </div>
-</div>
+            <div class="nav-links" style="margin-left: auto;">
+                <a href="my/" class="nav-btn primary">Dashboard</a>
+            </div>
+        </div>
     </nav>
 
-<div class="usage-container max-w">
+    <div class="usage-container max-w">
         <h1>How to Use Your Lamp</h1>
         <p class="subtitle">You've built and flashed both lamps — here's how to get them running and how to use them
             day-to-day.</p>
@@ -231,18 +234,22 @@
                     <strong>Choose your network.</strong> A configuration page will open automatically. Select your home
                     Wi-Fi network, enter the password, and tap Save. The lamp will restart and connect to your network.
                     A light will blink twice to indicate it is connected to WiFI.<br>
-                    If the configuration page doesn't open automatically, open your browser and go to <code>http://192.168.4.1</code>
+                    If the configuration page doesn't open automatically, open your browser and go to
+                    <code>http://192.168.4.1</code>
                     <div class="tip-box">
                         <strong>Tip:</strong> The ESP32 only supports <strong>2.4 GHz</strong> Wi-Fi. Make sure you're
                         selecting the 2.4 GHz band if your router has separate network names.
                     </div>
                 </li>
                 <li>
-                    <strong>Open your Web App.</strong> Open your personalized URL in a browser and bookmark it. You
-                    were given these URLs at the end of the software setup. If you received this lamp from someone, ask
-                    them for your URL.
+                    <strong>Connect to the Web App.</strong> Open the <a href="my/"
+                        style="color:var(--accent);">Dashboard</a> and paste in your <strong>Unique ID (UID)</strong>
+                    when prompted. You
+                    were given these UIDs at the end of the software setup. If you received this lamp from someone, ask
+                    them for your UID.
                     <div class="tip-box">
-                        <strong>NFC Tip:</strong> If there is an NFC tag sticker on the bottom of your lamp, tap your phone on
+                        <strong>NFC Tip:</strong> If there is an NFC tag sticker on the bottom of your lamp, tap your
+                        phone on
                         the base to open the app directly.
                     </div>
                 </li>
@@ -267,7 +274,8 @@
                 <tbody>
                     <tr>
                         <td>Single Tap</td>
-                        <td>Sends your default color to the other lamp. Your lamp briefly flashes the sent color for 1 second as confirmation, then reverts to its previous state.</td>
+                        <td>Sends your default color to the other lamp. Your lamp briefly flashes the sent color for 1
+                            second as confirmation, then reverts to its previous state.</td>
                     </tr>
                     <tr>
                         <td>Double Tap</td>
@@ -275,11 +283,13 @@
                     </tr>
                     <tr>
                         <td>Hold (1.5s+)</td>
-                        <td>Cycles through all colors (~6 seconds per full hue rotation). Lift your finger to select a color — the lamp flashes your pick for 3 seconds, then saves it as your new default.</td>
+                        <td>Cycles through all colors (~6 seconds per full hue rotation). Lift your finger to select a
+                            color — the lamp flashes your pick for 3 seconds, then saves it as your new default.</td>
                     </tr>
                     <tr>
                         <td>5+ Taps</td>
-                        <td>Resets Wi-Fi settings (only works when the light on the lamp is off). Flashes red twice before restarting with the "Linked Lamp Setup" hotspot.</td>
+                        <td>Resets Wi-Fi settings (only works when the light on the lamp is off). Flashes red twice
+                            before restarting with the "Linked Lamp Setup" hotspot.</td>
                     </tr>
                 </tbody>
             </table>
@@ -289,9 +299,10 @@
         <div class="usage-section">
             <h2><span class="material-icons-round" style="color: #2ed573;">phone_iphone</span> The Web App</h2>
             <p>
-                Your personalized Web App URL (the <code>www.linkedlamp.com/my/</code> link) is your remote control.
-                Open it in any
-                browser — no app installation needed.
+                The Web App dashboard is your remote control.
+                Open it in any browser or download the Progressive Web App (PWA) to your device. Once you enter your
+                Unique ID (UID), your lamp is
+                linked!
             </p>
             <p>
                 From the web app you can:
@@ -309,7 +320,7 @@
             </ul>
             <p>
                 Your credentials are saved locally after the first visit, so you can bookmark the URL and open it
-                directly next time.
+                directly next time without re-entering your UID.
             </p>
             <div class="warning-box">
                 <strong>Important:</strong> The web app works through your MQTT broker. Both lamps must be flashed
@@ -326,7 +337,8 @@
             </p>
             <p>
                 Updates are downloaded over Wi-Fi and applied automatically. The lamp reboots after installing. If a new
-                firmware version crashes or can't connect to the MQTT broker, the lamp automatically rolls back to the previous working version.
+                firmware version crashes or can't connect to the MQTT broker, the lamp automatically rolls back to the
+                previous working version.
             </p>
         </div>
 
@@ -344,23 +356,28 @@
                 <tbody>
                     <tr>
                         <td>Double green flash</td>
-                        <td>WiFi connected successfully. Only shown on initial power-up (cold boot), not after software restarts.</td>
+                        <td>WiFi connected successfully. Only shown on initial power-up (cold boot), not after software
+                            restarts.</td>
                     </tr>
                     <tr>
                         <td>Double red flash</td>
-                        <td>WiFi credentials are being reset (triggered by 5+ taps). The lamp restarts with the setup hotspot.</td>
+                        <td>WiFi credentials are being reset (triggered by 5+ taps). The lamp restarts with the setup
+                            hotspot.</td>
                     </tr>
                     <tr>
                         <td>1-second color flash</td>
-                        <td>Send confirmation. After a single tap, the lamp briefly shows the color you sent, then reverts to its previous state.</td>
+                        <td>Send confirmation. After a single tap, the lamp briefly shows the color you sent, then
+                            reverts to its previous state.</td>
                     </tr>
                     <tr>
                         <td>3-second color flash</td>
-                        <td>Color pick confirmation. After holding to select a new default color, the lamp shows your selection for 3 seconds.</td>
+                        <td>Color pick confirmation. After holding to select a new default color, the lamp shows your
+                            selection for 3 seconds.</td>
                     </tr>
                     <tr>
                         <td>20-second breathing pulse</td>
-                        <td>Signal received. The lamp gently pulses (30–100% brightness, ~2-second cycles) for 20 seconds, then holds a steady glow until the timer expires.</td>
+                        <td>Signal received. The lamp gently pulses (30–100% brightness, ~2-second cycles) for 20
+                            seconds, then holds a steady glow until the timer expires.</td>
                     </tr>
                 </tbody>
             </table>
@@ -373,14 +390,20 @@
             <ul style="color: var(--text-dim); line-height: 2; padding-left: 20px; margin-bottom: 1rem;">
                 <li><strong>WiFi auto-reconnect</strong> — if WiFi drops, the lamp retries every 15 seconds</li>
                 <li><strong>5-minute reboot</strong> — if WiFi stays disconnected for 5 minutes, the lamp reboots</li>
-                <li><strong>MQTT retry</strong> — retries MQTT every 5 seconds; after 3 failures forces a clean disconnect; after 6 failures forces a full WiFi reconnect</li>
-                <li><strong>Cold boot vs. software restart</strong> — on power cycle the lamp opens the WiFi config portal; on software restart it silently reconnects using saved credentials</li>
+                <li><strong>MQTT retry</strong> — retries MQTT every 5 seconds; after 3 failures forces a clean
+                    disconnect; after 6 failures forces a full WiFi reconnect</li>
+                <li><strong>Cold boot vs. software restart</strong> — on power cycle the lamp opens the WiFi config
+                    portal; on software restart it silently reconnects using saved credentials</li>
             </ul>
             <div class="tip-box">
-                <strong>Tip:</strong> Touch gestures continue to work even when the lamp is offline. You can still pick colors and turn the lamp off — signals just won't send until connectivity is restored.
+                <strong>Tip:</strong> Touch gestures continue to work even when the lamp is offline. You can still pick
+                colors and turn the lamp off — signals just won't send until connectivity is restored.
             </div>
             <div class="warning-box" style="margin-top: 12px;">
-                <strong>WiFi not working?</strong> If your lamp can't connect, you changed your password, or moved to a new location, there are several easy ways to fix it without re-flashing. <a href="faq.html#faq-wifi-not-connecting" style="color: var(--accent);">See WiFi troubleshooting steps →</a>
+                <strong>WiFi not working?</strong> If your lamp can't connect, you changed your password, or moved to a
+                new location, there are several easy ways to fix it without re-flashing. <a
+                    href="faq.html#faq-wifi-not-connecting" style="color: var(--accent);">See WiFi troubleshooting steps
+                    →</a>
             </div>
         </div>
 
@@ -398,9 +421,11 @@
                 <tbody>
                     <tr>
                         <td>Lamp won't connect to Wi-Fi</td>
-                        <td>Tap 5+ times (while powered but lights are off) to reset Wi-Fi, then reconnect via the "Linked
-                            Lamp Setup" hotspot. Make sure you're using a 2.4 GHz network. <a href="faq.html#faq-wifi-not-connecting"
-                                style="color: var(--accent);">See all WiFi recovery options →</a></td>
+                        <td>Tap 5+ times (while powered but lights are off) to reset Wi-Fi, then reconnect via the
+                            "Linked
+                            Lamp Setup" hotspot. Make sure you're using a 2.4 GHz network. <a
+                                href="faq.html#faq-wifi-not-connecting" style="color: var(--accent);">See all WiFi
+                                recovery options →</a></td>
                     </tr>
                     <tr>
                         <td>Other lamp doesn't light up</td>
@@ -409,17 +434,22 @@
                     </tr>
                     <tr>
                         <td>Web app isn't loading</td>
-                        <td>Check that the URL contains your correct broker details. Try opening in Chrome or Edge for
-                            best compatibility. If possible, tap your phone on the NFC tag sticker on the bottom of your lamp
+                        <td>Check that you've entered the correct Unique ID (UID). Try opening in Chrome or Safari for
+                            best compatibility. If possible, tap your phone on the NFC tag sticker on the bottom of your
+                            lamp
                             to open the app directly.</td>
                     </tr>
                     <tr>
                         <td>Lamp keeps restarting</td>
-                        <td>This usually means the lamp can't connect to WiFi or the MQTT broker. Check that your WiFi network is online and the MQTT broker credentials are correct. The lamp reboots every 5 minutes if WiFi stays disconnected.</td>
+                        <td>This usually means the lamp can't connect to WiFi or the MQTT broker. Check that your WiFi
+                            network is online and the MQTT broker credentials are correct. The lamp reboots every 5
+                            minutes if WiFi stays disconnected.</td>
                     </tr>
                     <tr>
                         <td>Lamp shows config portal unexpectedly</td>
-                        <td>This happens after a power cycle (unplugging and replugging), a WiFi reset (5+ taps), or if the lamp was unable to connect. Connect to the "Linked Lamp Setup" hotspot and re-enter your WiFi credentials.</td>
+                        <td>This happens after a power cycle (unplugging and replugging), a WiFi reset (5+ taps), or if
+                            the lamp was unable to connect. Connect to the "Linked Lamp Setup" hotspot and re-enter your
+                            WiFi credentials.</td>
                     </tr>
                 </tbody>
             </table>
@@ -446,7 +476,7 @@
     </footer>
 
     <script>
-</script>
+    </script>
 </body>
 
 </html>

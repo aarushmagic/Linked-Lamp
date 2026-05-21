@@ -87,17 +87,47 @@ let selectedCycleIndex = 0;       // Which entry's color is being edited
 const MAX_CYCLE_COLORS = 10;
 
 // ==========================================================================
+// UID Encoding / Decoding (Base64url)
+// ==========================================================================
+/**
+ * Encodes connection parameters into a single URL-safe Base64 string (UID).
+ * Format: JSON → UTF-8 → Base64 → URL-safe (+ → -, / → _, strip trailing =)
+ */
+function encodeUID(server, user, pass, deviceId, partnerNameVal) {
+    const obj = { s: server, u: user, p: pass, id: deviceId };
+    if (partnerNameVal) obj.name = partnerNameVal;
+    const json = JSON.stringify(obj);
+    // btoa only handles Latin1, so percent-encode unicode first
+    const b64 = btoa(unescape(encodeURIComponent(json)));
+    return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+/**
+ * Decodes a UID string back into connection parameters.
+ * Returns { s, u, p, id, name? } or null on failure.
+ */
+function decodeUID(uid) {
+    try {
+        // Restore standard Base64 from URL-safe variant
+        let b64 = uid.replace(/-/g, '+').replace(/_/g, '/');
+        // Pad to multiple of 4
+        while (b64.length % 4) b64 += '=';
+        const json = decodeURIComponent(escape(atob(b64)));
+        const obj = JSON.parse(json);
+        if (obj.s && obj.u && obj.p && obj.id) return obj;
+        return null;
+    } catch (e) {
+        console.error("Failed to decode UID:", e);
+        return null;
+    }
+}
+
+// ==========================================================================
 // Initialization
 // ==========================================================================
 window.addEventListener("load", () => {
     if (!loadCredentials()) {
         document.getElementById("missingCredentialsModal").style.display = "flex"; // Use flex to center the content using modal's built in styling
-
-        // Show manual override entry ONLY in PWA modes
-        const isPWA = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
-        if (isPWA) {
-            document.getElementById("pwaManualInputBlock").style.display = "block";
-        }
         return;
     }
 
@@ -110,6 +140,12 @@ window.addEventListener("load", () => {
     initTimezone();
     renderPresets();
     connectMQTT();
+
+    // Show/hide account switcher button (PWA only)
+    initAccountSwitcherButton();
+
+    // Check if we should prompt for PWA install (mobile only, browser only)
+    checkPWAInstallPrompt();
 
     // Update page title
     document.getElementById("pageTitle").innerText = "My Group";
@@ -127,15 +163,44 @@ window.addEventListener("beforeunload", () => {
 function loadCredentials() {
     // Try query params first (?key=val), then fall back to hash params (#key=val)
     let params = new URLSearchParams(window.location.search);
-    if (!(params.has("s") && params.has("u") && params.has("p") && params.has("id"))) {
-        // Try hash params (e.g. #s=broker&u=user&p=pass&id=A)
+    if (!params.has("uid") && !(params.has("s") && params.has("u") && params.has("p") && params.has("id"))) {
+        // Try hash params (e.g. #uid=xxx or #s=broker&u=user&p=pass&id=A)
         const hash = window.location.hash;
         if (hash && hash.length > 1) {
             params = new URLSearchParams(hash.substring(1));
         }
     }
 
-    if (params.has("s") && params.has("u") && params.has("p") && params.has("id")) {
+    let foundFromUrl = false;
+
+    // --- NEW: Check for single `uid` param first ---
+    if (params.has("uid")) {
+        const decoded = decodeUID(params.get("uid"));
+        if (decoded) {
+            mqtt_server = decoded.s;
+            mqtt_user = decoded.u;
+            mqtt_pass = decoded.p;
+            myDeviceId = decoded.id.toUpperCase() === "B" ? "B" : "A";
+            partnerDeviceId = myDeviceId === "A" ? "B" : "A";
+
+            if (decoded.name) {
+                partnerName = decoded.name;
+                localStorage.setItem("ll_name", partnerName);
+            }
+
+            localStorage.setItem("ll_s", mqtt_server);
+            localStorage.setItem("ll_u", mqtt_user);
+            localStorage.setItem("ll_p", mqtt_pass);
+            localStorage.setItem("ll_id", myDeviceId);
+            // Store the UID itself for account management
+            localStorage.setItem("ll_uid", params.get("uid"));
+
+            foundFromUrl = true;
+        }
+    }
+
+    // --- LEGACY: Check for individual s/u/p/id params ---
+    if (!foundFromUrl && params.has("s") && params.has("u") && params.has("p") && params.has("id")) {
         mqtt_server = params.get("s");
         mqtt_user = params.get("u");
         mqtt_pass = params.get("p");
@@ -153,9 +218,18 @@ function loadCredentials() {
         localStorage.setItem("ll_u", mqtt_user);
         localStorage.setItem("ll_p", mqtt_pass);
         localStorage.setItem("ll_id", myDeviceId);
+        // Generate and store UID from legacy params for future use
+        localStorage.setItem("ll_uid", encodeUID(mqtt_server, mqtt_user, mqtt_pass, myDeviceId, partnerName !== "Partner" ? partnerName : null));
 
+        foundFromUrl = true;
+    }
+
+    if (foundFromUrl) {
         // Clean the URL
         history.replaceState(null, null, window.location.pathname);
+
+        // Auto-migrate to accounts system if PWA
+        migrateCurrentToAccounts();
     } else {
         mqtt_server = localStorage.getItem("ll_s");
         mqtt_user = localStorage.getItem("ll_u");
@@ -183,37 +257,68 @@ function loadCredentials() {
 }
 
 // ==========================================================================
-// iOS Sandbox Escape: Manual Credential Load
+// Connect via UID Input (replaces old manual link paste)
 // ==========================================================================
-function saveManualLink() {
-    const linkStr = document.getElementById("manualLinkInput").value.trim();
-    const errorEl = document.getElementById("manualLinkError");
+function connectWithUID() {
+    const inputEl = document.getElementById("uidInput");
+    const errorEl = document.getElementById("uidInputError");
+    const raw = inputEl.value.trim();
 
-    if (!linkStr) {
+    if (!raw) {
         errorEl.style.display = "block";
-        errorEl.innerText = "Please paste a link first.";
+        errorEl.innerText = "Please enter your Unique ID.";
         return;
     }
 
-    try {
-        const url = new URL(linkStr);
-        // Convert query string into a hash string so it safely redirects cleanly 
-        // into the app and passes validation without breaking PWA bounds.
-        let params = url.search;
-        if (!params || params.length < 5) {
-            params = url.hash; // Try to extract from hash if it was a hash link
-        }
+    // Try decoding as a UID first
+    let decoded = decodeUID(raw);
 
-        if (params && params.includes("s=") && params.includes("id=")) {
-            window.location.href = window.location.pathname + params;
-        } else {
-            errorEl.style.display = "block";
-            errorEl.innerText = "This link doesn't contain the correct connection data.";
+    // If that fails, try to parse as a full URL (backwards compat)
+    if (!decoded) {
+        try {
+            const url = new URL(raw);
+            let searchParams = new URLSearchParams(url.search);
+            if (!searchParams.has("uid") && !searchParams.has("s")) {
+                searchParams = new URLSearchParams(url.hash.substring(1));
+            }
+            if (searchParams.has("uid")) {
+                decoded = decodeUID(searchParams.get("uid"));
+            } else if (searchParams.has("s") && searchParams.has("u") && searchParams.has("p") && searchParams.has("id")) {
+                decoded = {
+                    s: searchParams.get("s"),
+                    u: searchParams.get("u"),
+                    p: searchParams.get("p"),
+                    id: searchParams.get("id"),
+                    name: searchParams.get("name") || searchParams.get("partner") || null
+                };
+            }
+        } catch (e) {
+            // Not a URL, that's fine — UID decode already failed
         }
-    } catch (e) {
-        errorEl.style.display = "block";
-        errorEl.innerText = "Invalid URL format.";
     }
+
+    if (!decoded) {
+        errorEl.style.display = "block";
+        errorEl.innerText = "Invalid ID. Please check and try again.";
+        return;
+    }
+
+    // Save credentials to localStorage
+    localStorage.setItem("ll_s", decoded.s);
+    localStorage.setItem("ll_u", decoded.u);
+    localStorage.setItem("ll_p", decoded.p);
+    localStorage.setItem("ll_id", decoded.id.toUpperCase() === "B" ? "B" : "A");
+    if (decoded.name) localStorage.setItem("ll_name", decoded.name);
+
+    // Generate and store UID
+    const uid = encodeUID(decoded.s, decoded.u, decoded.p, decoded.id, decoded.name || null);
+    localStorage.setItem("ll_uid", uid);
+
+    // Migrate to accounts
+    migrateCurrentToAccounts();
+
+    // Reload the page to pick up the new credentials
+    window.location.reload();
 }
 
 // ==========================================================================
@@ -1722,4 +1827,408 @@ function syncCycleDurationsFromUI() {
             cycleColorEntries[idx][field] = Math.round(val * 10);
         }
     });
+}
+
+// ==========================================================================
+// PWA Install Prompt (Mobile Browser Only)
+// ==========================================================================
+let deferredInstallPrompt = null; // Captured beforeinstallprompt event
+
+// Capture the beforeinstallprompt event (Android Chrome, Edge, etc.)
+window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+});
+
+function checkPWAInstallPrompt() {
+    const isPWA = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+    if (isPWA) return; // Already running as PWA
+
+    // Only show on phones (not tablets/desktops)
+    const isMobile = /Android|iPhone|iPod/i.test(navigator.userAgent) && window.innerWidth < 768;
+    if (!isMobile) return;
+
+    // Check if user previously dismissed
+    if (localStorage.getItem("ll_skip_pwa_prompt") === "true") return;
+
+    // Show the overlay
+    const overlay = document.getElementById("pwaInstallOverlay");
+    if (!overlay) return;
+
+    // Detect OS/browser for contextual instructions
+    const isIOS = /iPhone|iPod/.test(navigator.userAgent);
+    const isSafari = isIOS && /Safari/i.test(navigator.userAgent) && !/CriOS|FxiOS|OPiOS/i.test(navigator.userAgent);
+    const isAndroid = /Android/i.test(navigator.userAgent);
+    const isChrome = /Chrome/i.test(navigator.userAgent) && !/Edge|OPR|Samsung/i.test(navigator.userAgent);
+    const isSamsung = /SamsungBrowser/i.test(navigator.userAgent);
+    const isFirefox = /Firefox|FxiOS/i.test(navigator.userAgent);
+
+    const instructionsEl = document.getElementById("pwaInstallInstructions");
+    let steps = "";
+
+    if (isIOS && isSafari) {
+        steps = `
+            <div class="pwa-step"><span class="pwa-step-num">1</span><span>Tap the <strong>Share</strong> button <span class="material-icons-round" style="font-size:18px; vertical-align:middle;">ios_share</span> at the bottom of your screen</span></div>
+            <div class="pwa-step"><span class="pwa-step-num">2</span><span>Scroll down and tap <strong>"Add to Home Screen"</strong></span></div>
+            <div class="pwa-step"><span class="pwa-step-num">3</span><span>Tap <strong>"Add"</strong> in the top right</span></div>
+        `;
+    } else if (isIOS && !isSafari) {
+        steps = `
+            <div class="pwa-step"><span class="pwa-step-num">1</span><span>Open this page in <strong>Safari</strong> for the best experience</span></div>
+            <div class="pwa-step"><span class="pwa-step-num">2</span><span>Tap the <strong>Share</strong> button <span class="material-icons-round" style="font-size:18px; vertical-align:middle;">ios_share</span></span></div>
+            <div class="pwa-step"><span class="pwa-step-num">3</span><span>Tap <strong>"Add to Home Screen"</strong></span></div>
+        `;
+    } else if (isAndroid && isChrome) {
+        steps = `
+            <div class="pwa-step"><span class="pwa-step-num">1</span><span>Tap the <strong>⋮ menu</strong> in the top right corner</span></div>
+            <div class="pwa-step"><span class="pwa-step-num">2</span><span>Tap <strong>"Add to Home screen"</strong> or <strong>"Install app"</strong></span></div>
+            <div class="pwa-step"><span class="pwa-step-num">3</span><span>Tap <strong>"Install"</strong> to confirm</span></div>
+        `;
+    } else if (isAndroid && isSamsung) {
+        steps = `
+            <div class="pwa-step"><span class="pwa-step-num">1</span><span>Tap the <strong>☰ menu</strong> at the bottom right</span></div>
+            <div class="pwa-step"><span class="pwa-step-num">2</span><span>Tap <strong>"Add page to"</strong> → <strong>"Home screen"</strong></span></div>
+            <div class="pwa-step"><span class="pwa-step-num">3</span><span>Tap <strong>"Add"</strong> to confirm</span></div>
+        `;
+    } else if (isAndroid && isFirefox) {
+        steps = `
+            <div class="pwa-step"><span class="pwa-step-num">1</span><span>Tap the <strong>⋮ menu</strong> in the top right</span></div>
+            <div class="pwa-step"><span class="pwa-step-num">2</span><span>Tap <strong>"Install"</strong></span></div>
+            <div class="pwa-step"><span class="pwa-step-num">3</span><span>Confirm the installation</span></div>
+        `;
+    } else {
+        steps = `
+            <div class="pwa-step"><span class="pwa-step-num">1</span><span>Open your browser's <strong>menu</strong></span></div>
+            <div class="pwa-step"><span class="pwa-step-num">2</span><span>Look for <strong>"Add to Home Screen"</strong> or <strong>"Install"</strong></span></div>
+            <div class="pwa-step"><span class="pwa-step-num">3</span><span>Confirm to add the app</span></div>
+        `;
+    }
+
+    instructionsEl.innerHTML = steps;
+
+    // Show/hide native install button for browsers that support beforeinstallprompt
+    const nativeBtn = document.getElementById("pwaInstallNativeBtn");
+    if (deferredInstallPrompt && nativeBtn) {
+        nativeBtn.style.display = "flex";
+    }
+
+    overlay.style.display = "flex";
+}
+
+function triggerNativePWAInstall() {
+    if (deferredInstallPrompt) {
+        deferredInstallPrompt.prompt();
+        deferredInstallPrompt.userChoice.then((result) => {
+            if (result.outcome === 'accepted') {
+                dismissPWAPrompt();
+            }
+            deferredInstallPrompt = null;
+        });
+    }
+}
+
+function dismissPWAPrompt() {
+    localStorage.setItem("ll_skip_pwa_prompt", "true");
+    const overlay = document.getElementById("pwaInstallOverlay");
+    if (overlay) overlay.style.display = "none";
+}
+
+// ==========================================================================
+// Multi-Account Switcher (PWA Only)
+// ==========================================================================
+function isPWA() {
+    return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+}
+
+function loadAccounts() {
+    try {
+        const raw = localStorage.getItem("ll_accounts");
+        if (raw) return JSON.parse(raw);
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function saveAccounts(accounts) {
+    localStorage.setItem("ll_accounts", JSON.stringify(accounts));
+}
+
+/**
+ * On first use with the new system, convert the existing single-account
+ * localStorage entries into the accounts array.
+ */
+function migrateCurrentToAccounts() {
+    if (!isPWA()) return; // Accounts feature is PWA-only
+
+    const accounts = loadAccounts();
+    const currentUID = localStorage.getItem("ll_uid");
+    if (!currentUID) return;
+
+    if (accounts) {
+        // Check if this UID already exists
+        const exists = accounts.some(a => a.uid === currentUID);
+        if (!exists) {
+            // New UID from URL — add as new account and set active
+            accounts.forEach(a => a.active = false);
+            const name = localStorage.getItem("ll_name") || "Partner";
+            accounts.push({ uid: currentUID, name: name, active: true });
+            saveAccounts(accounts);
+        }
+        return;
+    }
+
+    // No accounts array yet — create one from current credentials
+    const name = localStorage.getItem("ll_name") || "Partner";
+    saveAccounts([{ uid: currentUID, name: name, active: true }]);
+}
+
+function initAccountSwitcherButton() {
+    const btn = document.getElementById("btnSwitchAccounts");
+    const card = document.getElementById("accountSwitcherCard");
+    if (!btn || !card) return;
+
+    if (isPWA()) {
+        btn.style.display = "flex";
+        card.style.display = "block";
+        // Also ensure current account is in the accounts list
+        migrateCurrentToAccounts();
+    } else {
+        btn.style.display = "none";
+        card.style.display = "none";
+    }
+}
+
+function openAccountSwitcher() {
+    const modal = document.getElementById("accountSwitcherModal");
+    if (!modal) return;
+
+    renderAccountList();
+    modal.style.display = "flex";
+}
+
+function closeAccountSwitcher() {
+    const modal = document.getElementById("accountSwitcherModal");
+    if (modal) modal.style.display = "none";
+
+    // Hide the add-account input if it was open
+    const addSection = document.getElementById("addAccountSection");
+    if (addSection) addSection.style.display = "none";
+}
+
+function renderAccountList() {
+    const list = document.getElementById("accountList");
+    if (!list) return;
+
+    const accounts = loadAccounts() || [];
+    list.innerHTML = "";
+
+    accounts.forEach((acct, idx) => {
+        const item = document.createElement("div");
+        item.className = "account-item" + (acct.active ? " active" : "");
+        item.onclick = () => { if (!acct.active) switchToAccount(idx); };
+
+        const info = document.createElement("div");
+        info.className = "account-info";
+
+        const name = document.createElement("span");
+        name.className = "account-name";
+        name.innerText = acct.name + "'s Group";
+
+        const badge = document.createElement("span");
+        badge.className = "account-badge";
+        badge.innerText = acct.active ? "Active" : "";
+
+        info.appendChild(name);
+        info.appendChild(badge);
+
+        const actions = document.createElement("div");
+        actions.className = "account-actions";
+
+        if (accounts.length > 1) {
+            const delBtn = document.createElement("button");
+            delBtn.className = "account-delete-btn";
+            delBtn.innerHTML = '<span class="material-icons-round" style="font-size:18px;">delete_outline</span>';
+            delBtn.onclick = (e) => { e.stopPropagation(); deleteAccount(idx); };
+            actions.appendChild(delBtn);
+        }
+
+        item.appendChild(info);
+        item.appendChild(actions);
+        list.appendChild(item);
+    });
+}
+
+function switchToAccount(index) {
+    const accounts = loadAccounts();
+    if (!accounts || index < 0 || index >= accounts.length) return;
+
+    const target = accounts[index];
+    const decoded = decodeUID(target.uid);
+    if (!decoded) {
+        alert("This account's data appears to be corrupted. Please re-add it.");
+        return;
+    }
+
+    // Mark new account as active
+    accounts.forEach(a => a.active = false);
+    accounts[index].active = true;
+    saveAccounts(accounts);
+
+    // Update localStorage credentials
+    localStorage.setItem("ll_s", decoded.s);
+    localStorage.setItem("ll_u", decoded.u);
+    localStorage.setItem("ll_p", decoded.p);
+    const deviceId = decoded.id.toUpperCase() === "B" ? "B" : "A";
+    localStorage.setItem("ll_id", deviceId);
+    if (decoded.name) localStorage.setItem("ll_name", decoded.name);
+    localStorage.setItem("ll_uid", target.uid);
+
+    // Update in-memory state
+    mqtt_server = decoded.s;
+    mqtt_user = decoded.u;
+    mqtt_pass = decoded.p;
+    myDeviceId = deviceId;
+    partnerDeviceId = myDeviceId === "A" ? "B" : "A";
+    partnerName = decoded.name || "Partner";
+
+    // Load settings & presets for the new account
+    const saved = localStorage.getItem("ll_settings_" + myDeviceId);
+    if (saved) {
+        try { mySettings = JSON.parse(saved); } catch (e) { /* use defaults */ }
+    } else {
+        // Reset to defaults
+        mySettings = {
+            defaultColor: "#FF0000", dayTimeMin: 5, dayBright: 255,
+            ambientMode: false, ambientColor: "#0000FF",
+            nightMode: false, nightStart: "22:00", nightEnd: "08:00",
+            nightTimeMin: 5, nightBright: 76, timezone: "EST5EDT", lastTapTimestamp: 0
+        };
+    }
+    const savedPresets = localStorage.getItem("ll_presets_" + myDeviceId);
+    if (savedPresets) {
+        try { presets = JSON.parse(savedPresets); } catch (e) {
+            presets = [
+                { id: "default_love", name: "I Love You", color: "#FF0000" },
+                { id: "default_miss", name: "I Miss You", color: "#00FF00" }
+            ];
+        }
+    } else {
+        presets = [
+            { id: "default_love", name: "I Love You", color: "#FF0000" },
+            { id: "default_miss", name: "I Miss You", color: "#00FF00" }
+        ];
+    }
+
+    // Disconnect and reconnect MQTT
+    if (mqttClient) {
+        mqttClient.end(true);
+        mqttClient = null;
+    }
+    isMqttConnected = false;
+    myLampOnline = null;
+    partnerLampOnline = null;
+    mySupLampOnline = null;
+    partnerSupLampOnline = null;
+    hasMySupLamp = false;
+    hasPartnerSupLamp = false;
+
+    connectMQTT();
+    applySettingsToUI();
+    renderPresets();
+
+    // Update page title
+    document.getElementById("pageTitle").innerText = "My Group";
+    document.getElementById("signalSubtitle").innerText = "Tap to turn on " + partnerName + "'s lamp";
+
+    closeAccountSwitcher();
+    renderAccountList();
+}
+
+function showAddAccountInput() {
+    const section = document.getElementById("addAccountSection");
+    if (section) {
+        section.style.display = "block";
+        document.getElementById("newAccountUidInput").value = "";
+        document.getElementById("newAccountError").style.display = "none";
+        document.getElementById("newAccountUidInput").focus();
+    }
+}
+
+function addNewAccount() {
+    const input = document.getElementById("newAccountUidInput");
+    const errorEl = document.getElementById("newAccountError");
+    const raw = input.value.trim();
+
+    if (!raw) {
+        errorEl.style.display = "block";
+        errorEl.innerText = "Please enter a Unique ID.";
+        return;
+    }
+
+    let decoded = decodeUID(raw);
+
+    // Also try parsing as a full URL
+    if (!decoded) {
+        try {
+            const url = new URL(raw);
+            let searchParams = new URLSearchParams(url.search);
+            if (!searchParams.has("uid") && !searchParams.has("s")) {
+                searchParams = new URLSearchParams(url.hash.substring(1));
+            }
+            if (searchParams.has("uid")) {
+                decoded = decodeUID(searchParams.get("uid"));
+            } else if (searchParams.has("s") && searchParams.has("u") && searchParams.has("p") && searchParams.has("id")) {
+                decoded = {
+                    s: searchParams.get("s"), u: searchParams.get("u"),
+                    p: searchParams.get("p"), id: searchParams.get("id"),
+                    name: searchParams.get("name") || searchParams.get("partner") || null
+                };
+            }
+        } catch (e) { /* not a URL */ }
+    }
+
+    if (!decoded) {
+        errorEl.style.display = "block";
+        errorEl.innerText = "Invalid ID. Please check and try again.";
+        return;
+    }
+
+    const uid = encodeUID(decoded.s, decoded.u, decoded.p, decoded.id, decoded.name || null);
+    const accounts = loadAccounts() || [];
+
+    // Check for duplicates
+    if (accounts.some(a => a.uid === uid)) {
+        errorEl.style.display = "block";
+        errorEl.innerText = "This account is already added.";
+        return;
+    }
+
+    const name = decoded.name || "Partner";
+    accounts.push({ uid: uid, name: name, active: false });
+    saveAccounts(accounts);
+
+    // Hide input, re-render list
+    document.getElementById("addAccountSection").style.display = "none";
+    renderAccountList();
+}
+
+function deleteAccount(index) {
+    const accounts = loadAccounts();
+    if (!accounts || accounts.length <= 1) return;
+
+    const target = accounts[index];
+    if (!confirm(`Remove ${target.name}'s Group?`)) return;
+
+    const wasActive = target.active;
+    accounts.splice(index, 1);
+
+    // If deleted the active account, switch to the first remaining
+    if (wasActive && accounts.length > 0) {
+        accounts[0].active = true;
+        saveAccounts(accounts);
+        switchToAccount(0);
+        return;
+    }
+
+    saveAccounts(accounts);
+    renderAccountList();
 }

@@ -1242,3 +1242,178 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     margin-right: 2px;
     opacity: 0.6;
 }
+
+/* ==========================================================================
+   PWA Install Prompt Overlay
+   ========================================================================== */
+.pwa-install-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    background: rgba(13, 15, 23, 0.95);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeSlideIn 0.35s ease forwards;
+}
+
+.pwa-install-content {
+    max-width: 360px;
+    padding: 40px 30px;
+    text-align: center;
+}
+
+.pwa-install-icon {
+    width: 80px;
+    height: 80px;
+    border-radius: 20px;
+    background: rgba(107, 76, 255, 0.12);
+    border: 1px solid rgba(107, 76, 255, 0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+}
+
+.pwa-install-content h2 {
+    font-size: 1.6rem;
+    margin-bottom: 8px;
+    font-weight: 700;
+}
+
+.pwa-instructions {
+    text-align: left;
+    margin: 20px 0;
+}
+
+.pwa-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.pwa-step:last-child {
+    border-bottom: none;
+}
+
+.pwa-step-num {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: white;
+    font-size: 0.8rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.pwa-step > span:last-child {
+    font-size: 0.9rem;
+    color: var(--text);
+    line-height: 1.5;
+    padding-top: 3px;
+}
+
+.pwa-dismiss-link a {
+    transition: color 0.2s;
+}
+
+.pwa-dismiss-link a:hover {
+    color: var(--text) !important;
+    text-decoration: underline !important;
+}
+
+/* ==========================================================================
+   Account Switcher Modal
+   ========================================================================== */
+.account-switcher-modal {
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.account-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.account-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: var(--ease);
+}
+
+.account-item:hover {
+    background: rgba(255, 255, 255, 0.07);
+}
+
+.account-item.active {
+    border-color: var(--accent);
+    background: rgba(107, 76, 255, 0.08);
+    box-shadow: 0 0 0 1px var(--accent), 0 2px 12px var(--accent-glow);
+    cursor: default;
+}
+
+.account-info {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.account-name {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.account-badge {
+    font-size: 0.72rem;
+    color: var(--accent);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.account-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.account-delete-btn {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 8px;
+    display: flex;
+    transition: var(--ease);
+    opacity: 0.5;
+}
+
+.account-delete-btn:hover {
+    opacity: 1;
+    color: var(--danger);
+    background: rgba(255, 71, 87, 0.1);
+}
+
+/* ==========================================================================
+   UID Input Modal
+   ========================================================================== */
+.uid-input-modal {
+    animation: fadeSlideIn 0.35s ease forwards;
+}
