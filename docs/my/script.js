@@ -92,10 +92,10 @@ const MAX_CYCLE_COLORS = 10;
 /**
  * Encodes connection parameters into a single URL-safe Base64 string (UID).
  * Format: JSON → UTF-8 → Base64 → URL-safe (+ → -, / → _, strip trailing =)
+ * Note: Name is no longer encoded in UIDs — names come from the lamp's MQTT settings topic.
  */
-function encodeUID(server, user, pass, deviceId, partnerNameVal) {
+function encodeUID(server, user, pass, deviceId) {
     const obj = { s: server, u: user, p: pass, id: deviceId };
-    if (partnerNameVal) obj.name = partnerNameVal;
     const json = JSON.stringify(obj);
     // btoa only handles Latin1, so percent-encode unicode first
     const b64 = btoa(unescape(encodeURIComponent(json)));
@@ -218,8 +218,8 @@ function loadCredentials() {
         localStorage.setItem("ll_u", mqtt_user);
         localStorage.setItem("ll_p", mqtt_pass);
         localStorage.setItem("ll_id", myDeviceId);
-        // Generate and store UID from legacy params for future use
-        localStorage.setItem("ll_uid", encodeUID(mqtt_server, mqtt_user, mqtt_pass, myDeviceId, partnerName !== "Partner" ? partnerName : null));
+        // Generate and store UID from legacy params for future use (name no longer encoded)
+        localStorage.setItem("ll_uid", encodeUID(mqtt_server, mqtt_user, mqtt_pass, myDeviceId));
 
         foundFromUrl = true;
     }
@@ -440,6 +440,7 @@ function connectMQTT() {
 
         } else if (topic === getTopic(partnerDeviceId, "settings")) {
             // Read receipt: watch partner lamp's lastTapTimestamp for changes
+            // Also extract partner's ownerName from their lamp's settings topic
             try {
                 const partnerSettings = JSON.parse(msg);
                 const newTimestamp = partnerSettings.lastTapTimestamp || 0;
@@ -450,6 +451,30 @@ function connectMQTT() {
                 }
 
                 partnerLastTapTimestamp = newTimestamp;
+
+                // Auto-discover partner name from their lamp's settings (ownerName field)
+                if (partnerSettings.ownerName && partnerSettings.ownerName !== partnerName) {
+                    partnerName = partnerSettings.ownerName;
+                    localStorage.setItem("ll_name", partnerName);
+                    console.log("Partner name updated from MQTT settings:", partnerName);
+                    // Update UI elements that show the partner's name
+                    const sub = document.getElementById("signalSubtitle");
+                    if (sub) sub.innerText = "Tap to turn on " + partnerName + "'s lamp";
+                    updateStatusUI();
+
+                    // Also update the account name in the switcher list
+                    if (isPWA()) {
+                        const currentUid = localStorage.getItem("ll_uid");
+                        const accounts = loadAccounts();
+                        if (accounts && currentUid) {
+                            const acct = accounts.find(a => a.uid === currentUid);
+                            if (acct) {
+                                acct.name = partnerName;
+                                saveAccounts(accounts);
+                            }
+                        }
+                    }
+                }
             } catch (e) {
                 console.error("Failed to parse partner settings:", e);
             }

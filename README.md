@@ -78,7 +78,8 @@ For developers who want to modify the firmware or use a custom MQTT broker:
      "mqtt_port": 8883,
      "mqtt_user": "your_username",
      "mqtt_pass": "your_password",
-     "ota_url": "https://www.linkedlamp.com"
+     "ota_url": "https://www.linkedlamp.com",
+     "owner_name": "Your Name"
    }
    ```
    Set `device_id` to `"A"` for the first lamp and `"B"` for the second. Use the same broker credentials for both.
@@ -92,17 +93,11 @@ On first power-up, the lamp creates a Wi-Fi network called **"Linked Lamp Setup"
 
 ### Web App
 
-The Setup Guide generates personalized Web App URLs for each lamp. Bookmark and share them — all credentials are saved after the first visit.
+The Setup Guide generates personalized Web App UIDs for each lamp. Each person gets a unique token that connects them to the right lamp. You may also choose to save the website as a progressive web app (PWA) on your phone for easier access.
 ```
-https://linkedlamp.com/my/#s=BROKER_URL&u=USERNAME&p=PASSWORD&id=A&name=Sarah
+https://www.linkedlamp.com/my
 ```
-Replace the values:
 
-* `s` = your MQTT broker URL (Note: append the port here like `broker.com:8081` if your broker uses a custom WebSocket port)
-* `u` = MQTT username
-* `p` = MQTT password
-* `id` = A or B (must match the lamp's device_id)
-* `name` = the other person's name (this appears as "Sarah's Lamp" in the app)
 After the first visit, credentials are saved — you can just open the page normally.
 
 ## 📱 How to Use

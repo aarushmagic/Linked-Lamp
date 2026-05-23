@@ -43,7 +43,7 @@ async function fetchBinary(url) {
     return new Uint8Array(buffer);
 }
 
-function generateConfigJSON(deviceId, mqttServer, mqttUser, mqttPass) {
+function generateConfigJSON(deviceId, mqttServer, mqttUser, mqttPass, ownerName) {
     const config = {
         device_id: deviceId,
         mqtt_server: mqttServer,
@@ -52,6 +52,7 @@ function generateConfigJSON(deviceId, mqttServer, mqttUser, mqttPass) {
         mqtt_pass: mqttPass,
         ota_url: "https://www.linkedlamp.com"
     };
+    if (ownerName) config.owner_name = ownerName;
     return JSON.stringify(config, null, 2);
 }
 
@@ -164,7 +165,8 @@ async function flashESP32(config, onLog, onProgress) {
         config.deviceId,
         config.mqttServer,
         config.mqttUser,
-        config.mqttPass
+        config.mqttPass,
+        config.ownerName
     );
 
     try {
@@ -226,9 +228,11 @@ async function flashESP32(config, onLog, onProgress) {
         } else if (configSent) {
             onProgress(98);
             onLog("⚠ Config was sent but no confirmation received. The ESP32 may need a manual restart.");
+            onLog("⚠ You may try to resend the config using our Serial Monitor at https://www.linkedlamp.com/serial");
         } else {
             onProgress(85);
             onLog("⚠ ESP32 didn't request config. It may already have a valid config, or you may need to re-flash.");
+            onLog("⚠ You may try to resend the config using our Serial Monitor at https://www.linkedlamp.com/serial");
         }
 
     } finally {

@@ -49,6 +49,7 @@ int    mqtt_port    = 8883;
 String mqtt_user    = "";
 String mqtt_pass    = "";
 String ota_url      = "";  // Optional: base URL for auto-OTA checks
+String owner_name   = "";  // Owner's name (published via MQTT settings topic)
 
 // Role: "primary", "secondary", or "" (unset = auto-detect on first boot)
 String role = "";
@@ -484,6 +485,7 @@ void loadConfig() {
         mqtt_user    = doc["mqtt_user"]   | "";
         mqtt_pass    = doc["mqtt_pass"]   | "";
         ota_url      = doc["ota_url"]     | "";
+        owner_name   = doc["owner_name"]  | "";
         if (mqtt_server.length() > 0) {
           configValid = true;
           Serial.println("Config loaded from /config.json");
@@ -516,6 +518,7 @@ void loadConfig() {
               mqtt_user    = doc["mqtt_user"]   | "";
               mqtt_pass    = doc["mqtt_pass"]   | "";
               ota_url      = doc["ota_url"]     | "";
+              owner_name   = doc["owner_name"]  | "";
 
               // Save to LittleFS so we don't need Serial next boot
               if (!LittleFS.begin(true)) { LittleFS.format(); LittleFS.begin(true); }
@@ -910,6 +913,7 @@ void publishSettingsViaMQTT() {
   doc["ambientMode"]  = ambientModeEnabled;
   doc["ambientColor"] = ambientColor;
   doc["lastTapTimestamp"] = lastTapTimestamp;
+  if (owner_name.length() > 0) doc["ownerName"] = owner_name;
 
   String payload;
   serializeJson(doc, payload);
@@ -1574,6 +1578,7 @@ void processSerialCommand(String cmd) {
     }
     Serial.println("MQTT: " + String(mqttClient.connected() ? "CONNECTED" : "DISCONNECTED"));
     Serial.println("Device ID: " + device_id);
+    Serial.println("Owner Name: " + (owner_name.length() > 0 ? owner_name : "(not set)"));
     Serial.println("MQTT Server: " + mqtt_server);
     Serial.println("Role: " + (role.length() > 0 ? role : "unset"));
     Serial.println("Status Topic: " + statusTopicPub);
@@ -1699,6 +1704,37 @@ void processSerialCommand(String cmd) {
     delay(500);
     ESP.restart();
 
+  } else if (cmd.startsWith("SET_NAME:")) {
+    String newName = cmd.substring(9);
+    newName.trim();
+    if (newName.length() == 0) {
+      Serial.println("[CMD] ERROR: Name cannot be empty. Usage: SET_NAME:YourName");
+    } else {
+      owner_name = newName;
+      Serial.println("[CMD] Owner name set to: " + owner_name);
+      // Update config.json with the new name
+      if (LittleFS.exists("/config.json")) {
+        File f = LittleFS.open("/config.json", "r");
+        if (f) {
+          JsonDocument doc;
+          if (!deserializeJson(doc, f)) {
+            f.close();
+            doc["owner_name"] = owner_name;
+            File wf = LittleFS.open("/config.json", "w");
+            if (wf) {
+              serializeJsonPretty(doc, wf);
+              wf.close();
+              Serial.println("[CMD] Config updated with new name.");
+            }
+          } else {
+            f.close();
+          }
+        }
+      }
+      // Re-publish settings so the web app picks up the new name
+      publishSettingsViaMQTT();
+    }
+
   } else if (cmd == "HELP") {
     Serial.println("[CMD] Available commands:");
     Serial.println("  RESET_WIFI      - Clear WiFi credentials and reboot (opens config portal)");
@@ -1710,6 +1746,7 @@ void processSerialCommand(String cmd) {
     Serial.println("  GET_CONFIG      - Print current /config.json");
     Serial.println("  GET_STATE       - Print current /state.json");
     Serial.println("  GET_STATUS      - Print WiFi/MQTT/role status");
+    Serial.println("  SET_NAME:x      - Set lamp owner name (saved to config, published to MQTT)");
     Serial.println("  MAKE_PRIMARY    - Promote to primary (clears secondary status, reboots)");
     Serial.println("  MAKE_SECONDARY  - Demote to secondary (clears primary status, reboots)");
     Serial.println("  RESET_ROLE      - Clear role (auto-detect on next boot)");

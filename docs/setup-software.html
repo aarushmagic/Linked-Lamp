@@ -485,16 +485,7 @@
 
     <div class="setup-container max-w">
 
-        <!-- Dual lamp warning -->
-        <div class="dual-lamp-warning">
-            <span class="material-icons-round">warning</span>
-            <div>
-                <p><strong>Both lamps must be flashed at the same time.</strong></p>
-                <p>We recommend flashing the software onto the ESP32 boards <strong>before</strong> attaching them to
-                    the lamp or soldering them. If you need to reflash the firmware on one lamp later, <strong>both
-                        lamps must be reflashed</strong>.</p>
-            </div>
-        </div>
+        <!-- Dual lamp warning removed — lamps can now be reflashed independently -->
 
         <!-- Browser compatibility banner -->
         <div class="browser-banner" id="browserBanner" style="display: none;">
@@ -513,33 +504,27 @@
         <div class="setup-card active" id="step-1">
             <h2>Step 3: Flash Your Lamps</h2>
             <p>Enter your details below to generate your unique configuration. None of this data leaves your browser —
-                it is processed entirely locally.</p>
+                a temporary, secure connection may be made to the broker to retrieve device data.</p>
 
             <div class="form-group">
-                <label>Your Name</label>
-                <input type="text" id="in_name1" placeholder="e.g. Alice" required>
-            </div>
-            <div class="form-group">
-                <label>Their Name (Partner / Friend / Family)</label>
-                <input type="text" id="in_name2" placeholder="e.g. Bob" required>
-            </div>
+                <label style="display: flex; align-items: center; gap: 8px;">
+                    MQTT Broker URL
+                    <span class="material-icons-round" style="font-size: 1.1rem; color: var(--accent); cursor: pointer;" onclick="document.getElementById('mqttInfoBox').style.display = document.getElementById('mqttInfoBox').style.display === 'none' ? 'block' : 'none';">info</span>
+                </label>
+                
+                <div class="alert-box" id="mqttInfoBox" style="margin-top: 5px; margin-bottom: 15px; display: none;">
+                    <strong>MQTT Broker Details</strong><br>
+                    <span style="font-size: 0.9rem; color: #ccc;">
+                        You need a free MQTT broker to let the lamps talk to each other. Go to <a
+                            href="https://www.hivemq.com/mqtt-cloud-broker/" target="_blank"
+                            style="color:var(--accent);">HiveMQ Cloud</a> or <a href="https://io.adafruit.com/"
+                            target="_blank" style="color:var(--accent);">Adafruit IO</a>, sign up for a free account, create
+                        credentials, and paste them here. For a fully open source, self hosted alternative, you may use <a
+                            href="https://mosquitto.org/" target="_blank" style="color:var(--accent);">Eclipse Mosquitto</a>
+                        (learn more in the FAQ).
+                    </span>
+                </div>
 
-            <div class="alert-box mt-3" style="margin-top: 20px;">
-                <strong>MQTT Broker Details</strong><br>
-                <span style="font-size: 0.9rem; color: #ccc;">
-                    You need a free MQTT broker to let the lamps talk to each other. Go to <a
-                        href="https://www.hivemq.com/mqtt-cloud-broker/" target="_blank"
-                        style="color:var(--accent);">HiveMQ Cloud</a> or <a href="https://io.adafruit.com/"
-                        target="_blank" style="color:var(--accent);">Adafruit IO</a>, sign up for a free account, create
-                    credentials, and paste them here. For a fully open source, self hosted alternative, you may use <a
-                        href="https://mosquitto.org/" target="_blank" style="color:var(--accent);">Eclipse Mosquitto</a>
-                    (learn more in the FAQ).
-                </span>
-            </div>
-
-
-            <div class="form-group">
-                <label>MQTT Broker URL</label>
                 <input type="text" id="in_mqtt_url" placeholder="e.g. io.adafruit.com, or xxx.hivemq.cloud">
             </div>
             <div class="form-group">
@@ -571,26 +556,40 @@
                 <h2>Flash <span id="flash_name1" style="color: var(--accent);">Lamp A</span></h2>
                 <p>Connect the first ESP32 to your computer via USB.</p>
 
-                <div class="alert-box mb-3" style="text-align: left;">
-                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Hardware Type</label>
-                    <div style="display: flex; gap: 15px;">
-                        <label style="cursor: pointer;"><input type="radio" name="hwTypeA" value="pcb" checked> PCB
-                            (Individual LEDs)</label>
-                        <label style="cursor: pointer;"><input type="radio" name="hwTypeA" value="neopixel"> NeoPixel
-                            Ring</label>
+                <!-- Owner name prompt (shown only when MQTT couldn't retrieve the name) -->
+                <div class="form-group" id="namePromptA" style="display: none; margin-bottom: 15px;">
+                    <label style="color: white; font-weight: 600;">Who will use this lamp?</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="in_owner_name_a" placeholder="e.g. Alice" style="flex: 1;">
+                        <button class="btn primary-btn" onclick="confirmName('A')"
+                            style="padding: 0 15px;">Confirm</button>
                     </div>
                 </div>
 
-                <p>Click the button below to flash the firmware and your personal configuration in one go.</p>
+                <div id="flashInstructionsA" style="display: none;">
+                    <div class="alert-box mb-3" style="text-align: left;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: 600;">Hardware Type</label>
+                        <div style="display: flex; gap: 15px;">
+                            <label style="cursor: pointer;"><input type="radio" name="hwTypeA" value="pcb" checked> PCB
+                                (Individual LEDs)</label>
+                            <label style="cursor: pointer;"><input type="radio" name="hwTypeA" value="neopixel">
+                                NeoPixel
+                                Ring</label>
+                        </div>
+                    </div>
 
-                <div class="tip-box" style="text-align: left; margin-top: 15px; margin-bottom: 20px;">
-                    <strong>Tip:</strong> Depending on your ESP32 board, if the progress bar gets stuck at 15%, press
-                    and hold the <strong>BOOT</strong> button on the ESP32 and let go once the bar starts to rise
+                    <p>Click the button below to flash the firmware and your personal configuration in one go.</p>
+
+                    <div class="tip-box" style="text-align: left; margin-top: 15px; margin-bottom: 20px;">
+                        <strong>Tip:</strong> Depending on your ESP32 board, if the progress bar gets stuck at 15%,
+                        press
+                        and hold the <strong>BOOT</strong> button on the ESP32 and let go once the bar starts to rise
+                    </div>
+
+                    <button class="flash-btn" id="btnFlashA" onclick="startFlash('A')">
+                        <span class="material-icons-round">bolt</span> Connect & Flash
+                    </button>
                 </div>
-
-                <button class="flash-btn" id="btnFlashA" onclick="startFlash('A')">
-                    <span class="material-icons-round">bolt</span> Connect & Flash
-                </button>
 
                 <div class="usb-help-banner" id="usbHelpA">
                     <span class="material-icons-round">usb_off</span>
@@ -635,26 +634,40 @@
                 <h2>Flash <span id="flash_name2" style="color: var(--accent);">Lamp B</span></h2>
                 <p>Disconnect Lamp A's ESP32 and connect the second ESP32 via USB.</p>
 
-                <div class="alert-box mb-3" style="text-align: left;">
-                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Hardware Type</label>
-                    <div style="display: flex; gap: 15px;">
-                        <label style="cursor: pointer;"><input type="radio" name="hwTypeB" value="pcb" checked> PCB
-                            (Individual LEDs)</label>
-                        <label style="cursor: pointer;"><input type="radio" name="hwTypeB" value="neopixel"> NeoPixel
-                            Ring</label>
+                <!-- Owner name prompt (shown only when MQTT couldn't retrieve the name) -->
+                <div class="form-group" id="namePromptB" style="display: none; margin-bottom: 15px;">
+                    <label style="color: white; font-weight: 600;">Who will use this lamp?</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="in_owner_name_b" placeholder="e.g. Bob" style="flex: 1;">
+                        <button class="btn primary-btn" onclick="confirmName('B')"
+                            style="padding: 0 15px;">Confirm</button>
                     </div>
                 </div>
 
-                <p>Click the button below to flash this lamp too.</p>
+                <div id="flashInstructionsB" style="display: none;">
+                    <div class="alert-box mb-3" style="text-align: left;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: 600;">Hardware Type</label>
+                        <div style="display: flex; gap: 15px;">
+                            <label style="cursor: pointer;"><input type="radio" name="hwTypeB" value="pcb" checked> PCB
+                                (Individual LEDs)</label>
+                            <label style="cursor: pointer;"><input type="radio" name="hwTypeB" value="neopixel">
+                                NeoPixel
+                                Ring</label>
+                        </div>
+                    </div>
 
-                <div class="tip-box" style="text-align: left; margin-top: 15px; margin-bottom: 20px;">
-                    <strong>Tip:</strong> Depending on your ESP32 board, if the progress bar gets stuck at 15%, press
-                    and hold the <strong>BOOT</strong> button on the ESP32 and let go once the bar starts to rise
+                    <p>Click the button below to flash this lamp too.</p>
+
+                    <div class="tip-box" style="text-align: left; margin-top: 15px; margin-bottom: 20px;">
+                        <strong>Tip:</strong> Depending on your ESP32 board, if the progress bar gets stuck at 15%,
+                        press
+                        and hold the <strong>BOOT</strong> button on the ESP32 and let go once the bar starts to rise
+                    </div>
+
+                    <button class="flash-btn" id="btnFlashB" onclick="startFlash('B')">
+                        <span class="material-icons-round">bolt</span> Connect & Flash
+                    </button>
                 </div>
-
-                <button class="flash-btn" id="btnFlashB" onclick="startFlash('B')">
-                    <span class="material-icons-round">bolt</span> Connect & Flash
-                </button>
 
                 <div class="usb-help-banner" id="usbHelpB">
                     <span class="material-icons-round">usb_off</span>
@@ -694,37 +707,55 @@
         <!-- ====== MANUAL PATH: Config A ====== -->
         <div class="setup-card" id="step-config-a">
             <h2><span id="display_name1" style="color:var(--accent);">Device A</span>: Setup Config</h2>
-            <div class="alert-box">
-                <h3 style="margin-bottom: 10px; font-size: 1.1rem; color: white;">You'll Need VS Code + PlatformIO</h3>
-                <p style="margin-bottom: 5px;">Since your browser doesn't support one-click flashing, you'll use <a
-                        href="https://code.visualstudio.com/" target="_blank" style="color:var(--accent);">VS Code</a>
-                    with the <a href="https://platformio.org/" target="_blank" style="color:var(--accent);">PlatformIO
-                        extension</a> to flash the lamp.</p>
+
+            <div class="form-group" id="namePromptManualA" style="display: none; margin-bottom: 15px;">
+                <label style="color: white; font-weight: 600;">Who will use this lamp?</label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="in_manual_owner_name_a" placeholder="e.g. Alice" style="flex: 1;">
+                    <button class="btn primary-btn" onclick="confirmManualName('A')"
+                        style="padding: 0 15px;">Confirm</button>
+                </div>
             </div>
 
-            <p style="color:white; font-weight:600; margin-bottom:5px;">1. Download the Code</p>
-            <p style="margin-bottom: 15px;">Go to the <a href="https://github.com/aarushmagic/Linked-Lamp"
-                    target="_blank" style="color:var(--accent);">GitHub Repository</a>, click the green <strong>"<>
-                        Code"</strong> button, and select <strong>Download ZIP</strong>. Extract the folder.</p>
+            <div id="flashInstructionsManualA" style="display: none;">
+                <div class="alert-box">
+                    <h3 style="margin-bottom: 10px; font-size: 1.1rem; color: white;">You'll Need VS Code + PlatformIO
+                    </h3>
+                    <p style="margin-bottom: 5px;">Since your browser doesn't support one-click flashing, you'll use <a
+                            href="https://code.visualstudio.com/" target="_blank" style="color:var(--accent);">VS
+                            Code</a>
+                        with the <a href="https://platformio.org/" target="_blank"
+                            style="color:var(--accent);">PlatformIO
+                            extension</a> to flash the lamp.</p>
+                </div>
 
-            <p style="color:white; font-weight:600; margin-bottom:5px;">2. Open the Firmware Folder</p>
-            <p style="margin-bottom: 15px;">Open VS Code. Go to <strong>File > Open Folder</strong> and select either
-                the <strong><code>firmware/pcb</code></strong> folder OR the
-                <strong><code>firmware/neopixel</code></strong> folder depending on what hardware you built. Wait a
-                minute for the PlatformIO extension to install its tools.
-            </p>
+                <p style="color:white; font-weight:600; margin-bottom:5px;">1. Download the Code</p>
+                <p style="margin-bottom: 15px;">Go to the <a href="https://github.com/aarushmagic/Linked-Lamp"
+                        target="_blank" style="color:var(--accent);">GitHub Repository</a>, click the green <strong>"<>
+                            Code"</strong> button, and select <strong>Download ZIP</strong>. Extract the folder.</p>
 
-            <p style="color:white; font-weight:600; margin-bottom:5px;">3. Create your Config</p>
-            <p>Below is the exact <code>config.json</code> file for your first lamp. In VS Code, open the folder
-                <code>data/</code>, rename <code>config.example.json</code> to <code>config.json</code>, and paste this
-                text inside it.
-            </p>
+                <p style="color:white; font-weight:600; margin-bottom:5px;">2. Open the Firmware Folder</p>
+                <p style="margin-bottom: 15px;">Open VS Code. Go to <strong>File > Open Folder</strong> and select
+                    either
+                    the <strong><code>firmware/pcb</code></strong> folder OR the
+                    <strong><code>firmware/neopixel</code></strong> folder depending on what hardware you built. Wait a
+                    minute for the PlatformIO extension to install its tools.
+                </p>
 
-            <pre><button class="copy-btn" onclick="copyCode('codeA', this)">Copy</button><code id="codeA"></code></pre>
+                <p style="color:white; font-weight:600; margin-bottom:5px;">3. Create your Config</p>
+                <p>Below is the exact <code>config.json</code> file for your first lamp. In VS Code, open the folder
+                    <code>data/</code>, rename <code>config.example.json</code> to <code>config.json</code>, and paste
+                    this
+                    text inside it.
+                </p>
 
-            <div class="step-actions">
-                <button class="btn outline-btn" onclick="goToStep(1)">Back</button>
-                <button class="btn primary-btn" onclick="goToStep('flash-a-manual')">Config Saved! Next Step</button>
+                <pre><button class="copy-btn" onclick="copyCode('codeA', this)">Copy</button><code id="codeA"></code></pre>
+
+                <div class="step-actions">
+                    <button class="btn outline-btn" onclick="goToStep(1)">Back</button>
+                    <button class="btn primary-btn" id="btnManualNextA" onclick="goToStep('flash-a-manual')">Config
+                        Saved! Next Step</button>
+                </div>
             </div>
         </div>
 
@@ -759,15 +790,29 @@
         <!-- ====== MANUAL PATH: Config B ====== -->
         <div class="setup-card" id="step-config-b">
             <h2><span id="display_name2" style="color:var(--accent);">Device B</span>: Setup Config</h2>
-            <p>Now unplug Lamp A and plug in <strong>Lamp B's ESP32</strong>.</p>
-            <p>Here is the second config. Replace the contents of your <code>config.json</code> file with this new text.
-                Notice the <code>device_id</code> is now <code>"B"</code>.</p>
 
-            <pre><button class="copy-btn" onclick="copyCode('codeB', this)">Copy</button><code id="codeB"></code></pre>
+            <div class="form-group" id="namePromptManualB" style="display: none; margin-bottom: 15px;">
+                <label style="color: white; font-weight: 600;">Who will use this lamp?</label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="in_manual_owner_name_b" placeholder="e.g. Bob" style="flex: 1;">
+                    <button class="btn primary-btn" onclick="confirmManualName('B')"
+                        style="padding: 0 15px;">Confirm</button>
+                </div>
+            </div>
 
-            <div class="step-actions">
-                <button class="btn outline-btn" onclick="goToStep('flash-a-manual')">Back</button>
-                <button class="btn primary-btn" onclick="goToStep('manual-flash-b')">Config Saved! Next Step</button>
+            <div id="flashInstructionsManualB" style="display: none;">
+                <p>Now unplug Lamp A and plug in <strong>Lamp B's ESP32</strong>.</p>
+                <p>Here is the second config. Replace the contents of your <code>config.json</code> file with this new
+                    text.
+                    Notice the <code>device_id</code> is now <code>"B"</code>.</p>
+
+                <pre><button class="copy-btn" onclick="copyCode('codeB', this)">Copy</button><code id="codeB"></code></pre>
+
+                <div class="step-actions">
+                    <button class="btn outline-btn" onclick="goToStep('flash-a-manual')">Back</button>
+                    <button class="btn primary-btn" id="btnManualNextB" onclick="goToStep('manual-flash-b')">Config
+                        Saved! Next Step</button>
+                </div>
             </div>
         </div>
 
@@ -800,19 +845,22 @@
             <div style="text-align: center; margin-bottom: 30px;">
                 <span class="material-icons-round" style="font-size: 4rem; color: #2ed573;">celebration</span>
                 <h2 style="margin-top: 10px;">Setup Complete!</h2>
-                <p>Here are the Unique IDs (UIDs) used to connect your lamps to the Dashboard. <br><strong>Save these! Send the second
+                <p>Here are the Unique IDs (UIDs) used to connect your lamps to the Dashboard. <br><strong>Save these!
+                        Send the second
                         one to your partner.</strong></p>
             </div>
 
-            <label style="color: white; font-weight: 500; display: block; margin-bottom: 8px;"><span
-                    id="res_name1" style="color:var(--accent);">Device A</span></label>
+            <label style="color: white; font-weight: 500; display: block; margin-bottom: 8px;"><span id="res_name1"
+                    style="color:var(--accent);">Device A</span></label>
             <div class="url-display" id="url_out1"></div>
 
-            <label style="color: white; font-weight: 500; display: block; margin-bottom: 8px; margin-top:20px;"><span id="res_name2" style="color:var(--accent);">Device B</span></label>
+            <label style="color: white; font-weight: 500; display: block; margin-bottom: 8px; margin-top:20px;"><span
+                    id="res_name2" style="color:var(--accent);">Device B</span></label>
             <div class="url-display" id="url_out2"></div>
 
             <p style="text-align: center; margin-top: 30px;">
-                <a href="my/" class="btn primary-btn" target="_blank" style="background: var(--accent); color: white;">Open Dashboard</a>
+                <a href="my/" class="btn primary-btn" target="_blank"
+                    style="background: var(--accent); color: white;">Open Dashboard</a>
                 <br>
                 <a href="usage.html" class="btn outline-btn" style="margin-top: 15px;">How to Use Your Lamps →</a>
                 <br>
@@ -837,6 +885,9 @@
             </div>
         </div>
     </footer>
+
+    <!-- MQTT.js for name auto-detection on reflash -->
+    <script src="https://unpkg.com/mqtt@5.3.5/dist/mqtt.min.js"></script>
 
     <!-- Flasher Module -->
     <script src="flash/flasher.js"></script>
@@ -917,16 +968,19 @@
             stepId = String(stepId);
 
             if (currentStep === '1' && stepId !== '1') {
-                const n1 = document.getElementById("in_name1").value.trim();
-                const n2 = document.getElementById("in_name2").value.trim();
                 const broker = document.getElementById("in_mqtt_url").value.trim();
-                if (!n1 || !n2 || !broker) {
-                    alert("Please fill in the names and MQTT Broker URL to proceed.");
+                const mUser = document.getElementById("in_mqtt_user").value.trim();
+                const mPw = document.getElementById("in_mqtt_pw").value.trim();
+                if (!broker || !mUser || !mPw) {
+                    alert("Please fill in the MQTT Broker details to proceed.");
                     return;
                 }
                 generateConfigs();
-                document.getElementById('flash_name1').innerText = n1 + "'s Lamp";
-                document.getElementById('flash_name2').innerText = n2 + "'s Lamp";
+
+                // Try to auto-detect names from MQTT before showing flash pages
+                attemptMqttNameDetection().then(() => {
+                    updateFlashPageNames();
+                });
             }
 
             if (stepId === 'finish') {
@@ -969,12 +1023,10 @@
         }
 
         function skipToUrls() {
-            const n1 = document.getElementById("in_name1").value.trim();
-            const n2 = document.getElementById("in_name2").value.trim();
             const broker = document.getElementById("in_mqtt_url").value.trim();
 
-            if (!n1 || !n2 || !broker) {
-                alert("Please fill in the Names and Broker URL. We need these to build the link.");
+            if (!broker) {
+                alert("Please fill in the Broker URL. We need it to build the link.");
                 return;
             }
             goToStep('finish');
@@ -984,20 +1036,16 @@
         // Config Generation
         // =====================================================================
         function generateConfigs() {
-            const n1 = document.getElementById("in_name1").value.trim();
-            const n2 = document.getElementById("in_name2").value.trim();
             let url = document.getElementById("in_mqtt_url").value.trim();
             const mUser = document.getElementById("in_mqtt_user").value.trim();
             const mPw = document.getElementById("in_mqtt_pw").value.trim();
 
-            const dn1 = document.getElementById("display_name1");
-            const dn2 = document.getElementById("display_name2");
-            if (dn1) dn1.innerText = n1 + "'s Lamp";
-            if (dn2) dn2.innerText = n2 + "'s Lamp";
-
             // Strip explicit websocket port for ESP32 config
             let fwBroker = url;
             if (url.includes(":")) fwBroker = url.split(":")[0];
+
+            const nameA = getOwnerNameForLamp('A');
+            const nameB = getOwnerNameForLamp('B');
 
             const configA = {
                 "device_id": "A",
@@ -1007,6 +1055,7 @@
                 "mqtt_pass": mPw,
                 "ota_url": "https://www.linkedlamp.com"
             };
+            if (nameA) configA.owner_name = nameA;
 
             const configB = {
                 "device_id": "B",
@@ -1016,6 +1065,7 @@
                 "mqtt_pass": mPw,
                 "ota_url": "https://www.linkedlamp.com"
             };
+            if (nameB) configB.owner_name = nameB;
 
             const codeA = document.getElementById("codeA");
             const codeB = document.getElementById("codeB");
@@ -1024,15 +1074,15 @@
         }
 
         function calcURLs() {
-            const n1 = document.getElementById("in_name1").value.trim() || 'A';
-            const n2 = document.getElementById("in_name2").value.trim() || 'B';
+            const n1 = getOwnerNameForLamp('A') || 'Lamp A';
+            const n2 = getOwnerNameForLamp('B') || 'Lamp B';
             const url = document.getElementById("in_mqtt_url").value.trim();
             const mUser = document.getElementById("in_mqtt_user").value.trim();
             const mPw = document.getElementById("in_mqtt_pw").value.trim();
 
-            // Generate UID strings (Base64url encoded)
-            const uidA = _encodeUID(url, mUser, mPw, 'A', n2);
-            const uidB = _encodeUID(url, mUser, mPw, 'B', n1);
+            // Generate UID strings (Base64url encoded) — no longer include names
+            const uidA = _encodeUID(url, mUser, mPw, 'A');
+            const uidB = _encodeUID(url, mUser, mPw, 'B');
 
             // Build new UID-based URLs
             const fullUrlA = `${baseDomain}?uid=${uidA}`;
@@ -1055,10 +1105,9 @@
             `;
         }
 
-        // UID encoder (mirrors the one in my/script.js)
-        function _encodeUID(server, user, pass, deviceId, partnerNameVal) {
+        // UID encoder (mirrors the one in my/script.js) — no longer includes name
+        function _encodeUID(server, user, pass, deviceId) {
             const obj = { s: server, u: user, p: pass, id: deviceId };
-            if (partnerNameVal) obj.name = partnerNameVal;
             const json = JSON.stringify(obj);
             const b64 = btoa(unescape(encodeURIComponent(json)));
             return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -1115,6 +1164,7 @@
                 mqttServer: fwBroker,
                 mqttUser: document.getElementById("in_mqtt_user").value.trim(),
                 mqttPass: document.getElementById("in_mqtt_pw").value.trim(),
+                ownerName: getOwnerNameForLamp(lampId),
             };
 
             function onLog(msg) {
@@ -1171,8 +1221,221 @@
             });
         }
 
+        // =====================================================================
+        // MQTT Name Auto-Detection (for reflashing)
+        // =====================================================================
+        let mqttDetectedNameA = null;
+        let mqttDetectedNameB = null;
+
+        function attemptMqttNameDetection() {
+            return new Promise((resolve) => {
+                const url = document.getElementById("in_mqtt_url").value.trim();
+                const mUser = document.getElementById("in_mqtt_user").value.trim();
+                const mPw = document.getElementById("in_mqtt_pw").value.trim();
+
+                if (!url || !mUser || !mPw) { resolve(); return; }
+
+                let clean_server = url;
+                let active_port = 8884;
+                if (url.includes("adafruit")) active_port = 443;
+                if (url.includes(":")) {
+                    const parts = url.split(":");
+                    clean_server = parts[0];
+                    active_port = parseInt(parts[1]) || active_port;
+                }
+
+                const brokerUrl = `wss://${clean_server}:${active_port}/mqtt`;
+                const clientId = "Setup-" + Math.random().toString(16).substring(2, 8);
+
+                let settingsReceived = 0;
+                const maxWait = setTimeout(() => {
+                    try { client.end(true); } catch (e) { }
+                    resolve();
+                }, 6000); // 6 second timeout
+
+                function checkDone() {
+                    settingsReceived++;
+                    if (settingsReceived >= 2) {
+                        clearTimeout(maxWait);
+                        try { client.end(true); } catch (e) { }
+                        resolve();
+                    }
+                }
+
+                let client;
+                try {
+                    client = mqtt.connect(brokerUrl, {
+                        clientId,
+                        username: mUser,
+                        password: mPw,
+                        reconnectPeriod: 0,
+                        clean: true,
+                        connectTimeout: 5000
+                    });
+                } catch (e) { resolve(); return; }
+
+                function getSettingsTopic(deviceId) {
+                    if (clean_server.includes("adafruit") && mUser) {
+                        return `${mUser}/f/ll_${deviceId}_settings`;
+                    }
+                    return `linkedlamp/${deviceId}/settings`;
+                }
+
+                client.on("connect", () => {
+                    client.subscribe(getSettingsTopic("A"));
+                    client.subscribe(getSettingsTopic("B"));
+                });
+
+                client.on("message", (topic, message) => {
+                    try {
+                        const settings = JSON.parse(message.toString());
+                        if (settings.ownerName) {
+                            if (topic === getSettingsTopic("A")) {
+                                mqttDetectedNameA = settings.ownerName;
+                            } else if (topic === getSettingsTopic("B")) {
+                                mqttDetectedNameB = settings.ownerName;
+                            }
+                        }
+                    } catch (e) { }
+                    checkDone();
+                });
+
+                client.on("error", () => {
+                    clearTimeout(maxWait);
+                    try { client.end(true); } catch (e) { }
+                    resolve();
+                });
+            });
+        }
+
+        function updateFlashPageNames() {
+            // Lamp A: prefer MQTT-detected name
+            const nameA = mqttDetectedNameA;
+            const nameB = mqttDetectedNameB;
+
+            const btnA = document.getElementById('btnFlashA');
+            const btnB = document.getElementById('btnFlashB');
+            const instrA = document.getElementById('flashInstructionsA');
+            const instrB = document.getElementById('flashInstructionsB');
+            const instrManA = document.getElementById('flashInstructionsManualA');
+            const instrManB = document.getElementById('flashInstructionsManualB');
+            const promptManA = document.getElementById('namePromptManualA');
+            const promptManB = document.getElementById('namePromptManualB');
+
+            if (nameA) {
+                document.getElementById('flash_name1').innerText = nameA + "'s Lamp";
+                document.getElementById('namePromptA').style.display = 'none';
+                document.getElementById('in_owner_name_a').value = nameA;
+                if (document.getElementById('in_manual_owner_name_a')) document.getElementById('in_manual_owner_name_a').value = nameA;
+
+                if (btnA) btnA.style.display = 'inline-flex';
+                if (instrA) instrA.style.display = 'block';
+                if (instrManA) instrManA.style.display = 'block';
+                if (promptManA) promptManA.style.display = 'none';
+
+                const dn1 = document.getElementById("display_name1");
+                if (dn1) dn1.innerText = nameA + "'s Lamp";
+            } else {
+                document.getElementById('flash_name1').innerText = 'Lamp A';
+                document.getElementById('namePromptA').style.display = 'block';
+
+                if (btnA) btnA.style.display = 'none';
+                if (instrA) instrA.style.display = 'none';
+                if (instrManA) instrManA.style.display = 'none';
+                if (promptManA) promptManA.style.display = 'block';
+
+                const dn1 = document.getElementById("display_name1");
+                if (dn1) dn1.innerText = "Lamp A";
+            }
+
+            if (nameB) {
+                document.getElementById('flash_name2').innerText = nameB + "'s Lamp";
+                document.getElementById('namePromptB').style.display = 'none';
+                document.getElementById('in_owner_name_b').value = nameB;
+                if (document.getElementById('in_manual_owner_name_b')) document.getElementById('in_manual_owner_name_b').value = nameB;
+
+                if (btnB) btnB.style.display = 'inline-flex';
+                if (instrB) instrB.style.display = 'block';
+                if (instrManB) instrManB.style.display = 'block';
+                if (promptManB) promptManB.style.display = 'none';
+
+                const dn2 = document.getElementById("display_name2");
+                if (dn2) dn2.innerText = nameB + "'s Lamp";
+            } else {
+                document.getElementById('flash_name2').innerText = 'Lamp B';
+                document.getElementById('namePromptB').style.display = 'block';
+
+                if (btnB) btnB.style.display = 'none';
+                if (instrB) instrB.style.display = 'none';
+                if (instrManB) instrManB.style.display = 'none';
+                if (promptManB) promptManB.style.display = 'block';
+
+                const dn2 = document.getElementById("display_name2");
+                if (dn2) dn2.innerText = "Lamp B";
+            }
+
+            generateConfigs();
+        }
+
+        function confirmName(lampId) {
+            const val = document.getElementById('in_owner_name_' + lampId.toLowerCase()).value.trim();
+            if (!val) {
+                alert("Please enter a name first.");
+                return;
+            }
+
+            const btn = document.getElementById('btnFlash' + lampId);
+            const instr = document.getElementById('flashInstructions' + lampId);
+            const display = document.getElementById(lampId === 'A' ? 'display_name1' : 'display_name2');
+
+            if (btn) btn.style.display = 'inline-flex';
+            if (instr) instr.style.display = 'block';
+            if (display) display.innerText = val + "'s Lamp";
+
+            document.getElementById('flash_name' + (lampId === 'A' ? '1' : '2')).innerText = val + "'s Lamp";
+
+            // Also sync manual input just in case they switch
+            const manIn = document.getElementById('in_manual_owner_name_' + lampId.toLowerCase());
+            if (manIn) manIn.value = val;
+
+            generateConfigs();
+        }
+
+        function confirmManualName(lampId) {
+            const val = document.getElementById('in_manual_owner_name_' + lampId.toLowerCase()).value.trim();
+            if (!val) {
+                alert("Please enter a name first.");
+                return;
+            }
+
+            const instr = document.getElementById('flashInstructionsManual' + lampId);
+            const display = document.getElementById(lampId === 'A' ? 'display_name1' : 'display_name2');
+
+            if (instr) instr.style.display = 'block';
+            if (display) display.innerText = val + "'s Lamp";
+
+            // Sync main input
+            const mainIn = document.getElementById('in_owner_name_' + lampId.toLowerCase());
+            if (mainIn) mainIn.value = val;
+
+            generateConfigs();
+        }
+
+        function getOwnerNameForLamp(lampId) {
+            if (lampId === 'A') {
+                return mqttDetectedNameA
+                    || document.getElementById('in_owner_name_a')?.value.trim()
+                    || document.getElementById('in_manual_owner_name_a')?.value.trim()
+                    || null;
+            } else {
+                return mqttDetectedNameB
+                    || document.getElementById('in_owner_name_b')?.value.trim()
+                    || document.getElementById('in_manual_owner_name_b')?.value.trim()
+                    || null;
+            }
+        }
+
     </script>
 </body>
 
 </html>
-

@@ -521,7 +521,9 @@
     <div class="not-supported" id="notSupported">
         <span class="material-icons-round">usb_off</span>
         <h2>Browser Not Supported</h2>
-        <p>The Serial Monitor requires the Web Serial API, which is only available in <strong>Google Chrome</strong> or <strong>Microsoft Edge</strong> on desktop.</p>
+        <p>The Serial Monitor requires the Web Serial API, which is only available in <strong>Google Chrome</strong> or
+            <strong>Microsoft Edge</strong> on desktop.
+        </p>
         <a href="index.html" class="home-btn">
             <span class="material-icons-round" style="font-size:18px">arrow_back</span>
             Return Home
@@ -592,6 +594,10 @@
                 <li>
                     <span class="cmd-name" data-cmd="SET_CONFIG:{}">SET_CONFIG:{}</span>
                     <span class="cmd-desc">Set new MQTT config JSON and reboot</span>
+                </li>
+                <li>
+                    <span class="cmd-name" data-cmd="SET_NAME:">SET_NAME:x</span>
+                    <span class="cmd-desc">Set the lamp owner's name (saved to config, published to MQTT)</span>
                 </li>
                 <li>
                     <span class="cmd-name" data-cmd="SET_WIFI:ssid,pass">SET_WIFI:s,p</span>
@@ -717,7 +723,7 @@
                     appendLine("No device selected.", "line-sys");
                     appendLine("Your lamp should appear as \"CP2102 USB to UART Bridge Controller\" or \"Silicon Labs CP210x\" in the port list.", "line-sys");
                     appendLine("", "line-sys");
-                    appendLine("If your lamp doesn't appear, you may need to install the CP210x USB driver:", "line-sys");
+                    appendLine("If your lamp doesn't appear, please make sure you're using a data cable. You may also need to install the CP210x USB driver:", "line-sys");
                     // Clickable download link
                     const linkDiv = document.createElement("div");
                     linkDiv.className = "line-sys";

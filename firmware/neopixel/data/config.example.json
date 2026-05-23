@@ -4,5 +4,6 @@
   "mqtt_port": 8883,
   "mqtt_user": "your_mqtt_username",
   "mqtt_pass": "your_mqtt_password",
-  "ota_url": "https://www.linkedlamp.com"
+  "ota_url": "https://www.linkedlamp.com",
+  "owner_name": "Your Name"
 }
