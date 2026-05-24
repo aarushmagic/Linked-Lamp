@@ -126,6 +126,9 @@ function decodeUID(uid) {
 // Initialization
 // ==========================================================================
 window.addEventListener("load", () => {
+    // Check if we should prompt for PWA install (mobile only, browser only)
+    checkPWAInstallPrompt();
+
     if (!loadCredentials()) {
         document.getElementById("missingCredentialsModal").style.display = "flex"; // Use flex to center the content using modal's built in styling
         return;
@@ -143,9 +146,6 @@ window.addEventListener("load", () => {
 
     // Show/hide account switcher button (PWA only)
     initAccountSwitcherButton();
-
-    // Check if we should prompt for PWA install (mobile only, browser only)
-    checkPWAInstallPrompt();
 
     // Update page title
     document.getElementById("pageTitle").innerText = "My Group";

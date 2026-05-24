@@ -1582,7 +1582,7 @@ void processSerialCommand(String cmd) {
     Serial.println("MQTT Server: " + mqtt_server);
     Serial.println("Role: " + (role.length() > 0 ? role : "unset"));
     Serial.println("Status Topic: " + statusTopicPub);
-    Serial.println("Uptime: " + String(millis() / 1000) + "s");
+    Serial.println("MAC: " + WiFi.macAddress());
     Serial.println("[CMD] STATUS_END");
 
   } else if (cmd == "SCAN_WIFI") {
