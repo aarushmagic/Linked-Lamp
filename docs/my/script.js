@@ -870,10 +870,8 @@ function applySettingsToUI() {
 function triggerUpdate() {
     if (!confirm("Push a firmware update to your lamp? It will restart briefly.")) return;
     if (mqttClient && mqttClient.connected) {
-        // Construct correct firmware URL based on detected hardware type
-        const hwType = localStorage.getItem("ll_hwtype_" + myDeviceId) || "pcb";
-        const fwFile = (hwType === "neopixel") ? "firmware-neo.bin" : "firmware.bin";
-        const otaUrl = new URL("../flash/" + fwFile, window.location.href).href;
+        // Send only the base URL to allow the lamp to decipher its correct firmware file (PCB vs NeoPixel)
+        const otaUrl = new URL("../", window.location.href).href;
 
         mqttClient.publish(getTopic(myDeviceId, "color_trigger"), "OTA:" + otaUrl);
         alert("Update command sent! Your lamp will restart shortly. This could take upto 5 minutes. Please do not restart your device in the meantime even if it goes offline.");

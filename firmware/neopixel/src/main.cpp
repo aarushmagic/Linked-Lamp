@@ -675,6 +675,30 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     if (msg.startsWith("OTA:")) {
       String url = msg.substring(4);
       Serial.println("OTA triggered via color_trigger! URL: " + url);
+      
+      // Normalize and compare with configured ota_url
+      String testTrigger = url;
+      String testConfig = ota_url;
+      
+      // Remove protocols for comparison
+      if (testTrigger.startsWith("http://")) testTrigger.remove(0, 7);
+      if (testTrigger.startsWith("https://")) testTrigger.remove(0, 8);
+      if (testConfig.startsWith("http://")) testConfig.remove(0, 7);
+      if (testConfig.startsWith("https://")) testConfig.remove(0, 8);
+      
+      // Remove www. for comparison
+      if (testTrigger.startsWith("www.")) testTrigger.remove(0, 4);
+      if (testConfig.startsWith("www.")) testConfig.remove(0, 4);
+      
+      // Remove trailing slash
+      if (testTrigger.endsWith("/")) testTrigger.remove(testTrigger.length() - 1);
+      if (testConfig.endsWith("/")) testConfig.remove(testConfig.length() - 1);
+
+      if (ota_url.length() == 0 || !(testTrigger == testConfig || testTrigger.startsWith(testConfig + "/"))) {
+        Serial.println("OTA Blocked: Trigger URL does not match configured ota_url (" + ota_url + ")");
+        return;
+      }
+
       performOTA(url);
       return;
     }
