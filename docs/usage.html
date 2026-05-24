@@ -453,6 +453,12 @@
             <p style="margin-top: 1rem;">For more help, check the <a href="faq.html"
                     style="color: var(--accent);">FAQ</a> or <a href="https://github.com/aarushmagic/Linked-Lamp/issues"
                     target="_blank" style="color: var(--accent);">open an issue on GitHub</a>.</p>
+            
+            <div id="serialBtnWrapper" style="display: none; margin-top: 1.5rem; text-align: center;">
+                <a href="serial.html" style="display: inline-flex; align-items: center; gap: 8px; padding: 12px 24px; border-radius: 10px; background: var(--accent); color: white; text-decoration: none; font-weight: 600; font-family: var(--font); transition: all 0.3s ease;">
+                    <span class="material-icons-round">terminal</span> Open Serial Monitor
+                </a>
+            </div>
         </div>
     </div>
 
@@ -473,6 +479,10 @@
     </footer>
 
     <script>
+        if ("serial" in navigator) {
+            const wrapper = document.getElementById('serialBtnWrapper');
+            if (wrapper) wrapper.style.display = 'block';
+        }
     </script>
 </body>
 

@@ -509,18 +509,21 @@
             <div class="form-group">
                 <label style="display: flex; align-items: center; gap: 8px;">
                     MQTT Broker URL
-                    <span class="material-icons-round" style="font-size: 1.1rem; color: var(--accent); cursor: pointer;" onclick="document.getElementById('mqttInfoBox').style.display = document.getElementById('mqttInfoBox').style.display === 'none' ? 'block' : 'none';">info</span>
+                    <span class="material-icons-round" style="font-size: 1.1rem; color: var(--accent); cursor: pointer;"
+                        onclick="document.getElementById('mqttInfoBox').style.display = document.getElementById('mqttInfoBox').style.display === 'none' ? 'block' : 'none';">info</span>
                 </label>
-                
+
                 <div class="alert-box" id="mqttInfoBox" style="margin-top: 5px; margin-bottom: 15px; display: none;">
                     <strong>MQTT Broker Details</strong><br>
                     <span style="font-size: 0.9rem; color: #ccc;">
                         You need a free MQTT broker to let the lamps talk to each other. Go to <a
                             href="https://www.hivemq.com/mqtt-cloud-broker/" target="_blank"
                             style="color:var(--accent);">HiveMQ Cloud</a> or <a href="https://io.adafruit.com/"
-                            target="_blank" style="color:var(--accent);">Adafruit IO</a>, sign up for a free account, create
-                        credentials, and paste them here. For a fully open source, self hosted alternative, you may use <a
-                            href="https://mosquitto.org/" target="_blank" style="color:var(--accent);">Eclipse Mosquitto</a>
+                            target="_blank" style="color:var(--accent);">Adafruit IO</a>, sign up for a free account,
+                        create
+                        credentials, and paste them here. For a fully open source, self hosted alternative, you may use
+                        <a href="https://mosquitto.org/" target="_blank" style="color:var(--accent);">Eclipse
+                            Mosquitto</a>
                         (learn more in the FAQ).
                     </span>
                 </div>

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -13,69 +14,163 @@
             max-width: 800px;
             margin: 15vh auto 10vh;
         }
-        .legal-container h1 { font-size: 3rem; margin-bottom: 2rem; }
-        .legal-container h2 { font-size: 1.8rem; margin: 2rem 0 1rem; color: var(--accent); }
-        .legal-container p { color: var(--text-dim); margin-bottom: 1rem; }
-        .legal-container ul { color: var(--text-dim); margin-left: 20px; margin-bottom: 1rem; }
-        .legal-container li { margin-bottom: 0.5rem; }
+
+        .legal-container h1 {
+            font-size: 3rem;
+            margin-bottom: 2rem;
+        }
+
+        .legal-container h2 {
+            font-size: 1.8rem;
+            margin: 2rem 0 1rem;
+            color: var(--accent);
+        }
+
+        .legal-container p {
+            color: var(--text-dim);
+            margin-bottom: 1rem;
+            line-height: 1.7;
+        }
+
+        .legal-container ul {
+            color: var(--text-dim);
+            margin-left: 20px;
+            margin-bottom: 1rem;
+            line-height: 1.7;
+        }
+
+        .legal-container li {
+            margin-bottom: 0.5rem;
+        }
     </style>
 </head>
+
 <body>
     <nav class="navbar scrolled">
         <div class="nav-content max-w">
             <div class="logo">
-                <a href="index.html" style="color:inherit; text-decoration:none; display:flex; align-items:center; gap:10px;">
-                    <img src="images/logo.png" alt="Linked Lamp" style="height: 28px; width: 28px; object-fit: contain;">
+                <a href="index.html"
+                    style="color:inherit; text-decoration:none; display:flex; align-items:center; gap:10px;">
+                    <img src="images/logo.png" alt="Linked Lamp"
+                        style="height: 28px; width: 28px; object-fit: contain;">
                     <span class="logo-text">Linked Lamp</span>
                 </a>
             </div>
             <div class="nav-links" style="margin-left: auto;">
                 <a href="my/" class="nav-btn primary">Dashboard</a>
             </div>
-</div>
+        </div>
     </nav>
 
-<div class="legal-container max-w">
+    <div class="legal-container max-w">
         <h1>Privacy Policy</h1>
-        <p><strong>Last Updated:</strong> March 2026</p>
+        <p><strong>Last Updated:</strong> May 2026</p>
 
-        <h2>1. Data Collection by Setup Generator</h2>
-        <p>The Linked Lamp project provides a Setup Guide configuration generator. <strong>We do not collect, process, or store any of your data.</strong> The entire Setup Guide is a static web page executing 100% locally in your web browser. Any credentials you enter (Names, Wi-Fi, MQTT Broker passwords) are used dynamically within your browser to generate your <code>config.json</code> file and Web App URLs, and are never transmitted to our servers.</p>
+        <h2>1. No Centralized Data Collection</h2>
+        <p>The Linked Lamp is a decentralized, open-source Do-It-Yourself (DIY) hardware and software project. The
+            maintainers, creators, and contributors of the Linked Lamp project <strong>do not own, operate, or maintain
+                any backend servers that collect, store, process, or transmit your personal data</strong>. We do not
+            collect telemetry, IP addresses, usage statistics, or device identifiers.</p>
 
-        <h2>2. Third-Party Services (Important)</h2>
-        <p>The Linked Lamp relies heavily on third-party MQTT broker services to route messages across the world. While we do not collect your data, the companies hosting these brokers might.</p>
-        <p>If you use <strong>HiveMQ Cloud</strong>, <strong>Adafruit IO</strong>, <strong>AWS IoT Core</strong>, or any other cloud MQTT provider, the signals, durations, and connection metadata flowing between your lamps are processed by their servers. By using the Linked Lamp software to connect to a third-party service, you acknowledge and accept their respective Privacy Policies and Terms of Service. We have no affiliation with these entities and no liability for their data practices.</p>
+        <h2>2. Local Execution, Plaintext Storage, and Unique IDs</h2>
+        <p>All setup and configuration tools provided on this website execute 100% locally within your web browser. When
+            you use the Setup Guide or the Web Serial API (WiFi Configuration & Serial Tool) to configure your lamp:</p>
+        <ul>
+            <li>Your Wi-Fi SSID, Wi-Fi password, MQTT broker credentials, and personal identifiers are written directly
+                from your browser to your physical ESP32 device via USB.</li>
+            <li>No configuration data is transmitted over the internet to our servers.</li>
+            <li>The Web App dashboard uses your browser's LocalStorage and IndexedDB to cache user interface settings,
+                presets, and your raw MQTT connection credentials (broker URL, username, and password). This data
+                remains on your local device and is never uploaded to the project maintainers.</li>
+            <li><strong>The "Unique ID" (UID) Sharing Risk:</strong> The Web App encodes your MQTT broker host,
+                username, password, and device ID into a single string called the "Unique ID" (UID). This is designed as
+                a convenience feature to easily link your partner's device. <strong>You must acknowledge that this UID
+                    is formatted using standard Base64url encoding, which is NOT a secure form of encryption.</strong>
+                Anyone with access to your UID can instantly decode it to reveal your raw, plaintext MQTT broker
+                credentials. Treat your Unique ID as highly sensitive, secret information. Never share it over public,
+                unencrypted, or untrusted communication channels.</li>
+        </ul>
 
-        <h2>3. Local Storage</h2>
-        <p>The personalized Web App controller (accessed via your unique <code>/my/</code> URL) utilizes your browser's Local Storage to save UI states (like Signal Presets). This operates entirely offline relative to any centralized "Linked Lamp Server" because there is no such server. It talks directly to your third-party MQTT broker.</p>
+        <h2>3. Third-Party Service Providers</h2>
+        <p>To function, the Linked Lamp relies entirely on third-party infrastructure. <strong>None of these third-party
+                services are affiliated with, endorsed by, or operated by the Linked Lamp project.</strong> You
+            acknowledge that your data is subject to the privacy practices of these third parties, for which we have no
+            control or liability:</p>
+        <ul>
+            <li><strong>MQTT Brokers (e.g., HiveMQ, Adafruit IO, AWS IoT):</strong> Your lamp communicates over the
+                internet by routing messages through your chosen MQTT broker. Payloads (color hex codes, tap durations),
+                connection metadata, and your home network's IP address are visible to and processed by your broker.
+            </li>
+            <li><strong>Public Content Delivery Networks (CDNs - unpkg.com & jsDelivr):</strong> This static website and
+                the Web App dashboard dynamically load open-source scripts and UI components (including
+                <code>mqtt.js</code>, <code>iro.js</code>, and <code>esptool-js</code>) from public CDN networks at
+                runtime. When your browser requests these libraries, your IP address, user-agent string, and referrer
+                headers are transmitted to and processed by <code>unpkg.com</code> and <code>jsdelivr.net</code> in
+                accordance with their respective Privacy Policies.</li>
+            <li><strong>Web Hosting & Domain Routing (GitHub Pages & Cloudflare):</strong> This static website and the
+                Web App are hosted via GitHub Pages, with domain routing provided by Cloudflare. Both GitHub and
+                Cloudflare may collect standard server access logs, including your IP address and user-agent string, in
+                accordance with their respective Privacy Policies.</li>
+            <li><strong>Over-The-Air (OTA) Updates (GitHub):</strong> The firmware is programmed to periodically check
+                for updates by querying GitHub's servers via GitHub Releases. These requests expose your IP address to
+                GitHub.</li>
+            <li><strong>Public DNS (Google & Cloudflare):</strong> To ensure reliable connectivity, the Linked Lamp
+                firmware explicitly configures your ESP32 to use public DNS servers (<code>8.8.8.8</code> provided by
+                Google and <code>1.1.1.1</code> provided by Cloudflare). This means your lamp's DNS queries are routed
+                through and processed by these entities.</li>
+        </ul>
 
-        <h2>4. Open Source Transparency</h2>
-        <p>The source code for the Linked Lamp firmware and web interface is completely open and public under the <strong>GNU General Public License v3.0 (GPLv3)</strong>. You are encouraged to read the code, modify it, and audit it for your own security requirements.</p>
+        <h2>4. Data Security Risks and Firmware Limitations</h2>
+        <p>Because this is a DIY project, it is your responsibility to secure your MQTT broker and home network. You
+            must understand the following security architecture decisions implemented in this open-source project:</p>
+        <ul>
+            <li><strong>Plaintext MQTT vs. TLS:</strong> If you configure your lamp to use unencrypted MQTT (port 1883)
+                rather than MQTT over TLS (port 8883), your network traffic will be transmitted in plaintext and may be
+                intercepted by network operators or malicious actors.</li>
+            <li><strong>Bypassed Server Certificate Validation (setInsecure):</strong> To enable a flexible,
+                broker-agnostic design, prevent connectivity failures when root CAs expire, and bypass dependencies on
+                local clock synchronization (NTP), the firmware is explicitly programmed to disable SSL/TLS Certificate
+                Authority (CA) validation (by calling <code>espClientSecure.setInsecure()</code>). <strong>While the
+                    connection is encrypted, the lamp does not verify the identity of the remote server.</strong>
+                Consequently, the firmware is vulnerable to Man-in-the-Middle (MitM) certificate spoofing, interception,
+                and credential hijacking if connected to compromised, public, or untrusted network environments. By
+                compiling and flashing this open-source software, you assume all risks associated with this security
+                compromise. We are not responsible for any unauthorized access to your devices, network, or data.</li>
+            <li><strong>Unauthenticated & Unsigned Remote OTA Updates:</strong> The firmware is programmed to process Over-The-Air (OTA) update commands pushed over your MQTT trigger feed. Because this update channel is entirely unauthenticated, lacks cryptographic binary signature verification, and bypasses TLS certificate validation, anyone with write access to your MQTT topic can force your lamp to flash arbitrary, unverified third-party binaries. This creates a risk of remote code execution, which could be used to compromise your local home network. By deploying this software, you acknowledge and assume this risk.</li>
+        </ul>
 
-        <a href="index.html" class="btn outline-btn mt-3">Return to Home</a>
+        <h2>5. Open Source Transparency</h2>
+        <p>The source code for the Linked Lamp firmware and web interface is publicly available under the <strong>GNU
+                General Public License v3.0 (GPLv3)</strong>. You are encouraged to review, audit, and modify the code
+            to suit your personal privacy requirements.</p>
+
+        <a href="index.html" class="nav-btn outline-btn mt-3"
+            style="border: 1px solid var(--border); padding: 10px 20px; border-radius: 8px; text-decoration: none; color: var(--text); display: inline-block; margin-top: 2rem;">Return
+            to Home</a>
     </div>
 
     <!-- Footer -->
     <footer>
         <div class="footer-content max-w">
             <div class="footer-brand">
-                <img src="images/logo.png" alt="Linked Lamp" style="height: 24px; width: 24px; object-fit: contain;"> Linked Lamp
+                <img src="images/logo.png" alt="Linked Lamp" style="height: 24px; width: 24px; object-fit: contain;">
+                Linked Lamp
             </div>
             <p>&copy; 2026 Aarush Magic. An Open Source Project.</p>
             <div class="footer-links">
                 <a href="privacy.html">Privacy</a>
                 <a href="terms.html">Terms</a>
-                <a href="https://github.com/aarushmagic/Linked-Lamp">GitHub Repostory</a>
+                <a href="https://github.com/aarushmagic/Linked-Lamp">GitHub Repository</a>
             </div>
         </div>
         <div class="max-w mt-3" style="text-align: center; font-size: 0.8rem; color: var(--text-dim); padding: 0 20px;">
-            * The Linked Lamp software and hardware designs are open source. Third-party services required for connectivity (such as HiveMQ, Adafruit IO, or AWS) are proprietary and governed by their respective owners.
+            * The Linked Lamp software and hardware designs are open source. Third-party services required for
+            connectivity (such as HiveMQ, Adafruit IO, or AWS) are proprietary and governed by their respective owners.
         </div>
     </footer>
 
     <script>
-</script>
+    </script>
 </body>
+
 </html>
-
-

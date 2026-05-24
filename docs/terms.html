@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -13,69 +14,142 @@
             max-width: 800px;
             margin: 15vh auto 10vh;
         }
-        .legal-container h1 { font-size: 3rem; margin-bottom: 2rem; }
-        .legal-container h2 { font-size: 1.8rem; margin: 2rem 0 1rem; color: var(--accent); }
-        .legal-container p { color: var(--text-dim); margin-bottom: 1rem; }
+
+        .legal-container h1 {
+            font-size: 3rem;
+            margin-bottom: 2rem;
+        }
+
+        .legal-container h2 {
+            font-size: 1.8rem;
+            margin: 2rem 0 1rem;
+            color: var(--accent);
+        }
+
+        .legal-container p {
+            color: var(--text-dim);
+            margin-bottom: 1rem;
+            line-height: 1.7;
+        }
+
+        .legal-container ul {
+            color: var(--text-dim);
+            margin-left: 20px;
+            margin-bottom: 1rem;
+            line-height: 1.7;
+        }
+
+        .legal-container li {
+            margin-bottom: 0.5rem;
+        }
     </style>
 </head>
+
 <body>
     <nav class="navbar scrolled">
         <div class="nav-content max-w">
             <div class="logo">
-                <a href="index.html" style="color:inherit; text-decoration:none; display:flex; align-items:center; gap:10px;">
-                    <img src="images/logo.png" alt="Linked Lamp" style="height: 28px; width: 28px; object-fit: contain;">
+                <a href="index.html"
+                    style="color:inherit; text-decoration:none; display:flex; align-items:center; gap:10px;">
+                    <img src="images/logo.png" alt="Linked Lamp"
+                        style="height: 28px; width: 28px; object-fit: contain;">
                     <span class="logo-text">Linked Lamp</span>
                 </a>
             </div>
             <div class="nav-links" style="margin-left: auto;">
                 <a href="my/" class="nav-btn primary">Dashboard</a>
             </div>
-</div>
+        </div>
     </nav>
 
-<div class="legal-container max-w">
-        <h1>Terms and Conditions</h1>
-        <p><strong>Last Updated:</strong> March 2026</p>
+    <div class="legal-container max-w">
+        <h1>Terms of Service and Liability Waiver</h1>
+        <p><strong>Last Updated:</strong> May 2026</p>
 
         <h2>1. Acceptance of Terms</h2>
-        <p>By using the Linked Lamp hardware schematics, web interfaces, and firmware (the "Software"), you agree to the following terms and conditions. The Linked Lamp is an open-source, DIY (Do It Yourself) project provided for personal and educational use.</p>
+        <p>By accessing the Linked Lamp website, using its firmware, or building the hardware (collectively, the
+            "Project"), you agree to be bound by these Terms of Service. The Linked Lamp is an open-source,
+            Do-It-Yourself (DIY) project provided strictly for personal, non-commercial, and educational use. If you do
+            not agree with any part of these terms, you must not use or assemble the Project.</p>
 
-        <h2>2. Third-Party Services</h2>
-            <p>The Linked Lamp requires an active internet connection and communication with third-party MQTT brokers (e.g., HiveMQ Cloud, Adafruit IO, Amazon Web Services IoT Core). You understand that you must independently register for, configure, and maintain accounts with these services to utilize the Linked Lamp's remote capabilities. These third-party services are proprietary and operate under their own Terms of Service. We bear no responsibility for their uptime, security, or data handling practices.</p>
+        <h2>2. Hardware & Electrical Safety Waiver</h2>
+        <p><strong>WARNING: </strong> Building the Linked Lamp requires the handling of electronic components, soldering
+            irons, microcontrollers, and external power supplies.</p>
+        <p>By undertaking the assembly of the Linked Lamp, you acknowledge and accept all inherent risks, including but
+            not limited to electrical shock, fire, burns, toxic fumes from soldering, and property damage. You agree
+            that you are solely responsible for ensuring proper wiring, adequate insulation, and the use of certified,
+            safe power supplies. <strong>Under no circumstances shall the creators, maintainers, or contributors of this
+                Project be held liable for any personal injury, death, property damage, or catastrophic failure
+                resulting from your assembly, modification, or use of the physical hardware.</strong></p>
 
-        <h2>3. Hardware & Assembly Risks</h2>
-        <p>Building the Linked Lamp requires handling electronic components and power supplies. By undertaking the assembly of the Linked Lamp, you assume all risks associated with electrical wiring and 3D printing. We are not responsible for any property damage, electrical shorts, or personal injury resulting from improper assembly, unauthorized modifications, or unsafe power supplies.</p>
+        <h2>3. Software "AS IS" & Security Disclaimer of Warranties</h2>
+        <p>THE FIRMWARE, WEB INTERFACES, 3D MODELS, AND DOCUMENTATION (COLLECTIVELY, "SOFTWARE") ARE PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+            IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE,
+            AND NON-INFRINGEMENT. WE DO NOT GUARANTEE THAT THE SOFTWARE WILL BE UNINTERRUPTED, ERROR-FREE, SECURE, OR
+            FREE FROM VULNERABILITIES.</p>
+        <p><strong>CRITICAL SECURITY ARCHITECTURE WAIVER:</strong> YOU ACKNOWLEDGE AND AGREE THAT the Software utilizes a simplified security architecture to support DIY flexibility and ease of setup. Specifically:
+        <ul>
+            <li><strong>TLS Certificate Bypass:</strong> The ESP32 firmware deliberately disables SSL/TLS Certificate Authority (CA) validation (by calling <code>espClientSecure.setInsecure()</code>) to eliminate configuration blocks, certificate expiration issues, and NTP server dependencies on the physical device. While network traffic is encrypted, the identity of the remote broker server is <strong>not authenticated</strong>. This design decision exposes the device to Man-in-the-Middle (MitM) certificate spoofing, packet injection, and credential interception when connected to public or untrusted network environments.</li>
+            <li><strong>Plaintext Local Storage & Base64 Unique ID:</strong> The web-based dashboard caches your raw MQTT broker username and password credentials in plaintext within your browser's local storage (LocalStorage). Additionally, the dashboard generates a "Unique ID" (UID) containing these raw credentials encoded in standard Base64url format for convenient pairing. <strong>You acknowledge that Base64 is a plaintext encoding format and provides zero cryptographic protection.</strong> Anyone who intercepts or obtains access to the UID can immediately decode it to steal your raw broker credentials.</li>
+            <li><strong>Unauthenticated & Unsigned Remote OTA Updates:</strong> The ESP32 firmware features a remote Over-The-Air (OTA) update command system triggered by publishing an update URL to the device's subscription topic. Because this system is completely unauthenticated, does not verify cryptographic signatures on the binary, and disables SSL certificate validation, any third party with publishing capabilities on your MQTT feed can force your lamp to flash arbitrary, unverified software. This allows remote code execution which could be used as a vector to compromise your entire local home network. You assume all responsibility and risks of device hijacking and network intrusion by deploying this firmware.</li>
+        </ul>
+        BY USING THIS PROJECT, YOU FULLY UNDERSTAND, ACCEPT, AND ASSUME ALL RISKS ASSOCIATED WITH THESE SECURITY CONSTRAINTS. UNDER NO CIRCUMSTANCES SHALL THE CREATORS, MAINTAINERS, OR CONTRIBUTORS OF THIS PROJECT BE HELD LIABLE FOR ANY SECURITY BREACHES, DATA THEFT, CREDENTIAL COMPROMISE, UNAPPROVED NETWORK ACCESS, BROKER HIJACKINGS, OR LOSS OF PRIVACY RESULTING FROM YOUR ASSEMBLY OR DEPLOYMENT OF THIS PROJECT.</p>
 
-        <h2>4. License & Open Source</h2>
-        <p>The Linked Lamp source code is licensed under the <strong>GNU General Public License v3.0 (GPLv3)</strong>. You have the freedom to distribute, modify, and use the software in accordance with the GPLv3 terms.</p>
+        <h2>4. Third-Party Service Dependence and Non-Affiliation</h2>
+        <p>The Project relies entirely on third-party infrastructure (including but not limited to GitHub for hosting
+            and OTA updates, Cloudflare for domain routing, Google and Cloudflare for Public DNS, public Content Delivery Networks (CDNs) like unpkg.com and jsDelivr for delivering runtime script libraries, and external MQTT
+            brokers like HiveMQ or Adafruit IO for connectivity). <strong>None of these third-party services are
+                affiliated with, endorsed by, or operated by the Linked Lamp project or its creators.</strong> We have
+            no control over these entities. You acknowledge that if a third-party provider experiences an outage,
+            changes their pricing, or deprecates their API, your Linked Lamp may cease to function entirely. We bear no
+            responsibility for loss of functionality, and you agree not to hold us liable for any disruptions, data breaches, or server logs collected by these third-party services.</p>
 
-        <h2>5. Disclaimer of Warranties & Waiver of Liability (AS IS)</h2>
-        <p>THE SOFTWARE AND ASSOCIATED HARDWARE DESIGNS ARE PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS, PROJECT MAINTAINERS, OR COPYRIGHT HOLDERS (INCLUDING AARUSH) BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE OR HARDWARE.</p>
+        <h2>5. Unintended and High-Risk Use Prohibited</h2>
+        <p>The Linked Lamp is a novelty item for entertainment purposes. It is <strong>NOT</strong> designed, intended,
+            or authorized for use in critical life-safety systems, medical alerts, emergency response mechanisms, or any
+            environment where failure could lead to injury, death, or severe environmental damage. Any such use is
+            strictly prohibited and at your own sole risk.</p>
 
-        <a href="index.html" class="btn outline-btn mt-3">Return to Home</a>
+        <h2>6. Indemnification</h2>
+        <p>You agree to indemnify, defend, and hold harmless the project creators, maintainers, and contributors from
+            and against any and all claims, liabilities, damages, losses, costs, expenses, or fees (including reasonable
+            attorneys' fees) arising from your violation of these Terms, your assembly of the hardware, or your use of
+            the Software.</p>
+
+        <h2>7. License and GPLv3 Compliance</h2>
+        <p>The Linked Lamp software is licensed under the <strong>GNU General Public License v3.0 (GPLv3)</strong>.
+            Nothing in these Terms of Service shall restrict your rights under the GPLv3 to copy, modify, and distribute
+            the software. To the extent any provision in these Terms conflicts with the GPLv3 regarding the software
+            itself, the GPLv3 shall govern. Our disclaimers of warranty and liability are intended to complement
+            Sections 15 and 16 of the GPLv3.</p>
+
+        <a href="index.html" class="nav-btn outline-btn mt-3"
+            style="border: 1px solid var(--border); padding: 10px 20px; border-radius: 8px; text-decoration: none; color: var(--text); display: inline-block; margin-top: 2rem;">Return
+            to Home</a>
     </div>
 
     <!-- Footer -->
     <footer>
         <div class="footer-content max-w">
             <div class="footer-brand">
-                <img src="images/logo.png" alt="Linked Lamp" style="height: 24px; width: 24px; object-fit: contain;"> Linked Lamp
+                <img src="images/logo.png" alt="Linked Lamp" style="height: 24px; width: 24px; object-fit: contain;">
+                Linked Lamp
             </div>
             <p>&copy; 2026 Aarush Magic. An Open Source Project.</p>
             <div class="footer-links">
                 <a href="privacy.html">Privacy</a>
                 <a href="terms.html">Terms</a>
-                <a href="https://github.com/aarushmagic/Linked-Lamp">GitHub Repostory</a>
+                <a href="https://github.com/aarushmagic/Linked-Lamp">GitHub Repository</a>
             </div>
         </div>
         <div class="max-w mt-3" style="text-align: center; font-size: 0.8rem; color: var(--text-dim); padding: 0 20px;">
-            * The Linked Lamp software and hardware designs are open source. Third-party services required for connectivity (such as HiveMQ, Adafruit IO, or AWS) are proprietary and governed by their respective owners.
+            * The Linked Lamp software and hardware designs are open source. Third-party services required for
+            connectivity (such as HiveMQ, Adafruit IO, or AWS) are proprietary and governed by their respective owners.
         </div>
     </footer>
 
     <script>
-</script>
+    </script>
 </body>
+
 </html>
-
-

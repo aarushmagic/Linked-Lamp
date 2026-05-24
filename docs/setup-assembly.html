@@ -94,7 +94,7 @@
             padding: 0;
         }
 
-        .step-list > li {
+        .step-list>li {
             counter-increment: step-counter;
             position: relative;
             padding: 16px 0 16px 52px;
@@ -103,11 +103,11 @@
             line-height: 1.7;
         }
 
-        .step-list > li:last-child {
+        .step-list>li:last-child {
             border-bottom: none;
         }
 
-        .step-list > li::before {
+        .step-list>li::before {
             content: counter(step-counter);
             position: absolute;
             left: 0;
@@ -124,7 +124,7 @@
             justify-content: center;
         }
 
-        .step-list > li strong {
+        .step-list>li strong {
             color: white;
         }
 
@@ -224,7 +224,9 @@
             text-align: center;
         }
 
-        .info-tooltip.show { display: block; }
+        .info-tooltip.show {
+            display: block;
+        }
 
         .info-tooltip img {
             max-width: 100%;
@@ -253,12 +255,17 @@
         .info-backdrop {
             display: none;
             position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
             background: rgba(0, 0, 0, 0.6);
             z-index: 1999;
         }
 
-        .info-backdrop.show { display: block; }
+        .info-backdrop.show {
+            display: block;
+        }
 
         /* Nav buttons */
         .page-nav {
@@ -271,9 +278,17 @@
         }
 
         @media (max-width: 768px) {
-            .assembly-container h1 { font-size: 2rem; }
-            .assembly-section { padding: 1.5rem; }
-            .step-list > li { padding-left: 44px; }
+            .assembly-container h1 {
+                font-size: 2rem;
+            }
+
+            .assembly-section {
+                padding: 1.5rem;
+            }
+
+            .step-list>li {
+                padding-left: 44px;
+            }
         }
     </style>
 </head>
@@ -283,24 +298,25 @@
     <nav class="navbar scrolled">
         <div class="nav-content max-w">
             <div class="logo">
-                <a href="index.html" style="color:inherit; text-decoration:none; display:flex; align-items:center; gap:10px;">
-                    <img src="images/logo.png" alt="Linked Lamp" style="height: 28px; width: 28px; object-fit: contain;">
+                <a href="index.html"
+                    style="color:inherit; text-decoration:none; display:flex; align-items:center; gap:10px;">
+                    <img src="images/logo.png" alt="Linked Lamp"
+                        style="height: 28px; width: 28px; object-fit: contain;">
                     <span class="logo-text">Linked Lamp</span>
                 </a>
             </div>
             <div class="nav-links" style="margin-left: auto;">
                 <a href="my/" class="nav-btn primary">Dashboard</a>
             </div>
-</div>
+        </div>
     </nav>
 
-<div class="assembly-container max-w">
+    <div class="assembly-container max-w">
         <h1>Step 2: Assembly</h1>
-        <p class="subtitle">Follow the instructions below to solder, wire, and assemble your Linked Lamp. Remember to build <strong>two lamps</strong>.</p>
+        <p class="subtitle">Follow the instructions below to solder, wire, and assemble your Linked Lamp. Remember to
+            build <strong>two lamps</strong>.</p>
 
-        <div class="warning-box" style="margin-bottom: 2rem;">
-            <strong>Important:</strong> We strongly recommend flashing the software onto your ESP32 boards (see <a href="setup-software.html" style="color: #ffa502; text-decoration: underline;">Step 3: Software</a>) <strong>before</strong> soldering them or assembling the lamps.
-        </div>
+
 
         <div class="hw-toggle">
             <button id="btnPCB" class="active" onclick="selectHW('pcb')">🔧 PCB</button>
@@ -314,9 +330,12 @@
 
                 <ol class="step-list">
                     <li>
-                        <strong>Attach the NFC tag.</strong> If you have an NFC tag sticker, stick it to the <strong>bottom of the base (on the inside)</strong> before putting in any of the other stuff.
+                        <strong>Attach the NFC tag.</strong> If you have an NFC tag sticker, stick it to the
+                        <strong>bottom of the base (on the inside)</strong> before putting in any of the other stuff.
                         <div class="tip-box">
-                            <strong>Tip:</strong> After flashing the software, you can write your personalized Web App URL to the NFC tag. Then anyone can tap their phone on the bottom of the lamp to instantly open the control app.
+                            <strong>Tip:</strong> After flashing the software, you can write your personalized Web App
+                            URL to the NFC tag. Then anyone can tap their phone on the bottom of the lamp to instantly
+                            open the control app.
                         </div>
                     </li>
 
@@ -325,19 +344,24 @@
                         ESP32 dev board's pin layout matches the required diagram.
                         <span class="info-icon" onclick="showPinout()" title="View pinout">i</span>
                         <div class="warning-box">
-                            <strong>Important:</strong> The ESP32 is soldered onto the <strong>back</strong> of the PCB (the side without the LED silkscreen labels).
+                            <strong>Important:</strong> The ESP32 is soldered onto the <strong>back</strong> of the PCB
+                            (the side without the LED silkscreen labels).
                         </div>
                     </li>
 
                     <li>
-                        <strong>Solder all components onto the PCB.</strong> Everything is labeled on the PCB silkscreen — resistors, transistors, and LED positions.
+                        <strong>Solder all components onto the PCB.</strong> Everything is labeled on the PCB silkscreen
+                        — resistors, transistors, and LED positions.
                         <div class="warning-box">
-                            <strong>LED orientation note:</strong> On 3 of the RGB LED slots, the common anode pin is the <strong>2nd pin from the left</strong>. On the other 3 slots, it is the <strong>2nd pin from the right</strong>. Check the PCB silkscreen markings carefully.
+                            <strong>LED orientation note:</strong> On 3 of the RGB LED slots, the common anode pin is
+                            the <strong>2nd pin from the left</strong>. On the other 3 slots, it is the <strong>2nd pin
+                                from the right</strong>. Check the PCB silkscreen markings carefully.
                         </div>
                     </li>
 
                     <li>
-                        <strong>Solder the 90° header pins</strong> onto the <strong>reverse side</strong> of the PCB (same side as the ESP32). These will be used to connect the TTP223 touch sensor.
+                        <strong>Solder the 90° header pins</strong> onto the <strong>reverse side</strong> of the PCB
+                        (same side as the ESP32). These will be used to connect the TTP223 touch sensor.
                     </li>
 
                     <li>
@@ -348,7 +372,14 @@
                             <li>It doesn't stick out from under or above the PCB</li>
                         </ul>
                         <div class="tip-box">
-                            <strong>Tip:</strong> After soldering, use wire cutters to cut the excess header pins flush with the TTP223's surface for a clean fit.
+                            <strong>Tip:</strong> After soldering, use wire cutters to cut the excess header pins flush
+                            with the TTP223's surface for a clean fit.
+                        </div>
+                        <div class="warning-box" style="margin-top: 1rem;">
+                            <strong>Important:</strong> We strongly recommend flashing the software onto your ESP32
+                            boards (see <a href="setup-software.html"
+                                style="color: #ffa502; text-decoration: underline;">Step 3: Software</a>)
+                            <strong>before</strong> assembling the lamps.
                         </div>
                     </li>
 
@@ -366,7 +397,8 @@
                     </li>
 
                     <li>
-                        <strong>Attach the diffuser.</strong> Place the diffuser over the base and apply a small amount of super glue to hold it in place.
+                        <strong>Attach the diffuser.</strong> Place the diffuser over the base and apply a small amount
+                        of super glue to hold it in place.
                     </li>
                 </ol>
             </div>
@@ -375,19 +407,25 @@
         <!-- ===== NEOPIXEL ASSEMBLY ===== -->
         <div id="neoAssembly" style="display: none;">
             <div class="assembly-section">
-                <h2><span class="material-icons-round" style="color: #2ed573;">blur_circular</span> NeoPixel Assembly</h2>
+                <h2><span class="material-icons-round" style="color: #2ed573;">blur_circular</span> NeoPixel Assembly
+                </h2>
 
-                <p style="color: var(--text-dim); margin-bottom: 16px;">Reference the NeoPixel schematic while wiring:</p>
+                <p style="color: var(--text-dim); margin-bottom: 16px;">Reference the NeoPixel schematic while wiring:
+                </p>
 
                 <div class="schematic-container">
-                    <img src="https://raw.githubusercontent.com/aarushmagic/Linked-Lamp/refs/heads/main/Circuit/Schematics/Neopixel%20Lamp%20Schematic.svg" alt="NeoPixel Wiring Schematic">
+                    <img src="https://raw.githubusercontent.com/aarushmagic/Linked-Lamp/refs/heads/main/Circuit/Schematics/Neopixel%20Lamp%20Schematic.svg"
+                        alt="NeoPixel Wiring Schematic">
                 </div>
 
                 <ol class="step-list">
                     <li>
-                        <strong>Attach the NFC tag.</strong> If you have an NFC tag sticker, stick it to the <strong>bottom of the base (on the inside)</strong> before putting in any of the other stuff.
+                        <strong>Attach the NFC tag.</strong> If you have an NFC tag sticker, stick it to the
+                        <strong>bottom of the base (on the inside)</strong> before putting in any of the other stuff.
                         <div class="tip-box">
-                            <strong>Tip:</strong> After flashing the software, you can write your personalized Web App URL to the NFC tag. Then anyone can tap their phone on the bottom of the lamp to instantly open the control app.
+                            <strong>Tip:</strong> After flashing the software, you can write your personalized Web App
+                            URL to the NFC tag. Then anyone can tap their phone on the bottom of the lamp to instantly
+                            open the control app.
                         </div>
                     </li>
 
@@ -408,12 +446,20 @@
                             <li><strong>D4 / GPIO 4</strong> (ESP32) → <strong>IO</strong> (TTP223)</li>
                         </ul>
                         <div class="tip-box">
-                            <strong>Tip:</strong> It's easier to solder header pins to the TTP223 first, then cut them flush with the surface of the TTP223, and then solder the wires onto the header pins.
+                            <strong>Tip:</strong> It's easier to solder header pins to the TTP223 first, then cut them
+                            flush with the surface of the TTP223, and then solder the wires onto the header pins.
                         </div>
                     </li>
 
                     <li>
-                        <strong>Use heat shrink tubing</strong> (optional but recommended) to insulate all solder joints and prevent shorts.
+                        <strong>Use heat shrink tubing</strong> (optional but recommended) to insulate all solder joints
+                        and prevent shorts.
+                        <div class="warning-box" style="margin-top: 1rem;">
+                            <strong>Important:</strong> We strongly recommend flashing the software onto your ESP32
+                            boards (see <a href="setup-software.html"
+                                style="color: #ffa502; text-decoration: underline;">Step 3: Software</a>)
+                            <strong>before</strong> assembling the lamps.
+                        </div>
                     </li>
 
                     <li>
@@ -423,23 +469,27 @@
                             <li>The USB-C port with the dedicated hole in the case</li>
                         </ul>
                         <div class="tip-box">
-                            <strong>Tip:</strong> If the ESP32 dev board doesn't stay in place, use a small amount of hot glue or tape to keep it down.
+                            <strong>Tip:</strong> If the ESP32 dev board doesn't stay in place, use a small amount of
+                            hot glue or tape to keep it down.
                         </div>
                     </li>
 
                     <li>
                         <strong>Insert the TTP223 sensor</strong> into its dedicated slot in the base.
                         <div class="tip-box">
-                            <strong>Tip:</strong> If the sensor doesn't stay in place, use a small amount of hot glue, double-sided tape, or electrical tape to keep it secure.
+                            <strong>Tip:</strong> If the sensor doesn't stay in place, use a small amount of hot glue,
+                            double-sided tape, or electrical tape to keep it secure.
                         </div>
                     </li>
 
                     <li>
-                        <strong>Place the NeoPixel ring</strong> on top of the ESP32 in its dedicated space. Super glue it to the base if needed.
+                        <strong>Place the NeoPixel ring</strong> on top of the ESP32 in its dedicated space. Super glue
+                        it to the base if needed.
                     </li>
 
                     <li>
-                        <strong>Attach the diffuser.</strong> Place the diffuser over the base and apply a small amount of super glue to hold it in place.
+                        <strong>Attach the diffuser.</strong> Place the diffuser over the base and apply a small amount
+                        of super glue to hold it in place.
                     </li>
                 </ol>
             </div>
@@ -456,14 +506,16 @@
     <div class="info-tooltip" id="pinoutTooltip">
         <button class="close-tooltip" onclick="hidePinout()">×</button>
         <img src="images/ESP32-DevKit-Pinout-Diagram.png" alt="ESP32 Pinout Diagram">
-        <p>Your ESP32 board's pinout must match this diagram. Make sure it has <strong>30 pins (15 per side)</strong> with VIN and GND in the correct positions.</p>
+        <p>Your ESP32 board's pinout must match this diagram. Make sure it has <strong>30 pins (15 per side)</strong>
+            with VIN and GND in the correct positions.</p>
     </div>
 
     <!-- Footer -->
     <footer>
         <div class="footer-content max-w">
             <div class="footer-brand">
-                <img src="images/logo.png" alt="Linked Lamp" style="height: 24px; width: 24px; object-fit: contain;"> Linked Lamp
+                <img src="images/logo.png" alt="Linked Lamp" style="height: 24px; width: 24px; object-fit: contain;">
+                Linked Lamp
             </div>
             <p>&copy; 2026 Aarush Magic. An Open Source Project.</p>
             <div class="footer-links">
@@ -501,9 +553,7 @@
             document.getElementById('pinoutTooltip').classList.remove('show');
         }
 
-</script>
+    </script>
 </body>
 
 </html>
-
-
