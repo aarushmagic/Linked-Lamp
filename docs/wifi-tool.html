@@ -286,7 +286,7 @@
 
 <script>
 // =================================================================
-// Web Serial WiFi Configuration Tool
+// Web Serial WiFi Configuration Utility
 // =================================================================
 let port = null;
 let reader = null;
@@ -296,13 +296,13 @@ let isConnected = false;
 let selectedSSID = '';
 let selectedEncryption = 0;
 
-// Check browser support
+// Check for native Web Serial API browser support
 if (!('serial' in navigator)) {
     document.getElementById('browserWarning').style.display = 'block';
     document.getElementById('btnConnect').disabled = true;
 }
 
-// ---- Serial Connection ----
+// Web Serial connection lifecycle management
 async function connectSerial() {
     try {
         port = await navigator.serial.requestPort();
@@ -322,7 +322,7 @@ async function connectSerial() {
         writer = port.writable.getWriter();
         startReading();
 
-        // Auto-fetch status
+        // Retrieve initial device status parameters
         await sendCommand('GET_STATUS');
     } catch (e) {
         logEntry('Connection failed: ' + e.message, 'error');
@@ -385,7 +385,7 @@ async function sendCommand(cmd) {
     logEntry('> ' + cmd, 'cmd');
 }
 
-// ---- Response Parsing ----
+// ESP32 serial data parser state machine
 let parseMode = null; // 'status', 'scan'
 let parsedData = [];
 
@@ -408,7 +408,7 @@ function handleLine(line) {
         if (!line.startsWith('[CMD]')) parsedData.push(line);
     }
 
-    // Toast on WiFi set success
+    // Trigger UI feedback toast notifications
     if (line.includes('WiFi credentials saved')) showToast('WiFi credentials saved! Device rebooting...');
     if (line.includes('Erasing WiFi credentials')) showToast('WiFi reset! Device rebooting...');
     if (line.includes('Rebooting')) {
@@ -416,7 +416,7 @@ function handleLine(line) {
     }
 }
 
-// ---- Status Display ----
+// Render ESP32 connection parameters inside DOM grid
 function renderStatus(lines) {
     const grid = document.getElementById('statusGrid');
     grid.innerHTML = '';
@@ -448,7 +448,7 @@ function renderStatus(lines) {
 
 async function refreshStatus() { await sendCommand('GET_STATUS'); }
 
-// ---- WiFi Scanning ----
+// WiFi network scanning interface
 async function scanNetworks() {
     document.getElementById('networkList').innerHTML = '';
     document.getElementById('scanSpinner').classList.add('visible');
@@ -465,12 +465,12 @@ function renderNetworks(lines) {
     const list = document.getElementById('networkList');
     list.innerHTML = '';
 
-    // Parse and deduplicate
+    // Parse serial results and filter duplicate SSIDs
     const seen = new Set();
     const networks = [];
     for (const l of lines) {
-        // Format: SSID,RSSI,encryption
-        // Split from the right since SSID might not contain commas but be safe
+        // Payload: SSID, RSSI, Encryption status code
+        // Split fields from right to support commas inside SSID strings
         const parts = l.split(',');
         if (parts.length < 3) continue;
         const enc = parseInt(parts[parts.length - 1]);
@@ -481,7 +481,7 @@ function renderNetworks(lines) {
         networks.push({ ssid, rssi, encrypted: enc !== 0 });
     }
 
-    // Sort by signal strength
+    // Sort scanned networks by descending signal strength
     networks.sort((a, b) => b.rssi - a.rssi);
 
     if (networks.length === 0) {
@@ -535,7 +535,7 @@ function cancelWifiForm() {
     document.querySelectorAll('.network-item').forEach(n => n.classList.remove('selected'));
 }
 
-// ---- Set WiFi ----
+// Push WiFi credentials to the serial interface
 async function setWifi() {
     const ssid = document.getElementById('inputSSID').value;
     const pass = document.getElementById('inputPassword').value;
@@ -556,7 +556,7 @@ async function setWifiManual() {
     await sendCommand('SET_WIFI:' + ssid + ',' + pass);
 }
 
-// ---- Reset WiFi ----
+// Wipe device credentials and soft reboot
 async function resetWifi() {
     if (!confirm('This will erase all saved WiFi credentials and reboot the lamp into setup mode (captive portal). Continue?')) return;
     await sendCommand('RESET_WIFI');
@@ -566,7 +566,7 @@ async function rebootDevice() {
     await sendCommand('REBOOT');
 }
 
-// ---- Helpers ----
+// Shared UI and utility helpers
 function logEntry(text, type) {
     const log = document.getElementById('serialLog');
     const div = document.createElement('div');

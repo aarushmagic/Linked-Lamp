@@ -16,7 +16,7 @@ const FLASH_OFFSETS = {
     LITTLEFS: 0x3D0000,
 };
 
-// Binary file URLs (relative to the page in docs/)
+// Binary asset locations
 const BINARY_BASE = "flash/";
 const BINARY_FILES = {
     bootloader: BINARY_BASE + "bootloader.bin",
@@ -87,9 +87,9 @@ async function flashESP32(config, onLog, onProgress) {
         fetchBinary(firmwareUrl),
     ]);
 
-    // --- THE MAGIC FIX ---
-    // Manually patch the ESP32 binary headers to force DIO mode (0x02) and 40MHz/4MB (0x20)
-    // This bypasses the esptool-js bug that leaves the bootloader at a crashing 80MHz setting.
+    // Bootloader binary patch: overrides esptool-js defaults to force DIO/40MHz
+    
+    
     const patchHeader = (bin) => {
         if (bin.length > 4 && bin[0] === 0xE9) {
             bin[2] = 0x02;

@@ -10,8 +10,8 @@
     <meta name="robots" content="noindex" />
 
     <script>
-        // Force trailing slash to fix relative paths for style.css and script.js 
-        // when accessed via http://localhost:3000/my instead of /my/ or /my/index.html
+        // Force trailing slash on the path to ensure correct relative asset resolution
+        // when accessed via paths missing the final slash.
         if (window.location.pathname.endsWith('/my')) {
             window.location.replace(window.location.pathname + '/' + window.location.search + window.location.hash);
         }

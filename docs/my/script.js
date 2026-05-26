@@ -32,7 +32,7 @@ let partnerSupLampOnline = null;
 let hasMySupLamp = false;      // Whether supplementary status topic exists
 let hasPartnerSupLamp = false;
 
-// Read receipt state
+// Gesture read receipt delivery state
 let partnerLastTapTimestamp = 0;   // Last known tap timestamp from partner lamp
 let pendingReadReceipt = false;    // Whether we're waiting for a delivery confirmation
 let readReceiptTimeout = null;     // Timeout ID for read receipt fallback
@@ -74,7 +74,7 @@ let presets = [
 
 let editingPresetId = null;
 
-// Color Picker instances (iro.js)
+// Color picker instances (using iro.js)
 let mainColorPicker = null;
 let presetColorPicker = null;
 let cycleColorPicker = null;
@@ -152,13 +152,13 @@ window.addEventListener("load", () => {
     document.getElementById("signalSubtitle").innerText = "Tap to turn on " + partnerName + "'s lamp";
 });
 
-// Clean MQTT disconnect on page unload
+// Ensure clean socket closing on page unload lifecycle events
 window.addEventListener("beforeunload", () => {
     if (mqttClient) mqttClient.end(true);
 });
 
 // ==========================================================================
-// Credential Loading (URL params or localStorage)
+// Load credentials from URL state or localStorage fallback
 // ==========================================================================
 function loadCredentials() {
     // Try query params first (?key=val), then fall back to hash params (#key=val)
@@ -225,10 +225,10 @@ function loadCredentials() {
     }
 
     if (foundFromUrl) {
-        // Clean the URL
+        // Sanitize window location parameters
         history.replaceState(null, null, window.location.pathname);
 
-        // Auto-migrate to accounts system if PWA
+        // PWA installation profile migration handler
         migrateCurrentToAccounts();
     } else {
         mqtt_server = localStorage.getItem("ll_s");
@@ -803,7 +803,7 @@ function publishPresets() {
 
 
 function applySettingsToUI() {
-    // Sliders (Brightness only)
+    // Brightness slider interface mappings
     const map = [
         ["dayBrightness", "dayBright", "%", true],
         ["nightBrightness", "nightBright", "%", true]
@@ -1347,7 +1347,7 @@ function renderClockFace() {
         face.appendChild(el);
     }
 
-    // Position the hand correctly
+    // Align clock hand rotations to selected timeline segments
     let handDeg;
     if (currentPickerMode === 'duration') {
         handDeg = activeVal * (360 / 30);
@@ -1418,7 +1418,7 @@ function updateDialFromEvent(e) {
     angleDeg += 90;
     if (angleDeg < 0) angleDeg += 360;
 
-    // Map 0-360 degrees to 1-30 minutes
+    // Map angular rotation degrees to minute increments
     // Let's cap at 360 -> 30, and 0 -> 1.
     // 360 degrees / 30 minutes = 12 degrees per minute.
     let minutes = Math.round(angleDeg / 12);
@@ -1436,12 +1436,12 @@ function renderDial() {
     const radius = 80;
     const center = 100;
 
-    // Calculate progress fraction (0.0 to 1.0)
+    // Scale current progress value as a fraction
     let fraction = tpTempDuration / maxVal;
 
-    // Circumference of the circle
+    // Compute visual arc boundaries
     const circumference = 2 * Math.PI * radius;
-    // Stroke dasharray creates the filled arc and empty remainder
+    // Modulate circle stroke offsets to represent filled arc
     const dashVal = fraction * circumference;
 
     const progressArc = document.getElementById("dialProgress");
@@ -1454,7 +1454,7 @@ function renderDial() {
         progressArc.style.stroke = "#6b4cff";
     }
 
-    // Position the knob
+    // Align circular dial progress handle position
     // Angle: 0 fraction = 0deg (top), 1.0 fraction = 360deg
     const angleDeg = fraction * 360;
     const angleRad = (angleDeg - 90) * (Math.PI / 180); // -90 because 0deg is naturally 3 o'clock in trig
@@ -1476,10 +1476,10 @@ function initTimezone() {
     const sel = document.getElementById("timezoneSelect");
     if (!sel) return;
 
-    // Try to auto-detect timezone on first visit
+    // Detect and map user local timezone on first startup
     if (!mySettings.timezone) {
         const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-        // Map common IANA to POSIX (best-effort)
+        // Map standard IANA timezone keys to POSIX equivalents
         const ianaMap = {
             "America/New_York": "EST5EDT",
             "America/Chicago": "CST6CDT",

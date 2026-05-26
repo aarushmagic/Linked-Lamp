@@ -1,14 +1,20 @@
 /**
- * Linked Lamp Firmware
+ * Linked Lamp Firmware - Transistor / PCB Version
  * 
- * A Wi-Fi connected "Friendship Lamp" using ESP32-WROOM.
- * Controls 7 common anode RGB LEDs via 3 NPN transistors driven by PWM.
- * Triggered by a TTP223 capacitive touch sensor (Active HIGH).
+ * Controls an ESP32-based friendship lamp using discrete NPN transistors
+ * to drive 7 common anode RGB LEDs, a TTP223 touch sensor, and MQTT sync.
  * 
- * Requires PlatformIO libraries:
- *   - tzapu/WiFiManager
- *   - knolleary/PubSubClient
- *   - bblanchon/ArduinoJson
+ * Core Hardware:
+ *   - ESP32-WROOM
+ *   - TTP223 Touch Sensor (Active HIGH, Pin 4)
+ *   - 3 NPN Transistors driving common anode RGB LEDs (Pins 13, 14, 27)
+ * 
+ * Core Features:
+ *   - Non-blocking MQTT communication via WebSockets
+ *   - Capacitive touch state machine (single tap to send, double tap to turn off, hold to cycle colors)
+ *   - Dual-core execution (main loop on Core 1, serial command listener on Core 0)
+ *   - Ambient lighting and timezone-aware nighttime modes
+ *   - Over-the-Air (OTA) self-updates with rollback protection
  * 
  * License: GNU GPLv3
  */
@@ -34,13 +40,13 @@
 // =============================================================================
 // Pin Definitions
 // =============================================================================
-#define TOUCH_SENSOR_PIN 4   // Input, Active HIGH
-#define RED_PWM_PIN      13  // Output to NPN transistor base
-#define GREEN_PWM_PIN    14  // Output to NPN transistor base
-#define BLUE_PWM_PIN     27  // Output to NPN transistor base
+#define TOUCH_SENSOR_PIN 4   // Touch sensor input (Active HIGH)
+#define RED_PWM_PIN      13  // Red LED channel PWM pin
+#define GREEN_PWM_PIN    14  // Green LED channel PWM pin
+#define BLUE_PWM_PIN     27  // Blue LED channel PWM pin
 
 // =============================================================================
-// Configuration (loaded from LittleFS /config.json)
+// Config values persisted in LittleFS
 // =============================================================================
 String device_id    = "A";
 String target_id    = "B";
@@ -48,78 +54,78 @@ String mqtt_server  = "";
 int    mqtt_port    = 8883;
 String mqtt_user    = "";
 String mqtt_pass    = "";
-String ota_url      = "";  // Optional: base URL for auto-OTA checks
-String owner_name   = "";  // Owner's name (published via MQTT settings topic)
+String ota_url      = "";  // Base URL for OTA firmware check
+String owner_name   = "";  // Device owner name
 
-// Role: "primary", "secondary", or "" (unset = auto-detect on first boot)
+// Device role for status mapping
 String role = "";
 bool   isSupplementary = false;
 volatile bool isRebooting = false;
 volatile bool pauseCore1 = false;
 
-// Last Tap Time (Epoch)
+// Epoch timestamp of the last tap
 unsigned long lastTapTimestamp = 0;
 
 // =============================================================================
-// User Settings (synced from web interface via MQTT, persisted in /state.json)
+// Web-synced settings persisted in LittleFS
 // =============================================================================
 String defaultColor          = "#FF0000";
-int    lampOnTimeMinutes     = 5;       // Daytime duration (minutes), 1-30
+int    lampOnTimeMinutes     = 5;       // Day mode active duration (min)
 int    dayMaxBrightness      = 255;     // 0-255
 bool   nightModeEnabled      = false;
 String nightStartTime        = "22:00";
 String nightEndTime          = "08:00";
 int    nightLampOnTimeMinutes = 5;
 int    nightMaxBrightness    = 128;
-String userTimezone          = "EST5EDT"; // POSIX TZ string
+String userTimezone          = "EST5EDT"; // POSIX timezone format
 bool   ambientModeEnabled    = false;
 String ambientColor          = "#0000FF";
 
 // =============================================================================
-// State & Timing Variables
+// Application state and timing trackers
 // =============================================================================
 bool           isLampOn           = false;
 unsigned long  lampOnStartTime    = 0;
-unsigned long  lampDurationMs     = 300000UL; // 5 minutes default
+unsigned long  lampDurationMs     = 300000UL; // Day mode active duration in ms
 bool           isPulsing          = false;
 unsigned long  pulseStartTime     = 0;
-const unsigned long PULSE_DURATION_MS = 20000; // 20 seconds pulsing
+const unsigned long PULSE_DURATION_MS = 20000; // Pulse duration in ms
 
-// Current displayed color (before brightness scaling)
+// Pre-scaled output color state
 uint8_t currentR = 0, currentG = 0, currentB = 0;
 int     currentMaxBrightness = 255;
 
-// PWM Channels
+// Hardware LEDC PWM configuration
 const int redChannel   = 0;
 const int greenChannel = 1;
 const int blueChannel  = 2;
 const int pwmFreq      = 5000;
 const int pwmResolution = 8;
 
-// Touch Sensor State Machine
+// Touch sensor gesture state machine
 unsigned long lastTouchTime     = 0;
 unsigned long touchStartTime    = 0;
 int           tapCount          = 0;
 bool          isTouching        = false;
 bool          wasTouching       = false;
-const unsigned long TAP_TIMEOUT = 400; // ms window for multi-taps
+const unsigned long TAP_TIMEOUT = 400; // Multi-tap window (ms)
 bool          longPressTriggered = false;
 
-// Color Cycling (time-based, ~6 seconds per full rotation)
+// Color wheel spectrum cycle state
 float hue              = 0.0;
 bool  isCyclingColors  = false;
 unsigned long cycleStartTimeMs = 0;
 float cycleStartHue = 0.0;
-const float CYCLE_PERIOD_MS = 6000.0; // 6 seconds per full hue rotation
+const float CYCLE_PERIOD_MS = 6000.0; // Color cycle period (ms)
 
-// Color Transition (gradual fade between colors, ~5 seconds)
+// Color transition crossfade state
 bool isTransitioning = false;
 unsigned long transitionStartMs = 0;
-const unsigned long TRANSITION_DURATION = 5000; // 5 seconds
+const unsigned long TRANSITION_DURATION = 5000; // Transition duration (ms)
 uint8_t transFromR = 0, transFromG = 0, transFromB = 0;
 uint8_t transToR = 0, transToG = 0, transToB = 0;
 
-// Color Cycle State (CC: multi-color cycling from web presets)
+// Custom multi-color pattern cycle state
 struct CycleEntry {
   uint8_t r, g, b;
   unsigned long holdMs;
@@ -134,22 +140,22 @@ unsigned long cycleStepStartMs = 0;
 enum CyclePhase { CYCLE_HOLD, CYCLE_TRANSITION };
 CyclePhase cyclePhase = CYCLE_HOLD;
 
-// Send Flash (single tap: flash sent color briefly, then revert)
+// Feedback flash state for tap transmissions
 bool isSendFlashing = false;
 unsigned long sendFlashStart = 0;
-const unsigned long SEND_FLASH_DURATION = 1000; // 1 second confirmation flash
+const unsigned long SEND_FLASH_DURATION = 1000; // Confirmation flash duration (ms)
 uint8_t preSendR = 0, preSendG = 0, preSendB = 0;
 bool wasLampOnBeforeSend = false;
 
-// Color Pick Flash (hold-release: flash selected color, then revert)
+// Feedback flash state for color selection
 bool isColorPickFlashing = false;
 unsigned long colorPickFlashStart = 0;
-const unsigned long COLOR_PICK_FLASH_DURATION = 3000; // 3 seconds
+const unsigned long COLOR_PICK_FLASH_DURATION = 3000; // Pick confirmation flash duration (ms)
 uint8_t prePickR = 0, prePickG = 0, prePickB = 0;
 bool wasLampOnBeforePick = false;
 
 // =============================================================================
-// WiFi State (modeled after sample.cpp)
+// WiFi networking state
 // =============================================================================
 WiFiManager     wifiManager;
 WiFiClientSecure espClientSecure;
@@ -160,34 +166,34 @@ bool           hasConnectedOnce         = false;
 unsigned long  lastWifiReconnectAttempt  = 0;
 const unsigned long WIFI_RECONNECT_INTERVAL = 15000;
 unsigned long  wifiDisconnectedSince    = 0;
-const unsigned long WIFI_RESTART_TIMEOUT  = 300000; // 5 minutes
+const unsigned long WIFI_RESTART_TIMEOUT  = 300000; // Reboot threshold (ms) on connection loss
 
-// RTC Memory: survives software restart, cleared on power cycle
+// Persistent RTC memory (survives soft resets)
 RTC_NOINIT_ATTR uint32_t rtcBootMarker;
 const uint32_t BOOT_MARKER_VALUE = 0xCAFEBEEF;
 bool isColdBoot = false;
 
-// MQTT Reconnect
+// MQTT connection state
 unsigned long  lastMqttReconnectAttempt = 0;
 const unsigned long MQTT_RECONNECT_INTERVAL = 5000;
 int            mqttFailCount = 0;
 
-// MQTT Periodic Status Re-publish (guards against stale retained OFFLINE)
+// Periodic status maintenance
 unsigned long  lastStatusCheck = 0;
 const unsigned long STATUS_CHECK_INTERVAL = 300000; // 5 minutes
-bool           selfStatusOnline = false; // Tracks our own retained status
+bool           selfStatusOnline = false; // Tracks reported online status
 
-// 24-Hour Refresher
+// Retained MQTT state refresher
 unsigned long lastDailyRefresh = 0;
-const unsigned long DAILY_REFRESH_INTERVAL = 86400000UL; // 24 hours
+const unsigned long DAILY_REFRESH_INTERVAL = 86400000UL; // Daily refresh interval (ms)
 
-// MQTT Topics (populated dynamically after config load)
+// Dynamically generated MQTT topics
 String triggerTopicSub;
 String triggerTopicPub;
 String settingsTopicSub;
 String statusTopicPub;
-String partnerStatusTopicSub;    // Partner's primary status (for web UI detection)
-String partnerSupStatusTopicSub; // Partner's secondary status (for web UI detection)
+String partnerStatusTopicSub;    // Subscribes to partner primary status
+String partnerSupStatusTopicSub; // Subscribes to partner secondary status
 
 // =============================================================================
 // Function Prototypes
@@ -225,7 +231,7 @@ void setup() {
   delay(100);
   Serial.println("\n\n--- Linked Lamp Boot ---");
 
-  // Detect cold boot vs software restart via RTC memory
+  // Read boot history from RTC memory to determine cold/soft boot
   if (rtcBootMarker != BOOT_MARKER_VALUE) {
     isColdBoot = true;
     rtcBootMarker = BOOT_MARKER_VALUE;
@@ -237,7 +243,7 @@ void setup() {
 
   setupPins();
 
-  // Mount LittleFS (auto-format if mount fails, e.g. fresh flash or corrupted partition)
+  // Mount filesystem, format partition if mount fails
   if (!LittleFS.begin(true)) {
     Serial.println("LittleFS mount failed even with format. Trying manual format...");
     LittleFS.format();
@@ -246,14 +252,14 @@ void setup() {
   loadConfig();
   loadState();
 
-  // Determine Target ID
+  // Identify reciprocal target device ID
   target_id = (device_id == "A") ? "B" : "A";
   isSupplementary = (role == "secondary");
   Serial.println("My Device ID: " + device_id);
   Serial.println("Target Device ID: " + target_id);
   Serial.println("Role: " + (role.length() > 0 ? role : "UNSET (will auto-detect)"));
 
-  // Build MQTT Topics (Auto-detect Adafruit IO to use required feeds/ routing)
+  // Build routing topics, adapting path format for Adafruit IO if detected
   String topicPrefix = "linkedlamp/";
   String d_sep = "/";
 
@@ -277,7 +283,7 @@ void setup() {
   partnerStatusTopicSub    = topicPrefix + target_id + d_sep + "status";
   partnerSupStatusTopicSub = topicPrefix + target_id + "2" + d_sep + "status";
 
-  // --- WiFi Setup (from sample.cpp pattern) ---
+  // Initialize WiFi config portal (WiFiManager)
   WiFi.setAutoReconnect(true);
   wifiManager.setConfigPortalBlocking(false);
   wifiManager.setCustomHeadElement(
@@ -319,15 +325,13 @@ void setup() {
     Serial.println("Role unset — will auto-detect after WiFi/MQTT connects...");
   }
 
-  // OTA Rollback Protection: firmware is NOT marked valid until MQTT connects successfully.
-  // If this firmware can't reach MQTT, the bootloader will auto-revert on next boot.
+  // Mark firmware valid only after successful MQTT link to allow rollback recovery
 
-  // Configure NTP with user timezone
+  // Sync system time using network NTP server
   configTzTime(userTimezone.c_str(), "pool.ntp.org", "time.nist.gov");
   Serial.println("NTP configured with timezone: " + userTimezone);
 
-  // Start serial command listener on Core 0 (independent of main loop on Core 1)
-  // This allows serial commands like RESET_WIFI even when MQTT connect is blocking
+  // Pin serial listener thread to Core 0 to prevent blocking during core loops
   xTaskCreatePinnedToCore(
     serialCommandTask,  // Task function
     "SerialCmd",        // Name
@@ -341,7 +345,7 @@ void setup() {
 }
 
 // =============================================================================
-// Main Loop (NO delay() calls)
+// Core Loop Execution
 // =============================================================================
 void loop() {
   if (pauseCore1) { delay(10); return; }
@@ -353,7 +357,7 @@ void loop() {
 }
 
 // =============================================================================
-// WiFi Connection Management (from sample.cpp)
+// WiFi Networking and Maintenance
 // =============================================================================
 void onWifiConnect() {
   wifiConnected = true;
@@ -363,7 +367,7 @@ void onWifiConnect() {
   Serial.print("IP Address: ");
   Serial.println(WiFi.localIP());
 
-  // Set public DNS servers (preserves DHCP)
+  // Override default DNS with public servers
   ip_addr_t dns1, dns2;
   IP4_ADDR(&dns1.u_addr.ip4, 8, 8, 8, 8);
   dns1.type = IPADDR_TYPE_V4;
@@ -373,10 +377,10 @@ void onWifiConnect() {
   dns_setserver(1, &dns2);
   Serial.println("Public DNS set: 8.8.8.8 / 1.1.1.1");
 
-  // Visual indicator on cold boot: brief color flash
+  // Pulse green to confirm local connection
   if (!hasConnectedOnce && isColdBoot) {
     hasConnectedOnce = true;
-    // Flash green briefly to indicate WiFi connected
+    
     setRGB(0, 120, 0);
     delay(200);
     setRGB(0, 0, 0);
@@ -388,7 +392,7 @@ void onWifiConnect() {
     setRGB(0, 0, 0);
   }
 
-  // Set local time from NTP using user's timezone configuration
+  // Sync time against configured timezone
   configTzTime(userTimezone.c_str(), "pool.ntp.org", "time.nist.gov");
 }
 
@@ -398,13 +402,13 @@ void handleWifi() {
       onWifiConnect();
     }
 
-    // Non-blocking MQTT reconnect
+    // Maintain non-blocking MQTT client state
     if (!mqttClient.connected()) {
       handleMqttReconnect();
     } else {
       mqttClient.loop();
 
-      // Periodically check self-status and correct if showing OFFLINE
+      // Correct reported status if retained state is inconsistent
       if (millis() - lastStatusCheck >= STATUS_CHECK_INTERVAL) {
         lastStatusCheck = millis();
         if (!selfStatusOnline) {
@@ -414,7 +418,7 @@ void handleWifi() {
         }
       }
 
-      // 24-Hour Refresher: Constantly refresh retained messages just in case the broker drops them
+      // Retained MQTT state refresher: Constantly refresh retained messages just in case the broker drops them
       if (millis() - lastDailyRefresh >= DAILY_REFRESH_INTERVAL) {
         lastDailyRefresh = millis();
         
@@ -422,14 +426,14 @@ void handleWifi() {
         String onlineMsg = String("ONLINE:") + HW_TYPE;
         mqttClient.publish(statusTopicPub.c_str(), onlineMsg.c_str(), true);
         
-        // Push Settings
+        
         publishSettingsViaMQTT();
         
         Serial.println("24-Hour Refresher: Pushed retained status and settings to MQTT.");
       }
     }
   } else {
-    // WiFi just dropped
+    // Handle connection drop and schedule reconnects
     if (wifiConnected) {
       wifiConnected = false;
       wifiDisconnectedSince = millis();
@@ -438,13 +442,13 @@ void handleWifi() {
       WiFi.reconnect();
     }
 
-    // If disconnected for over 5 minutes, reboot
+    // Reset device if connection is lost for more than 5 minutes
     if (wifiDisconnectedSince > 0 && (millis() - wifiDisconnectedSince >= WIFI_RESTART_TIMEOUT)) {
       Serial.println("WiFi disconnected 5 min. Restarting...");
       ESP.restart();
     }
 
-    // Periodic reconnect attempts
+    // Attempt reconnect on configured intervals
     if (millis() - lastWifiReconnectAttempt > WIFI_RECONNECT_INTERVAL) {
       lastWifiReconnectAttempt = millis();
       Serial.println("WiFi reconnect attempt...");
@@ -496,9 +500,9 @@ void loadConfig() {
     }
   }
 
-  // If no valid config, wait for JSON config via Serial (browser flasher)
+  // Accept serial configuration if local config is absent
   if (!configValid) {
-    Serial.println("SEND_CONFIG");  // Signal to browser flasher
+    Serial.println("SEND_CONFIG");  // Send handshake to web interface
     Serial.println("Waiting for config via Serial (30s timeout)...");
     unsigned long waitStart = millis();
     String serialBuffer = "";
@@ -520,7 +524,7 @@ void loadConfig() {
               ota_url      = doc["ota_url"]     | "";
               owner_name   = doc["owner_name"]  | "";
 
-              // Save to LittleFS so we don't need Serial next boot
+              // Persist config to local storage
               if (!LittleFS.begin(true)) { LittleFS.format(); LittleFS.begin(true); }
               File wf = LittleFS.open("/config.json", "w");
               if (wf) {
@@ -595,8 +599,8 @@ void setupMQTT() {
   espClientSecure.setInsecure();
   mqttClient.setServer(mqtt_server.c_str(), mqtt_port);
   mqttClient.setCallback(mqttCallback);
-  mqttClient.setBufferSize(1024); // Larger buffer for JSON settings + color cycle payloads
-  mqttClient.setKeepAlive(60);   // 60s keep-alive (default 15s is too aggressive)
+  mqttClient.setBufferSize(1024); // Configure larger buffers for custom JSON payloads
+  mqttClient.setKeepAlive(60);   // Adjust keep-alive duration to decrease broker overhead
 }
 
 // =============================================================================
@@ -673,21 +677,21 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       String url = msg.substring(4);
       Serial.println("OTA triggered via color_trigger! URL: " + url);
       
-      // Normalize and compare with configured ota_url
+      // Verify trigger URL targets config-approved endpoints
       String testTrigger = url;
       String testConfig = ota_url;
       
-      // Remove protocols for comparison
+      
       if (testTrigger.startsWith("http://")) testTrigger.remove(0, 7);
       if (testTrigger.startsWith("https://")) testTrigger.remove(0, 8);
       if (testConfig.startsWith("http://")) testConfig.remove(0, 7);
       if (testConfig.startsWith("https://")) testConfig.remove(0, 8);
       
-      // Remove www. for comparison
+      
       if (testTrigger.startsWith("www.")) testTrigger.remove(0, 4);
       if (testConfig.startsWith("www.")) testConfig.remove(0, 4);
       
-      // Remove trailing slash
+      
       if (testTrigger.endsWith("/")) testTrigger.remove(testTrigger.length() - 1);
       if (testConfig.endsWith("/")) testConfig.remove(testConfig.length() - 1);
 
@@ -763,7 +767,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     time(&now);
     lastTapTimestamp = (unsigned long)now;
     publishSettingsViaMQTT();
-    } // end single color else
+    } 
 
   } else if (topicStr == settingsTopicSub) {
     parseSettings(msg);
@@ -785,7 +789,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
 // =============================================================================
 void parseColorCycle(String payload) {
   // Format: CC:RRGGBB,hold,trans;RRGGBB,hold,trans;...
-  String data = payload.substring(3); // Strip "CC:" prefix
+  String data = payload.substring(3); 
   cycleEntryCount = 0;
 
   int startPos = 0;
@@ -794,16 +798,16 @@ void parseColorCycle(String payload) {
     String segment;
     if (semiPos == -1) {
       segment = data.substring(startPos);
-      startPos = data.length(); // Done
+      startPos = data.length(); 
     } else {
       segment = data.substring(startPos, semiPos);
       startPos = semiPos + 1;
     }
 
-    // Parse "RRGGBB,hold,trans"
+    // Extract color values and hold/transition intervals
     int c1 = segment.indexOf(',');
     int c2 = segment.indexOf(',', c1 + 1);
-    if (c1 == -1 || c2 == -1) continue; // Malformed entry, skip
+    if (c1 == -1 || c2 == -1) continue; 
 
     String hexStr = segment.substring(0, c1);
     int holdTenths = segment.substring(c1 + 1, c2).toInt();
@@ -825,7 +829,7 @@ void parseColorCycle(String payload) {
 
   Serial.printf("Color Cycle parsed: %d entries\n", cycleEntryCount);
 
-  // Apply night/day brightness and duration settings
+  // Load schedule brightness thresholds
   bool isNight = nightModeEnabled && isNighttime();
   if (isNight) {
     currentMaxBrightness = nightMaxBrightness;
@@ -839,7 +843,7 @@ void parseColorCycle(String payload) {
     lampDurationMs = (unsigned long)lampOnTimeMinutes * 60000UL;
   }
 
-  // Initialize cycling state
+  // Apply cycling execution parameters
   cycleCurrentIndex = 0;
   cyclePhase = CYCLE_HOLD;
   cycleStepStartMs = millis();
@@ -856,7 +860,7 @@ void parseColorCycle(String payload) {
   isPulsing = true;
   pulseStartTime = millis();
 
-  // Apply first color immediately
+  // Flush initial cycle target to hardware
   setRGB((currentR * currentMaxBrightness) / 255,
          (currentG * currentMaxBrightness) / 255,
          (currentB * currentMaxBrightness) / 255);
@@ -919,7 +923,7 @@ void parseSettings(String payload) {
 }
 
 // =============================================================================
-// Publish settings via MQTT (e.g. after color pick from lamp)
+// Keep MQTT broker retained state synchronized
 // =============================================================================
 void publishSettingsViaMQTT() {
   if (!mqttClient.connected()) return;
@@ -946,7 +950,7 @@ void publishSettingsViaMQTT() {
 }
 
 // =============================================================================
-// Role Auto-Detection (runs once on first boot when role is unset)
+// Role auto-detection sequence
 // =============================================================================
 static volatile bool roleDetectGotRetained = false;
 
@@ -1012,7 +1016,7 @@ void startColorTransition(uint8_t toR, uint8_t toG, uint8_t toB) {
   transitionStartMs = millis();
   isTransitioning = true;
 
-  // Set target as current (for after transition completes)
+  
   currentR = toR;
   currentG = toG;
   currentB = toB;
@@ -1027,7 +1031,7 @@ void startColorTransition(uint8_t toR, uint8_t toG, uint8_t toB) {
 void handleTouch() {
   isTouching = (digitalRead(TOUCH_SENSOR_PIN) == HIGH);
 
-  // --- Finger just pressed down ---
+  // Touch event start handler
   if (isTouching && !wasTouching) {
     if (millis() - lastTouchTime < 100) {
       wasTouching = isTouching;
@@ -1038,18 +1042,18 @@ void handleTouch() {
     isCyclingColors = false;
   }
 
-  // --- Finger is being held ---
+  // Touch duration handler (evaluates hold state)
   if (isTouching && wasTouching) {
     unsigned long holdTime = millis() - touchStartTime;
 
     if (holdTime > 1500 && !longPressTriggered) {
-      // Start cycling from current default color's hue
+      // Seed color spectrum cycling from active default
       hue = hexToHue(defaultColor);
       cycleStartHue = hue;
       cycleStartTimeMs = millis();
       longPressTriggered = true;
 
-      // Save lamp state before cycling
+      // Backup state before spectrum cycle override
       prePickR = currentR;
       prePickG = currentG;
       prePickB = currentB;
@@ -1059,12 +1063,12 @@ void handleTouch() {
     if (longPressTriggered) {
       isCyclingColors = true;
 
-      // Time-based hue advancement (~6 seconds per full rotation)
+      // Advance color wheel position by time delta
       unsigned long elapsed = millis() - cycleStartTimeMs;
       hue = cycleStartHue + (elapsed / CYCLE_PERIOD_MS) * 360.0;
       while (hue >= 360.0) hue -= 360.0;
 
-      // HSV to RGB (S=1, V=1)
+      // Convert HSV vectors back to RGB space
       float c = 1.0;
       float x = c * (1.0 - fabs(fmod(hue / 60.0, 2.0) - 1.0));
       float m = 0.0;
@@ -1087,7 +1091,7 @@ void handleTouch() {
   // --- Finger just released ---
   if (!isTouching && wasTouching) {
     if (longPressTriggered) {
-      // Finished color picking — save new default
+      // Persist user selected color to flash storage
       isCyclingColors = false;
       char hexBuf[8];
       sprintf(hexBuf, "#%02X%02X%02X", currentR, currentG, currentB);
@@ -1095,16 +1099,16 @@ void handleTouch() {
       Serial.println("New default color: " + defaultColor);
       saveState();
 
-      // Publish updated settings to MQTT so web page updates instantly
+      // Push new defaults to MQTT broker
       publishSettingsViaMQTT();
 
-      // Start 3-second flash of the picked color, then revert
+      // Trigger selection feedback pulse
       isColorPickFlashing = true;
       colorPickFlashStart = millis();
-      // currentR/G/B already has the picked color, setRGB will be handled by handleLEDs
+      
       setRGB(currentR, currentG, currentB);
     } else {
-      // Register as a tap ONLY if held for >50ms (debounce/false trigger prevention)
+      // Enforce touch debounce window
       if (millis() - touchStartTime > 50) {
         tapCount++;
         lastTouchTime = millis();
@@ -1114,7 +1118,7 @@ void handleTouch() {
 
   wasTouching = isTouching;
 
-  // Process taps after timeout
+  // Dispatch multi-tap actions
   if (tapCount > 0 && !isTouching && (millis() - lastTouchTime > TAP_TIMEOUT)) {
     doActionBasedOnTaps();
     tapCount = 0;
@@ -1125,17 +1129,16 @@ void doActionBasedOnTaps() {
   Serial.printf("Tap Count: %d\n", tapCount);
 
   if (tapCount == 1) {
-    // --- Single Tap: Send signal to partner ---
-    // Maintain current lamp state, flash sent color briefly, then revert
+    // Tap gesture handler: publishes local default color to paired device
     Serial.println("Single Tap: Sending Signal!");
 
-    // Save current state before flash
+    
     preSendR = currentR;
     preSendG = currentG;
     preSendB = currentB;
     wasLampOnBeforeSend = isLampOn;
 
-    // Parse default color for flash
+    
     String hexColor = defaultColor;
     if (hexColor.startsWith("#")) hexColor.remove(0, 1);
     long number = strtol(hexColor.c_str(), NULL, 16);
@@ -1143,14 +1146,14 @@ void doActionBasedOnTaps() {
     uint8_t flashG = (number >> 8)  & 0xFF;
     uint8_t flashB =  number        & 0xFF;
 
-    // Show the sent color immediately
+    
     setRGB(flashR, flashG, flashB);
 
-    // Start send flash timer
+    
     isSendFlashing = true;
     sendFlashStart = millis();
 
-    // Publish to partner
+    
     if (mqttClient.connected()) {
       mqttClient.publish(triggerTopicPub.c_str(), defaultColor.c_str());
     } else {
@@ -1158,9 +1161,9 @@ void doActionBasedOnTaps() {
     }
 
   } else if (tapCount == 2) {
-    // --- Double Tap ---
+    // Double tap gesture: forces lamp shutdown
     if (isLampOn) {
-      // Turn off lamp
+      
       Serial.println("Double Tap: Turning OFF.");
       isLampOn = false;
       isPulsing = false;
@@ -1172,9 +1175,9 @@ void doActionBasedOnTaps() {
     }
 
   }else if (tapCount == 3) {
-    // --- Triple+ Tap ---
+    // Triple tap gesture: redundant shut down helper
     if (isLampOn) {
-      // Turn off lamp (same as double tap when ON)
+      
       Serial.println("Triple Tap: Turning OFF (lamp was on).");
       isLampOn = false;
       isPulsing = false;
@@ -1186,7 +1189,7 @@ void doActionBasedOnTaps() {
     }
   } else if (tapCount >= 5) {
     if (isLampOn) {
-      // Turn off lamp (same as double tap when ON)
+      
       Serial.println("5+ Tap: Turning OFF (lamp was on).");
       isLampOn = false;
       isPulsing = false;
@@ -1194,9 +1197,9 @@ void doActionBasedOnTaps() {
       isColorCycling = false;
       setRGB(0, 0, 0);
     } else {
-      // Reset WiFi (only from OFF state)
+      // Multi-tap gesture: resets WiFi settings (must be done from standby)
       Serial.println("5+ Tap: Resetting WiFi credentials...");
-      // Visual feedback: flash red
+      
       setRGB(255, 0, 0);
       delay(300);
       setRGB(0, 0, 0);
@@ -1206,7 +1209,7 @@ void doActionBasedOnTaps() {
       setRGB(0, 0, 0);
 
       wifiManager.resetSettings();
-      rtcBootMarker = 0; // Force cold boot for config portal
+      rtcBootMarker = 0; 
       delay(500);
       ESP.restart();
     }
@@ -1219,11 +1222,11 @@ void doActionBasedOnTaps() {
 void handleLEDs() {
   if (isCyclingColors) return; // Touch sensor has direct control
 
-  // Handle send flash (single tap confirmation)
+  // Execute feedback flash animations
   if (isSendFlashing) {
     if (millis() - sendFlashStart >= SEND_FLASH_DURATION) {
       isSendFlashing = false;
-      // Revert to previous state
+      
       if (wasLampOnBeforeSend) {
         currentR = preSendR;
         currentG = preSendG;
@@ -1236,14 +1239,14 @@ void handleLEDs() {
       }
       Serial.println("Send flash ended. Reverted to previous state.");
     }
-    return; // Don't run other LED logic during flash
+    return; 
   }
 
-  // Handle color pick flash (hold-release confirmation)
+  
   if (isColorPickFlashing) {
     if (millis() - colorPickFlashStart >= COLOR_PICK_FLASH_DURATION) {
       isColorPickFlashing = false;
-      // Revert to previous state
+      
       if (wasLampOnBeforePick) {
         currentR = prePickR;
         currentG = prePickG;
@@ -1251,7 +1254,7 @@ void handleLEDs() {
         setRGB((currentR * currentMaxBrightness) / 255,
                (currentG * currentMaxBrightness) / 255,
                (currentB * currentMaxBrightness) / 255);
-        // Restore lamp on state
+        
         isLampOn = true;
       } else {
         currentR = 0;
@@ -1262,12 +1265,12 @@ void handleLEDs() {
       }
       Serial.println("Color pick flash ended. Reverted to previous state.");
     }
-    return; // Don't run other LED logic during flash
+    return; 
   }
 
   if (!isLampOn) {
     if (ambientModeEnabled && !(nightModeEnabled && isNighttime())) {
-      // Parse ambient color
+      // Apply low-intensity ambient background color if enabled
       String hexColor = ambientColor;
       if (hexColor.startsWith("#")) hexColor.remove(0, 1);
       long number = strtol(hexColor.c_str(), NULL, 16);
@@ -1275,7 +1278,7 @@ void handleLEDs() {
       uint8_t ambG = (number >> 8)  & 0xFF;
       uint8_t ambB =  number        & 0xFF;
 
-      // Brightness capped at 10% of daytime max brightness
+      
       int ambientBrightness = max(1, dayMaxBrightness / 10);
       setRGB((ambR * ambientBrightness) / 255, 
              (ambG * ambientBrightness) / 255, 
@@ -1286,7 +1289,7 @@ void handleLEDs() {
     return;
   }
 
-  // Check auto-off timer
+  // Enforce auto-shutdown active timers
   if (millis() - lampOnStartTime >= lampDurationMs) {
     isLampOn = false;
     isPulsing = false;
@@ -1297,7 +1300,7 @@ void handleLEDs() {
     return;
   }
 
-  // Handle color cycling (CC: multi-color presets)
+  // Render running multi-color sequence frames
   if (isColorCycling && cycleEntryCount > 0) {
     unsigned long stepElapsed = millis() - cycleStepStartMs;
     CycleEntry &cur = cycleEntries[cycleCurrentIndex];
@@ -1305,20 +1308,20 @@ void handleLEDs() {
     CycleEntry &nxt = cycleEntries[nextIdx];
 
     if (cyclePhase == CYCLE_HOLD) {
-      // During hold: display current color
+      
       currentR = cur.r;
       currentG = cur.g;
       currentB = cur.b;
 
       if (stepElapsed >= cur.holdMs) {
-        // Move to transition phase
+        
         cyclePhase = CYCLE_TRANSITION;
         cycleStepStartMs = millis();
       }
     } else {
-      // During transition: interpolate from current to next
+      
       if (cur.transMs == 0) {
-        // Instant transition
+        
         currentR = nxt.r;
         currentG = nxt.g;
         currentB = nxt.b;
@@ -1326,7 +1329,7 @@ void handleLEDs() {
         cyclePhase = CYCLE_HOLD;
         cycleStepStartMs = millis();
       } else if (stepElapsed >= cur.transMs) {
-        // Transition complete
+        
         currentR = nxt.r;
         currentG = nxt.g;
         currentB = nxt.b;
@@ -1334,7 +1337,7 @@ void handleLEDs() {
         cyclePhase = CYCLE_HOLD;
         cycleStepStartMs = millis();
       } else {
-        // Interpolate
+        
         float t = (float)stepElapsed / (float)cur.transMs;
         currentR = cur.r + (int)((nxt.r - cur.r) * t);
         currentG = cur.g + (int)((nxt.g - cur.g) * t);
@@ -1342,7 +1345,7 @@ void handleLEDs() {
       }
     }
 
-    // Apply brightness and pulsing
+    
     uint8_t outR = currentR, outG = currentG, outB = currentB;
     if (isPulsing) {
       unsigned long pulseElapsed = millis() - pulseStartTime;
@@ -1368,7 +1371,7 @@ void handleLEDs() {
     return;
   }
 
-  // Handle gradual color transition
+  // Apply incremental crossfade animations
   if (isTransitioning) {
     unsigned long elapsed = millis() - transitionStartMs;
     if (elapsed < TRANSITION_DURATION) {
@@ -1378,7 +1381,7 @@ void handleLEDs() {
       uint8_t g = transFromG + (int)((transToG - transFromG) * t);
       uint8_t b = transFromB + (int)((transToB - transFromB) * t);
 
-      // Apply brightness and pulsing if active
+      
       if (isPulsing) {
         unsigned long pulseElapsed = millis() - pulseStartTime;
         if (pulseElapsed < PULSE_DURATION_MS) {
@@ -1411,8 +1414,7 @@ void handleLEDs() {
   if (isPulsing) {
     unsigned long elapsed = millis() - pulseStartTime;
     if (elapsed < PULSE_DURATION_MS) {
-      // Breathing effect: sine wave modulates brightness
-      // ~2 second cycle, range ~0.3 to 1.0 (never fully off)
+      // Modulate active duty cycles with a breathing sine wave
       float phase = (float)(elapsed % 2000) / 2000.0 * 2.0 * PI;
       float pulseFactor = 0.3 + 0.7 * ((sin(phase) + 1.0) / 2.0);
 
@@ -1429,7 +1431,7 @@ void handleLEDs() {
              (currentB * currentMaxBrightness) / 255);
     }
   }
-  // Steady state: no need to continuously rewrite PWM
+  
 }
 
 void setColor(String hexColor) {
@@ -1456,7 +1458,7 @@ bool isNighttime() {
 
   int nowMinutes = timeinfo.tm_hour * 60 + timeinfo.tm_min;
 
-  // Parse "HH:MM" strings
+  // Convert scheduling inputs to raw minute values
   int startH = nightStartTime.substring(0, 2).toInt();
   int startM = nightStartTime.substring(3, 5).toInt();
   int endH   = nightEndTime.substring(0, 2).toInt();
@@ -1466,10 +1468,10 @@ bool isNighttime() {
   int endMinutes   = endH * 60 + endM;
 
   if (startMinutes <= endMinutes) {
-    // Same-day range (e.g. 01:00 - 06:00)
+    
     return (nowMinutes >= startMinutes && nowMinutes < endMinutes);
   } else {
-    // Overnight range (e.g. 22:00 - 08:00)
+    
     return (nowMinutes >= startMinutes || nowMinutes < endMinutes);
   }
 }
@@ -1485,7 +1487,7 @@ float hexToHue(String hexColor) {
   float minC = min(min(r, g), b);
   float delta = maxC - minC;
 
-  if (delta < 0.001) return 0.0; // Achromatic
+  if (delta < 0.001) return 0.0; 
 
   float h = 0;
   if (maxC == r)      h = 60.0 * fmod(((g - b) / delta), 6.0);
@@ -1514,7 +1516,7 @@ void serialCommandTask(void *pvParameters) {
         buffer += c;
       }
     }
-    vTaskDelay(pdMS_TO_TICKS(50)); // Check every 50ms
+    vTaskDelay(pdMS_TO_TICKS(50)); 
   }
 }
 
@@ -1524,7 +1526,7 @@ void processSerialCommand(String cmd) {
   if (cmd == "RESET_WIFI") {
     Serial.println("[CMD] Erasing WiFi credentials and rebooting...");
     wifiManager.resetSettings();
-    rtcBootMarker = 0; // Force cold boot for config portal
+    rtcBootMarker = 0; 
     delay(500);
     ESP.restart();
 
@@ -1545,14 +1547,14 @@ void processSerialCommand(String cmd) {
     ESP.restart();
 
   } else if (cmd.startsWith("SET_CONFIG:")) {
-    String json = cmd.substring(11); // Strip "SET_CONFIG:"
+    String json = cmd.substring(11); 
     json.trim();
     JsonDocument doc;
     if (deserializeJson(doc, json)) {
       Serial.println("[CMD] ERROR: Invalid JSON in SET_CONFIG.");
       return;
     }
-    // Write to LittleFS
+    
     File wf = LittleFS.open("/config.json", "w");
     if (wf) {
       serializeJsonPretty(doc, wf);
@@ -1755,7 +1757,7 @@ void processSerialCommand(String cmd) {
           }
         }
       }
-      // Re-publish settings so the web app picks up the new name
+      // Update companion devices with updated configuration parameters
       publishSettingsViaMQTT();
     }
 
@@ -1786,7 +1788,7 @@ void processSerialCommand(String cmd) {
 // OTA Update (blocking by necessity — flash access)
 // =============================================================================
 void performOTA(String url) {
-  // If a base URL is provided without the path, auto-append the correct firmware path
+  // Construct complete binary download path if target path is absent
   if (!url.endsWith(".bin")) {
     if (!url.endsWith("/")) url += "/";
     url += "flash/firmware.bin"; 
@@ -1813,7 +1815,7 @@ void performOTA(String url) {
     secureClient.setInsecure();
     WiFiClient insecureClient;
     HTTPClient http;
-    http.useHTTP10(true); // Force HTTP/1.0 — prevents chunked encoding so stream is raw firmware bytes
+    http.useHTTP10(true); // Override HTTP interface to force raw HTTP/1.0 streams (bypasses chunked encoding)
     http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
     http.setTimeout(15000);
 
@@ -1832,7 +1834,7 @@ void performOTA(String url) {
       Serial.println("Redirected to: " + newUrl);
       http.end();
       url = newUrl;
-      // Do not decrement attempt so it consumes one retry, preventing infinite loops.
+      // Prevent redirect loops during network renegotiations
       continue;
     }
 
@@ -1882,7 +1884,7 @@ void performOTA(String url) {
         written += bytesWritten;
         lastDataTime = millis();
 
-        // Progress every ~100KB
+        
         if (written % 102400 < 1024) {
           Serial.printf("  OTA progress: %d bytes written...\n", written);
         }
@@ -1892,7 +1894,7 @@ void performOTA(String url) {
           downloadOk = false;
           break;
         }
-        delay(1); // Yield to watchdog
+        delay(1); // Yield to system scheduler to prevent watchdog resets
       }
     }
 
