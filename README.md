@@ -114,7 +114,7 @@ After the first visit, credentials are saved — you can just open the page norm
 1. Compile in PlatformIO — binary outputs to `firmware/[type]/.pio/build/esp32dev/firmware.bin`
 2. Run `python docs/flash/build_template.py` to copy binaries
 3. Commit and push to GitHub — GitHub Pages hosts the update files
-4. Lamps check for updates every 7 days, or users can tap "Check for Update" in the web app
+4. Users can trigger an update on-demand by tapping "Check for Update" in the web app.
 
 The ESP32 automatically rolls back if new firmware crashes before reaching `setup()`.
 

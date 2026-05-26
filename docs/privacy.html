@@ -111,9 +111,9 @@
                 Web App are hosted via GitHub Pages, with domain routing provided by Cloudflare. Both GitHub and
                 Cloudflare may collect standard server access logs, including your IP address and user-agent string, in
                 accordance with their respective Privacy Policies.</li>
-            <li><strong>Over-The-Air (OTA) Updates (GitHub):</strong> The firmware is programmed to periodically check
-                for updates by querying GitHub's servers via GitHub Releases. These requests expose your IP address to
-                GitHub.</li>
+            <li><strong>Over-The-Air (OTA) Updates (GitHub):</strong> The firmware does not periodically or automatically check
+                for updates. Instead, updates are strictly triggered on-demand when an update command is sent via the Web App. When
+                applying an update, the lamp downloads the binary from GitHub's servers, which exposes your IP address to GitHub.</li>
             <li><strong>Public DNS (Google & Cloudflare):</strong> To ensure reliable connectivity, the Linked Lamp
                 firmware explicitly configures your ESP32 to use public DNS servers (<code>8.8.8.8</code> provided by
                 Google and <code>1.1.1.1</code> provided by Cloudflare). This means your lamp's DNS queries are routed
