@@ -433,6 +433,83 @@ body {
     font-size: 0.95rem;
 }
 
+/* --- Desktop Feature Rows --- */
+.desktop-feature-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 80px;
+}
+
+.feature-row {
+    display: flex;
+    align-items: center;
+    gap: 60px;
+    text-align: left;
+}
+
+.feature-row.reverse {
+    flex-direction: row-reverse;
+}
+
+.feature-text {
+    flex: 1;
+}
+
+.feature-text h2 {
+    font-size: 2.2rem;
+    font-weight: 700;
+    margin-bottom: 1.5rem;
+}
+
+.feature-text p {
+    color: var(--text-dim);
+    font-size: 1.1rem;
+    line-height: 1.7;
+    margin-bottom: 2rem;
+}
+
+.feature-badges {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.feature-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border);
+    border-radius: 30px;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.feature-badge .material-icons-round {
+    font-size: 1.2rem;
+}
+
+.feature-image {
+    flex: 1;
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+
+.feature-image img {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: var(--radius);
+    object-fit: cover;
+}
+
+@media (min-width: 769px) {
+    .mobile-feature-grid {
+        display: none !important;
+    }
+}
+
 /* --- CTA Section --- */
 .cta-section {
     padding: 100px 0;
@@ -614,6 +691,10 @@ html {
     .feature-grid {
         display: flex;
         flex-direction: column;
+    }
+
+    .desktop-feature-rows {
+        display: none !important;
     }
 
     /* Constrain ambient glows on mobile */
