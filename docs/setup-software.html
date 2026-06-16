@@ -889,6 +889,11 @@
         </div>
     </footer>
 
+    <!-- PDF Manual Generator Dependencies -->
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+    <script src="manual-generator.js"></script>
+
     <!-- MQTT.js for name auto-detection on reflash -->
     <script src="https://unpkg.com/mqtt@5.3.5/dist/mqtt.min.js"></script>
 
@@ -901,6 +906,12 @@
         // =====================================================================
         const supportsWebSerial = "serial" in navigator;
         let currentStep = '1';
+
+        // Stored values for manual PDF download
+        let storedUidA = '';
+        let storedUidB = '';
+        let storedNameA = '';
+        let storedNameB = '';
 
         const CHROME_STEPS = [
             { id: '1', label: 'Details' },
@@ -1087,6 +1098,12 @@
             const uidA = _encodeUID(url, mUser, mPw, 'A');
             const uidB = _encodeUID(url, mUser, mPw, 'B');
 
+            // Store for manual PDF download
+            storedUidA = uidA;
+            storedUidB = uidB;
+            storedNameA = n1;
+            storedNameB = n2;
+
             // Build new UID-based URLs
             const fullUrlA = `${baseDomain}?uid=${uidA}`;
             const fullUrlB = `${baseDomain}?uid=${uidB}`;
@@ -1096,14 +1113,20 @@
 
             document.getElementById("url_out1").innerHTML = `
                 <a href="${fullUrlA}" target="_blank" style="color:#2ed573; text-decoration:none; word-break:break-all; font-family: monospace; font-size: 1.1rem; display: block; text-align: center;">${uidA}</a>
-                <div style="margin-top: 12px; display: flex; justify-content: center;">
+                <div style="margin-top: 12px; display: flex; justify-content: center; gap: 10px;">
                     <button class="copy-btn" onclick="copyText('${uidA}', this)" style="position:static; font-size: 0.78rem;">Copy UID</button>
+                    <button class="copy-btn" id="btnDownloadManualA" onclick="downloadManual('A')" style="position:static; font-size: 0.78rem; display: inline-flex; align-items: center; gap: 4px;">
+                        <span class="material-icons-round" style="font-size: 0.9rem;">download</span> Download Manual
+                    </button>
                 </div>
             `;
             document.getElementById("url_out2").innerHTML = `
                 <a href="${fullUrlB}" target="_blank" style="color:#2ed573; text-decoration:none; word-break:break-all; font-family: monospace; font-size: 1.1rem; display: block; text-align: center;">${uidB}</a>
-                <div style="margin-top: 12px; display: flex; justify-content: center;">
+                <div style="margin-top: 12px; display: flex; justify-content: center; gap: 10px;">
                     <button class="copy-btn" onclick="copyText('${uidB}', this)" style="position:static; font-size: 0.78rem;">Copy UID</button>
+                    <button class="copy-btn" id="btnDownloadManualB" onclick="downloadManual('B')" style="position:static; font-size: 0.78rem; display: inline-flex; align-items: center; gap: 4px;">
+                        <span class="material-icons-round" style="font-size: 0.9rem;">download</span> Download Manual
+                    </button>
                 </div>
             `;
         }
@@ -1435,6 +1458,34 @@
                     || document.getElementById('in_owner_name_b')?.value.trim()
                     || document.getElementById('in_manual_owner_name_b')?.value.trim()
                     || null;
+            }
+        }
+
+        // =============================================================
+        // Manual PDF Download
+        // =============================================================
+        async function downloadManual(lampId) {
+            const uid  = lampId === 'A' ? storedUidA  : storedUidB;
+            const name = lampId === 'A' ? storedNameA : storedNameB;
+
+            if (!uid) {
+                alert('Please complete setup first to generate the manual.');
+                return;
+            }
+
+            const btn      = document.getElementById('btnDownloadManual' + lampId);
+            const origHTML = btn.innerHTML;
+            btn.innerHTML  = '<span class="material-icons-round" style="font-size:1.1rem;">hourglass_top</span> Generating…';
+            btn.disabled   = true;
+
+            try {
+                await LinkedLampManual.generateManual(name, uid);
+            } catch (err) {
+                console.error('Manual generation failed:', err);
+                alert('Failed to generate manual: ' + err.message);
+            } finally {
+                btn.innerHTML = origHTML;
+                btn.disabled  = false;
             }
         }
 
