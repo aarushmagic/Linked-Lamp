@@ -29,6 +29,9 @@
     <!-- MQTT.js Library -->
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 
+    <!-- HTML5 QR Code Library -->
+    <script src="https://unpkg.com/html5-qrcode"></script>
+
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#121212">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -386,10 +389,16 @@
                     autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
                     onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
                 
-                <button class="action-btn primary-btn" onclick="connectWithUID()"
-                    style="font-size: 1rem; padding: 14px;">
-                    <span class="material-icons-round" style="font-size: 20px;">bolt</span> Connect
-                </button>
+                <div style="display: flex; gap: 10px;">
+                    <button class="action-btn primary-btn" onclick="connectWithUID()"
+                        style="font-size: 1rem; padding: 14px; flex: 1;">
+                        <span class="material-icons-round" style="font-size: 20px;">bolt</span> Connect
+                    </button>
+                    <button class="action-btn secondary-btn" onclick="openQRScanner()"
+                        style="font-size: 1rem; padding: 14px; flex: 1; background: rgba(255,255,255,0.05); border: 1px solid var(--border);">
+                        <span class="material-icons-round" style="font-size: 20px;">qr_code_scanner</span> Scan QR
+                    </button>
+                </div>
                 
                 <p id="uidInputError" style="color: var(--danger); font-size: 0.85rem; margin-top: 12px; display: none; font-weight: 500;"></p>
             </div>
@@ -462,6 +471,17 @@
                 </button>
                 <p id="newAccountError" style="color: #ff4757; font-size: 0.78rem; margin-top: 8px; display: none;"></p>
             </div>
+        </div>
+    </div>
+
+    <!-- ============ QR Scanner Modal ============ -->
+    <div id="qrScannerModal" class="modal" style="background: rgba(0,0,0,0.9); flex-direction: column; justify-content: center; align-items: center; padding: 1rem;">
+        <div class="modal-content" style="max-width: 500px; width: 100%; padding: 20px; text-align: center; background: transparent; border: none;">
+            <h2 style="margin-bottom: 20px; color: white;">Scan QR Code</h2>
+            <div id="qr-reader" style="width: 100%; max-width: 400px; margin: 0 auto; border-radius: 12px; overflow: hidden; border: 1px solid var(--border); background: black;"></div>
+            <button class="action-btn secondary-btn" onclick="closeQRScanner()" style="margin-top: 20px; font-size: 1rem;">
+                Cancel
+            </button>
         </div>
     </div>
 

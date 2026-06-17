@@ -2255,3 +2255,70 @@ function deleteAccount(index) {
     saveAccounts(accounts);
     renderAccountList();
 }
+
+// ==========================================================================
+// QR Scanner for PWA Login
+// ==========================================================================
+let html5QrCode = null;
+
+function openQRScanner() {
+    document.getElementById("qrScannerModal").style.display = "flex";
+    
+    if (!html5QrCode) {
+        html5QrCode = new Html5Qrcode("qr-reader");
+    }
+    
+    // Automatically start the camera and request permissions
+    html5QrCode.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 },
+        onScanSuccess,
+        onScanFailure
+    ).catch(err => {
+        console.error("Error starting QR scanner:", err);
+        alert("Could not start camera. Please ensure permissions are granted.");
+        closeQRScanner();
+    });
+}
+
+function closeQRScanner() {
+    if (html5QrCode && html5QrCode.isScanning) {
+        html5QrCode.stop().then(() => {
+            html5QrCode.clear();
+        }).catch(error => {
+            console.error("Failed to stop html5QrCode. ", error);
+        });
+    }
+    document.getElementById("qrScannerModal").style.display = "none";
+}
+
+function onScanSuccess(decodedText, decodedResult) {
+    try {
+        const url = new URL(decodedText);
+        // Only accept linkedlamp.com/my/ links
+        if (url.hostname.includes("linkedlamp.com") && url.pathname.includes("/my")) {
+            let searchParams = new URLSearchParams(url.search);
+            // Handle hash based routing fallback
+            if (!searchParams.has("uid") && url.hash.includes("uid=")) {
+                searchParams = new URLSearchParams(url.hash.substring(1));
+            }
+            
+            if (searchParams.has("uid")) {
+                const uid = searchParams.get("uid");
+                document.getElementById("uidInput").value = uid;
+                
+                // Stop scanner and connect
+                closeQRScanner();
+                connectWithUID();
+            }
+        }
+    } catch (e) {
+        // Not a valid URL, ignore it and keep scanning silently
+    }
+}
+
+function onScanFailure(error) {
+    // html5-qrcode calls this on every frame that doesn't have a code.
+    // We ignore it to let the scanner keep looking.
+}
+
