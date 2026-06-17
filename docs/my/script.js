@@ -2260,8 +2260,10 @@ function deleteAccount(index) {
 // QR Scanner for PWA Login
 // ==========================================================================
 let html5QrCode = null;
+let qrTargetAction = 'login'; // 'login' or 'addAccount'
 
-function openQRScanner() {
+function openQRScanner(actionType = 'login') {
+    qrTargetAction = actionType;
     document.getElementById("qrScannerModal").style.display = "flex";
     
     if (!html5QrCode) {
@@ -2305,11 +2307,16 @@ function onScanSuccess(decodedText, decodedResult) {
             
             if (searchParams.has("uid")) {
                 const uid = searchParams.get("uid");
-                document.getElementById("uidInput").value = uid;
                 
-                // Stop scanner and connect
-                closeQRScanner();
-                connectWithUID();
+                if (qrTargetAction === 'login') {
+                    document.getElementById("uidInput").value = uid;
+                    closeQRScanner();
+                    connectWithUID();
+                } else if (qrTargetAction === 'addAccount') {
+                    document.getElementById("newAccountUidInput").value = uid;
+                    closeQRScanner();
+                    addNewAccount();
+                }
             }
         }
     } catch (e) {

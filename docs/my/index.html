@@ -394,7 +394,7 @@
                         style="font-size: 1rem; padding: 14px; flex: 1;">
                         <span class="material-icons-round" style="font-size: 20px;">bolt</span> Connect
                     </button>
-                    <button class="action-btn secondary-btn" onclick="openQRScanner()"
+                    <button class="action-btn secondary-btn" onclick="openQRScanner('login')"
                         style="font-size: 1rem; padding: 14px; flex: 1; background: rgba(255,255,255,0.05); border: 1px solid var(--border);">
                         <span class="material-icons-round" style="font-size: 20px;">qr_code_scanner</span> Scan QR
                     </button>
@@ -466,9 +466,14 @@
                 <input type="text" id="newAccountUidInput" placeholder="Paste Unique ID here"
                     style="width: 100%; padding: 10px; border-radius: 8px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); color: white; font-family: monospace; font-size: 0.82rem; outline: none; margin-bottom: 10px; box-sizing: border-box;"
                     autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
-                <button class="action-btn primary-btn" onclick="addNewAccount()" style="font-size: 0.85rem; padding: 9px;">
-                    <span class="material-icons-round" style="font-size: 16px;">add_circle</span> Add
-                </button>
+                <div style="display: flex; gap: 10px;">
+                    <button class="action-btn primary-btn" onclick="addNewAccount()" style="font-size: 0.85rem; padding: 9px; flex: 1;">
+                        <span class="material-icons-round" style="font-size: 16px;">add_circle</span> Add
+                    </button>
+                    <button class="action-btn secondary-btn" onclick="openQRScanner('addAccount')" style="font-size: 0.85rem; padding: 9px; flex: 1; background: rgba(255,255,255,0.05); border: 1px solid var(--border);">
+                        <span class="material-icons-round" style="font-size: 16px;">qr_code_scanner</span> Scan QR
+                    </button>
+                </div>
                 <p id="newAccountError" style="color: #ff4757; font-size: 0.78rem; margin-top: 8px; display: none;"></p>
             </div>
         </div>
