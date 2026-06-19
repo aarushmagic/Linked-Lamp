@@ -40,10 +40,17 @@
 // =============================================================================
 // Pin Definitions
 // =============================================================================
+#ifdef SUPERMINI
+#define TOUCH_SENSOR_PIN 4   // Touch sensor input (Active HIGH)
+#define RED_PWM_PIN      5  // Red LED channel PWM pin
+#define GREEN_PWM_PIN    6  // Green LED channel PWM pin
+#define BLUE_PWM_PIN     7  // Blue LED channel PWM pin
+#else
 #define TOUCH_SENSOR_PIN 4   // Touch sensor input (Active HIGH)
 #define RED_PWM_PIN      13  // Red LED channel PWM pin
 #define GREEN_PWM_PIN    14  // Green LED channel PWM pin
 #define BLUE_PWM_PIN     27  // Blue LED channel PWM pin
+#endif
 
 // =============================================================================
 // Config values persisted in LittleFS
@@ -331,7 +338,19 @@ void setup() {
   configTzTime(userTimezone.c_str(), "pool.ntp.org", "time.nist.gov");
   Serial.println("NTP configured with timezone: " + userTimezone);
 
-  // Pin serial listener thread to Core 0 to prevent blocking during core loops
+  // Pin serial listener thread to a background core
+  // ESP32-S3 needs more stack and Core 0 headroom for WiFi/TLS system tasks
+#ifdef SUPERMINI
+  xTaskCreatePinnedToCore(
+    serialCommandTask,  // Task function
+    "SerialCmd",        // Name
+    8192,               // Stack size (bytes) — S3 TLS needs more headroom
+    NULL,               // Parameters
+    1,                  // Priority (low, just needs to run)
+    NULL,               // Task handle (not needed)
+    0                   // Core 0 (main loop runs on Core 1)
+  );
+#else
   xTaskCreatePinnedToCore(
     serialCommandTask,  // Task function
     "SerialCmd",        // Name
@@ -341,7 +360,8 @@ void setup() {
     NULL,               // Task handle (not needed)
     0                   // Core 0 (main loop runs on Core 1)
   );
-  Serial.println("Serial command listener started on Core 0.");
+#endif
+  Serial.println("Serial command listener started.");
 }
 
 // =============================================================================
@@ -1791,7 +1811,11 @@ void performOTA(String url) {
   // Construct complete binary download path if target path is absent
   if (!url.endsWith(".bin")) {
     if (!url.endsWith("/")) url += "/";
+#ifdef SUPERMINI
+    url += "flash/firmware-s3.bin"; 
+#else
     url += "flash/firmware.bin"; 
+#endif
   }
   
   Serial.println("Starting OTA from: " + url);

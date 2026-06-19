@@ -25,6 +25,13 @@ const BINARY_FILES = {
     firmware_pcb: BINARY_BASE + "firmware.bin",
     firmware_neopixel: BINARY_BASE + "firmware-neo.bin",
     littlefs: BINARY_BASE + "littlefs_template.bin",
+
+    bootloader_s3: BINARY_BASE + "bootloader-s3.bin",
+    partitions_s3: BINARY_BASE + "partitions-s3.bin",
+    boot_app0_s3: BINARY_BASE + "boot_app0-s3.bin",
+    firmware_pcb_s3: BINARY_BASE + "firmware-s3.bin",
+    firmware_neopixel_s3: BINARY_BASE + "firmware-neo-s3.bin",
+    littlefs_s3: BINARY_BASE + "littlefs_template-s3.bin",
 };
 
 // LittleFS partition size (from min_spiffs.csv: 0x20000 = 128KB)
@@ -75,31 +82,7 @@ async function flashESP32(config, onLog, onProgress) {
     const ESPLoader = esptoolMod.ESPLoader;
     const Transport = esptoolMod.Transport;
 
-    onLog("Fetching firmware binaries...");
-    onProgress(5);
-
-    const firmwareUrl = (config.hwType === "neopixel") ? BINARY_FILES.firmware_neopixel : BINARY_FILES.firmware_pcb;
-
-    const [bootloader, partitions, bootApp0, firmware] = await Promise.all([
-        fetchBinary(BINARY_FILES.bootloader),
-        fetchBinary(BINARY_FILES.partitions),
-        fetchBinary(BINARY_FILES.boot_app0),
-        fetchBinary(firmwareUrl),
-    ]);
-
-    // Bootloader binary patch: overrides esptool-js defaults to force DIO/40MHz
-    
-    
-    const patchHeader = (bin) => {
-        if (bin.length > 4 && bin[0] === 0xE9) {
-            bin[2] = 0x02;
-            bin[3] = 0x20;
-        }
-    };
-    patchHeader(bootloader);
-    patchHeader(firmware);
-
-    onProgress(15);
+    onProgress(10);
     onLog("Connecting to ESP32...");
 
     const espTerminal = {
@@ -119,13 +102,52 @@ async function flashESP32(config, onLog, onProgress) {
     try {
         const chipType = await loader.main();
         onLog(`Connected! Chip: ${chipType || "ESP32"}`);
-        onProgress(20);
+        onProgress(15);
+
+        const isS3 = (chipType === "ESP32-S3");
+        
+        onLog(`Fetching firmware binaries for ${isS3 ? "ESP32-S3" : "ESP32"}...`);
+        let fwUrl, bootUrl, partUrl, bootAppUrl;
+        
+        if (isS3) {
+            fwUrl = (config.hwType === "neopixel") ? BINARY_FILES.firmware_neopixel_s3 : BINARY_FILES.firmware_pcb_s3;
+            bootUrl = BINARY_FILES.bootloader_s3;
+            partUrl = BINARY_FILES.partitions_s3;
+            bootAppUrl = BINARY_FILES.boot_app0_s3;
+        } else {
+            fwUrl = (config.hwType === "neopixel") ? BINARY_FILES.firmware_neopixel : BINARY_FILES.firmware_pcb;
+            bootUrl = BINARY_FILES.bootloader;
+            partUrl = BINARY_FILES.partitions;
+            bootAppUrl = BINARY_FILES.boot_app0;
+        }
+
+        const [bootloader, partitions, bootApp0, firmware] = await Promise.all([
+            fetchBinary(bootUrl),
+            fetchBinary(partUrl),
+            fetchBinary(bootAppUrl),
+            fetchBinary(fwUrl),
+        ]);
+
+        // Bootloader binary patch: overrides esptool-js defaults to force DIO/40MHz
+        // IMPORTANT: Do not patch ESP32-S3 images as it breaks their SHA-256 checksums
+        const patchHeader = (bin) => {
+            if (bin.length > 4 && bin[0] === 0xE9) {
+                bin[2] = 0x02;
+                bin[3] = 0x20;
+            }
+        };
+        if (!isS3) {
+            patchHeader(bootloader);
+            patchHeader(firmware);
+        }
 
         onLog("Flashing firmware (no LittleFS — config sent via Serial after boot)...");
         onProgress(25);
 
+        const bootloaderOffset = isS3 ? 0x0000 : FLASH_OFFSETS.BOOTLOADER;
+
         const fileArray = [
-            { data: binaryToString(bootloader), address: FLASH_OFFSETS.BOOTLOADER },
+            { data: binaryToString(bootloader), address: bootloaderOffset },
             { data: binaryToString(partitions), address: FLASH_OFFSETS.PARTITIONS },
             { data: binaryToString(bootApp0), address: FLASH_OFFSETS.BOOT_APP0 },
             { data: binaryToString(firmware), address: FLASH_OFFSETS.FIRMWARE },

@@ -49,7 +49,7 @@ def compile_firmware():
         fw_dir = os.path.abspath(fw_dir)
 
         if not os.path.isfile(os.path.join(fw_dir, "platformio.ini")):
-            print(f"  ✗ ERROR: platformio.ini not found in {fw_dir}")
+            print(f"  ERROR: platformio.ini not found in {fw_dir}")
             sys.exit(1)
 
         # Build firmware
@@ -57,13 +57,18 @@ def compile_firmware():
         result = subprocess.run(
             [pio_cmd, "run"],
             cwd=fw_dir,
-            capture_output=False,
+            capture_output=True,
+            text=True,
             shell=True
         )
         if result.returncode != 0:
-            print(f"  ✗ ERROR: Firmware build failed for {hw}")
+            print(f"  [x] ERROR: Firmware build failed for {hw}")
+            print("--- BUILD LOG ---")
+            print(result.stdout)
+            print(result.stderr)
+            print("-----------------")
             sys.exit(1)
-        print(f"  ✓ Firmware compiled ({hw})")
+        print(f"  [OK] Firmware compiled ({hw})")
 
         # Build filesystem image
         print(f"  Building filesystem image ({hw})...")
@@ -76,75 +81,81 @@ def compile_firmware():
         if result.returncode != 0:
             print(f"  ✗ ERROR: Filesystem build failed for {hw}")
             sys.exit(1)
-        print(f"  ✓ Filesystem image built ({hw})")
+        print(f"  [OK] Filesystem image built ({hw})")
 
 def main():
-    print("Linked Lamp — Build Helper")
+    print("Linked Lamp - Build Helper")
     print("=" * 40)
 
     # Step 1: Compile both firmware variants
-    print("\n📦 Step 1: Compiling firmware...")
+    print("\n[STEP] Step 1: Compiling firmware...")
     print("-" * 30)
     compile_firmware()
 
     # Step 2: Copy build artifacts
-    print("\n📋 Step 2: Copying build artifacts...")
+    print("\n[STEP] Step 2: Regenerating JSON manifest...")
     print("-" * 30)
 
     hw_types = ["pcb", "neopixel"]
+    envs = ["esp32dev", "supermini"]
     
     # Track if we found a LittleFS image to use as template
-    littlefs_found = False
+    littlefs_found = {"esp32dev": False, "supermini": False}
 
     for hw in hw_types:
-        print(f"\nProcessing hardware type: {hw}")
-        print("-" * 30)
+        for env in envs:
+            print(f"\nProcessing hardware type: {hw} [{env}]")
+            print("-" * 30)
 
-        # Dynamic paths based on hardware type
-        FIRMWARE_DIR = os.path.join(SCRIPT_DIR, "..", "..", "firmware", hw)
-        BUILD_DIR = os.path.join(FIRMWARE_DIR, ".pio", "build", "esp32dev")
-        
-        # Check firmware build exists for this type
-        if not os.path.isdir(BUILD_DIR):
-            print(f"  ✗ ERROR: Build directory not found: {BUILD_DIR}")
-            print(f"    Please run 'pio run' in the firmware/{hw}/ directory first.")
-            continue
+            # Dynamic paths based on hardware type
+            FIRMWARE_DIR = os.path.join(SCRIPT_DIR, "..", "..", "firmware", hw)
+            BUILD_DIR = os.path.join(FIRMWARE_DIR, ".pio", "build", env)
+            
+            # Check firmware build exists for this type
+            if not os.path.isdir(BUILD_DIR):
+                print(f"  [x] ERROR: Build directory not found: {BUILD_DIR}")
+                print(f"    Please run 'pio run -e {env}' in the firmware/{hw}/ directory first.")
+                continue
 
-        FW_FILENAME = "firmware.bin" if hw == "pcb" else "firmware-neo.bin"
+            is_s3 = (env == "supermini")
+            suffix = "-s3.bin" if is_s3 else ".bin"
 
-        # Binaries specific to this build
-        FILES_TO_COPY = {
-            "bootloader.bin": os.path.join(BUILD_DIR, "bootloader.bin"),
-            "partitions.bin": os.path.join(BUILD_DIR, "partitions.bin"),
-            FW_FILENAME:      os.path.join(BUILD_DIR, "firmware.bin"),
-        }
+            fw_base = "firmware" if hw == "pcb" else "firmware-neo"
+            FW_FILENAME = f"{fw_base}{suffix}"
 
-        # Also copy boot_app0.bin (shared tool binary)
-        BOOT_APP0_DEST = os.path.join(FLASH_DIR, "boot_app0.bin")
-        BOOT_APP0_SRC = os.path.join(FRAMEWORK_DIR, "tools", "partitions", "boot_app0.bin")
-        if os.path.isfile(BOOT_APP0_SRC):
-            shutil.copy2(BOOT_APP0_SRC, BOOT_APP0_DEST)
-            size_kb = os.path.getsize(BOOT_APP0_DEST) / 1024
-            print(f"  ✓ boot_app0.bin ({size_kb:.1f} KB)")
+            # Binaries specific to this build
+            FILES_TO_COPY = {
+                f"bootloader{suffix}": os.path.join(BUILD_DIR, "bootloader.bin"),
+                f"partitions{suffix}": os.path.join(BUILD_DIR, "partitions.bin"),
+                FW_FILENAME:      os.path.join(BUILD_DIR, "firmware.bin"),
+            }
 
-        # Copy standard binaries
-        for dest_name, src_path in FILES_TO_COPY.items():
-            dest_path = os.path.join(FLASH_DIR, dest_name)
-            if os.path.isfile(src_path):
-                shutil.copy2(src_path, dest_path)
-                size_kb = os.path.getsize(dest_path) / 1024
-                print(f"  ✓ {dest_name} ({size_kb:.1f} KB)")
-            else:
-                print(f"  ✗ {dest_name} — source not found: {src_path}")
+            # Also copy boot_app0.bin (shared tool binary)
+            BOOT_APP0_DEST = os.path.join(FLASH_DIR, f"boot_app0{suffix}")
+            BOOT_APP0_SRC = os.path.join(FRAMEWORK_DIR, "tools", "partitions", "boot_app0.bin")
+            if os.path.isfile(BOOT_APP0_SRC):
+                shutil.copy2(BOOT_APP0_SRC, BOOT_APP0_DEST)
+                size_kb = os.path.getsize(BOOT_APP0_DEST) / 1024
+                print(f"  [OK] boot_app0{suffix} ({size_kb:.1f} KB)")
 
-        # Check for LittleFS image for this type
-        LITTLEFS_SRC = os.path.join(BUILD_DIR, "littlefs.bin")
-        LITTLEFS_DEST = os.path.join(FLASH_DIR, "littlefs_template.bin")
-        if not littlefs_found and os.path.isfile(LITTLEFS_SRC):
-            shutil.copy2(LITTLEFS_SRC, LITTLEFS_DEST)
-            size_kb = os.path.getsize(LITTLEFS_DEST) / 1024
-            print(f"  ✓ littlefs_template.bin ({size_kb:.1f} KB) ← pulled from {hw}")
-            littlefs_found = True
+            # Copy standard binaries
+            for dest_name, src_path in FILES_TO_COPY.items():
+                dest_path = os.path.join(FLASH_DIR, dest_name)
+                if os.path.isfile(src_path):
+                    shutil.copy2(src_path, dest_path)
+                    size_kb = os.path.getsize(dest_path) / 1024
+                    print(f"  [OK] {dest_name} ({size_kb:.1f} KB)")
+                else:
+                    print(f"  [x] {dest_name} - source not found: {src_path}")
+
+            # Check for LittleFS image for this type
+            LITTLEFS_SRC = os.path.join(BUILD_DIR, "littlefs.bin")
+            LITTLEFS_DEST = os.path.join(FLASH_DIR, f"littlefs_template{suffix}")
+            if not littlefs_found[env] and os.path.isfile(LITTLEFS_SRC):
+                shutil.copy2(LITTLEFS_SRC, LITTLEFS_DEST)
+                size_kb = os.path.getsize(LITTLEFS_DEST) / 1024
+                print(f"  [OK] littlefs_template{suffix} ({size_kb:.1f} KB) <- pulled from {hw}")
+                littlefs_found[env] = True
 
     print("\n" + "=" * 40)
     print("Done! Files are ready in docs/flash/")

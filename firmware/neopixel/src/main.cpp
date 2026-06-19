@@ -35,8 +35,13 @@
 // =============================================================================
 // Pin Definitions
 // =============================================================================
+#ifdef SUPERMINI
+#define TOUCH_SENSOR_PIN 4   // Touch sensor input (Active HIGH)
+#define NEOPIXEL_PIN     5  // NeoPixel data pin
+#else
 #define TOUCH_SENSOR_PIN 4   // Touch sensor input (Active HIGH)
 #define NEOPIXEL_PIN     27  // NeoPixel data pin
+#endif
 #define NEOPIXEL_COUNT   16  // LED ring pixel count
 
 Adafruit_NeoPixel strip(NEOPIXEL_COUNT, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
@@ -321,7 +326,19 @@ void setup() {
   configTzTime(userTimezone.c_str(), "pool.ntp.org", "time.nist.gov");
   Serial.println("NTP configured with timezone: " + userTimezone);
 
-  // Pin serial listener thread to Core 0 to prevent blocking during core loops
+  // Pin serial listener thread to a background core
+  // ESP32-S3 needs more stack and Core 0 headroom for WiFi/TLS system tasks
+#ifdef SUPERMINI
+  xTaskCreatePinnedToCore(
+    serialCommandTask,  // Task function
+    "SerialCmd",        // Name
+    8192,               // Stack size (bytes) — S3 TLS needs more headroom
+    NULL,               // Parameters
+    1,                  // Priority (low, just needs to run)
+    NULL,               // Task handle (not needed)
+    0                   // Core 0 (main loop runs on Core 1)
+  );
+#else
   xTaskCreatePinnedToCore(
     serialCommandTask,  // Task function
     "SerialCmd",        // Name
@@ -331,7 +348,8 @@ void setup() {
     NULL,               // Task handle (not needed)
     0                   // Core 0 (main loop runs on Core 1)
   );
-  Serial.println("Serial command listener started on Core 0.");
+#endif
+  Serial.println("Serial command listener started.");
 }
 
 // =============================================================================
@@ -1820,7 +1838,11 @@ void performOTA(String url) {
   // Construct complete binary download path if target path is absent
   if (!url.endsWith(".bin")) {
     if (!url.endsWith("/")) url += "/";
+#ifdef SUPERMINI
+    url += "flash/firmware-neo-s3.bin"; 
+#else
     url += "flash/firmware-neo.bin"; 
+#endif
   }
   
   Serial.println("Starting OTA from: " + url);
