@@ -403,10 +403,21 @@ body {
     box-shadow: 0 0 6px rgba(0, 0, 0, 0.4);
 }
 
+.preset-name {
+    flex: 1;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+}
+
 .preset-edit-icon {
     font-size: 15px;
     color: var(--text-dim);
     margin-left: 4px;
+    flex-shrink: 0;
+    cursor: pointer;
 }
 
 .preset-btn.add-new {
@@ -1241,6 +1252,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     color: var(--text-dim);
     margin-right: 2px;
     opacity: 0.6;
+    flex-shrink: 0;
 }
 
 /* ==========================================================================

@@ -1520,8 +1520,7 @@ function renderPresets() {
         btn.style.setProperty("--preset-color", isCycle ? p.colors[0].hex : p.color);
 
         const nameSpan = document.createElement("span");
-        nameSpan.style.flex = "1";
-        nameSpan.style.textAlign = "left";
+        nameSpan.className = "preset-name";
         nameSpan.innerText = p.name;
 
         btn.appendChild(nameSpan);
