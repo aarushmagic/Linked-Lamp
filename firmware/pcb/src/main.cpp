@@ -48,14 +48,15 @@
 // =============================================================================
 // Config values persisted in LittleFS
 // =============================================================================
-String device_id    = "A";
-String target_id    = "B";
-String mqtt_server  = "";
-int    mqtt_port    = 8883;
-String mqtt_user    = "";
-String mqtt_pass    = "";
-String ota_url      = "";  // Base URL for OTA firmware check
-String owner_name   = "";  // Device owner name
+String device_id      = "A";
+String target_id      = "B";
+String mqtt_server    = "";
+int    mqtt_port      = 8883;
+String mqtt_user      = "";
+String mqtt_pass      = "";
+String mqtt_delimiter = "/";
+String ota_url        = "";  // Base URL for OTA firmware check
+String owner_name     = "";  // Device owner name
 
 // Device role for status mapping
 String role = "";
@@ -259,13 +260,12 @@ void setup() {
   Serial.println("Target Device ID: " + target_id);
   Serial.println("Role: " + (role.length() > 0 ? role : "UNSET (will auto-detect)"));
 
-  // Build routing topics, adapting path format for Adafruit IO if detected
+  // Build routing topics, adapting path format for the configured delimiter
   String topicPrefix = "linkedlamp/";
-  String d_sep = "/";
+  String d_sep = mqtt_delimiter;
 
-  if (mqtt_server.indexOf("adafruit") != -1 && mqtt_user.length() > 0) {
+  if (mqtt_delimiter == "_") {
     topicPrefix = mqtt_user + "/f/ll_";
-    d_sep = "_";
   }
 
   triggerTopicSub  = topicPrefix + device_id + d_sep + "color_trigger";
@@ -483,13 +483,14 @@ void loadConfig() {
     if (f) {
       JsonDocument doc;
       if (!deserializeJson(doc, f)) {
-        device_id    = doc["device_id"]   | "A";
-        mqtt_server  = doc["mqtt_server"] | "";
-        mqtt_port    = doc["mqtt_port"]   | 8883;
-        mqtt_user    = doc["mqtt_user"]   | "";
-        mqtt_pass    = doc["mqtt_pass"]   | "";
-        ota_url      = doc["ota_url"]     | "";
-        owner_name   = doc["owner_name"]  | "";
+        device_id      = doc["device_id"]   | "A";
+        mqtt_server    = doc["mqtt_server"] | "";
+        mqtt_port      = doc["mqtt_port"]   | 8883;
+        mqtt_user      = doc["mqtt_user"]   | "";
+        mqtt_pass      = doc["mqtt_pass"]   | "";
+        mqtt_delimiter = doc["delimeter"]   | "/";
+        ota_url        = doc["ota_url"]     | "";
+        owner_name     = doc["owner_name"]  | "";
         if (mqtt_server.length() > 0) {
           configValid = true;
           Serial.println("Config loaded from /config.json");
@@ -516,13 +517,14 @@ void loadConfig() {
           if (serialBuffer.startsWith("{") && serialBuffer.endsWith("}")) {
             JsonDocument doc;
             if (!deserializeJson(doc, serialBuffer)) {
-              device_id    = doc["device_id"]   | "A";
-              mqtt_server  = doc["mqtt_server"] | "";
-              mqtt_port    = doc["mqtt_port"]   | 8883;
-              mqtt_user    = doc["mqtt_user"]   | "";
-              mqtt_pass    = doc["mqtt_pass"]   | "";
-              ota_url      = doc["ota_url"]     | "";
-              owner_name   = doc["owner_name"]  | "";
+              device_id      = doc["device_id"]   | "A";
+              mqtt_server    = doc["mqtt_server"] | "";
+              mqtt_port      = doc["mqtt_port"]   | 8883;
+              mqtt_user      = doc["mqtt_user"]   | "";
+              mqtt_pass      = doc["mqtt_pass"]   | "";
+              mqtt_delimiter = doc["delimeter"]   | "/";
+              ota_url        = doc["ota_url"]     | "";
+              owner_name     = doc["owner_name"]  | "";
 
               // Persist config to local storage
               if (!LittleFS.begin(true)) { LittleFS.format(); LittleFS.begin(true); }
@@ -966,10 +968,9 @@ void detectRole() {
   Serial.println("=== Role Auto-Detection ===");
 
   String topicPrefix = "linkedlamp/";
-  String d_sep = "/";
-  if (mqtt_server.indexOf("adafruit") != -1 && mqtt_user.length() > 0) {
+  String d_sep = mqtt_delimiter;
+  if (mqtt_delimiter == "_") {
     topicPrefix = mqtt_user + "/f/ll_";
-    d_sep = "_";
   }
   String primaryStatusTopic = topicPrefix + device_id + d_sep + "status";
 
@@ -1654,10 +1655,9 @@ void processSerialCommand(String cmd) {
     pauseCore1 = true;
     delay(50);
     String topicPrefix = "linkedlamp/";
-    String d_sep = "/";
-    if (mqtt_server.indexOf("adafruit") != -1 && mqtt_user.length() > 0) {
+    String d_sep = mqtt_delimiter;
+    if (mqtt_delimiter == "_") {
       topicPrefix = mqtt_user + "/f/ll_";
-      d_sep = "_";
     }
     String secStatusTopic = topicPrefix + device_id + "2" + d_sep + "status";
     if (mqttClient.connected()) {
@@ -1681,10 +1681,9 @@ void processSerialCommand(String cmd) {
     pauseCore1 = true;
     delay(50);
     String topicPrefix = "linkedlamp/";
-    String d_sep = "/";
-    if (mqtt_server.indexOf("adafruit") != -1 && mqtt_user.length() > 0) {
+    String d_sep = mqtt_delimiter;
+    if (mqtt_delimiter == "_") {
       topicPrefix = mqtt_user + "/f/ll_";
-      d_sep = "_";
     }
     String priStatusTopic = topicPrefix + device_id + d_sep + "status";
     if (mqttClient.connected()) {

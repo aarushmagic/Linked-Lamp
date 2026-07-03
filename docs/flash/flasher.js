@@ -43,13 +43,14 @@ async function fetchBinary(url) {
     return new Uint8Array(buffer);
 }
 
-function generateConfigJSON(deviceId, mqttServer, mqttUser, mqttPass, ownerName) {
+function generateConfigJSON(deviceId, mqttServer, mqttUser, mqttPass, ownerName, delimiter) {
     const config = {
         device_id: deviceId,
         mqtt_server: mqttServer,
         mqtt_port: 8883,
         mqtt_user: mqttUser,
         mqtt_pass: mqttPass,
+        delimeter: delimiter || "/",
         ota_url: "https://www.linkedlamp.com"
     };
     if (ownerName) config.owner_name = ownerName;
@@ -166,7 +167,8 @@ async function flashESP32(config, onLog, onProgress) {
         config.mqttServer,
         config.mqttUser,
         config.mqttPass,
-        config.ownerName
+        config.ownerName,
+        config.delimiter
     );
 
     try {

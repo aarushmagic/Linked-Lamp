@@ -18,6 +18,7 @@
 let mqtt_server = "";
 let mqtt_user = "";
 let mqtt_pass = "";
+let mqtt_delimiter = "/";
 
 let mqttClient = null;
 let myDeviceId = "A";
@@ -42,7 +43,7 @@ let signalStatusTimer = null;      // Timer for resetting subtitle text
 // MQTT Topic Builder
 // ==========================================================================
 function getTopic(deviceId, suffix) {
-    if (mqtt_server.includes("adafruit") && mqtt_user) {
+    if (mqtt_delimiter === "_" && mqtt_user) {
         const cleanSuffix = suffix.replace(/\//g, "_");
         return `${mqtt_user}/f/ll_${deviceId}_${cleanSuffix}`;
     }
@@ -94,8 +95,12 @@ const MAX_CYCLE_COLORS = 10;
  * Format: JSON → UTF-8 → Base64 → URL-safe (+ → -, / → _, strip trailing =)
  * Note: Name is no longer encoded in UIDs — names come from the lamp's MQTT settings topic.
  */
-function encodeUID(server, user, pass, deviceId) {
+function encodeUID(server, user, pass, deviceId, delimiter) {
     const obj = { s: server, u: user, p: pass, id: deviceId };
+    const activeDelim = delimiter || mqtt_delimiter;
+    if (activeDelim && activeDelim !== "/") {
+        obj.d = activeDelim;
+    }
     const json = JSON.stringify(obj);
     // btoa only handles Latin1, so percent-encode unicode first
     const b64 = btoa(unescape(encodeURIComponent(json)));
@@ -182,6 +187,7 @@ function loadCredentials() {
             mqtt_pass = decoded.p;
             myDeviceId = decoded.id.toUpperCase() === "B" ? "B" : "A";
             partnerDeviceId = myDeviceId === "A" ? "B" : "A";
+            mqtt_delimiter = decoded.d || "/";
 
             if (decoded.name) {
                 partnerName = decoded.name;
@@ -192,6 +198,7 @@ function loadCredentials() {
             localStorage.setItem("ll_u", mqtt_user);
             localStorage.setItem("ll_p", mqtt_pass);
             localStorage.setItem("ll_id", myDeviceId);
+            localStorage.setItem("ll_delim", mqtt_delimiter);
             // Store the UID itself for account management
             localStorage.setItem("ll_uid", params.get("uid"));
 
@@ -234,6 +241,7 @@ function loadCredentials() {
         mqtt_server = localStorage.getItem("ll_s");
         mqtt_user = localStorage.getItem("ll_u");
         mqtt_pass = localStorage.getItem("ll_p");
+        mqtt_delimiter = localStorage.getItem("ll_delim") || "/";
         const id = localStorage.getItem("ll_id");
         if (id) {
             myDeviceId = id;
@@ -308,10 +316,11 @@ function connectWithUID() {
     localStorage.setItem("ll_u", decoded.u);
     localStorage.setItem("ll_p", decoded.p);
     localStorage.setItem("ll_id", decoded.id.toUpperCase() === "B" ? "B" : "A");
+    localStorage.setItem("ll_delim", decoded.d || "/");
     if (decoded.name) localStorage.setItem("ll_name", decoded.name);
 
     // Generate and store UID
-    const uid = encodeUID(decoded.s, decoded.u, decoded.p, decoded.id, decoded.name || null);
+    const uid = encodeUID(decoded.s, decoded.u, decoded.p, decoded.id, decoded.d || "/");
     localStorage.setItem("ll_uid", uid);
 
     // Migrate to accounts
@@ -523,7 +532,7 @@ function connectMQTT() {
 
 // Helper: supplementary status topic (ll_A2_status / ll_B2_status)
 function getSupTopic(deviceId) {
-    if (mqtt_server.includes("adafruit") && mqtt_user) {
+    if (mqtt_delimiter === "_" && mqtt_user) {
         return `${mqtt_user}/f/ll_${deviceId}2_status`;
     }
     return `linkedlamp/${deviceId}2/status`;
@@ -2103,6 +2112,7 @@ function switchToAccount(index) {
     localStorage.setItem("ll_id", deviceId);
     if (decoded.name) localStorage.setItem("ll_name", decoded.name);
     localStorage.setItem("ll_uid", target.uid);
+    localStorage.setItem("ll_delim", decoded.d || "/");
 
     // Update in-memory state
     mqtt_server = decoded.s;
@@ -2111,6 +2121,7 @@ function switchToAccount(index) {
     myDeviceId = deviceId;
     partnerDeviceId = myDeviceId === "A" ? "B" : "A";
     partnerName = decoded.name || "Partner";
+    mqtt_delimiter = decoded.d || "/";
 
     // Load settings & presets for the new account
     const saved = localStorage.getItem("ll_settings_" + myDeviceId);
@@ -2214,7 +2225,7 @@ function addNewAccount() {
         return;
     }
 
-    const uid = encodeUID(decoded.s, decoded.u, decoded.p, decoded.id, decoded.name || null);
+    const uid = encodeUID(decoded.s, decoded.u, decoded.p, decoded.id, decoded.d || "/");
     const accounts = loadAccounts() || [];
 
     // Check for duplicates
