@@ -337,10 +337,6 @@ function connectMQTT() {
     let clean_server = mqtt_server;
     let active_port = 8884; // Default WSS port (HiveMQ)
 
-    if (mqtt_server.includes("adafruit")) {
-        active_port = 443; // Adafruit IO WSS port
-    }
-
     if (mqtt_server.includes(":")) {
         const parts = mqtt_server.split(":");
         clean_server = parts[0];

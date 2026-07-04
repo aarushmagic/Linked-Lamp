@@ -43,11 +43,11 @@ async function fetchBinary(url) {
     return new Uint8Array(buffer);
 }
 
-function generateConfigJSON(deviceId, mqttServer, mqttUser, mqttPass, ownerName, delimiter) {
+function generateConfigJSON(deviceId, mqttServer, mqttPort, mqttUser, mqttPass, ownerName, delimiter) {
     const config = {
         device_id: deviceId,
         mqtt_server: mqttServer,
-        mqtt_port: 8883,
+        mqtt_port: mqttPort || 8883,
         mqtt_user: mqttUser,
         mqtt_pass: mqttPass,
         delimeter: delimiter || "/",
@@ -165,6 +165,7 @@ async function flashESP32(config, onLog, onProgress) {
     const configJson = generateConfigJSON(
         config.deviceId,
         config.mqttServer,
+        config.mqttPort,
         config.mqttUser,
         config.mqttPass,
         config.ownerName,

@@ -213,10 +213,9 @@
                 <br><br>
                 <strong>Recommended Free Options:</strong><br>
                 &bull; <strong>HiveMQ Cloud:</strong> The "Serverless Multi-tenant" free tier supports both protocols out of the box and provides more than enough bandwidth.<br>
-                &bull; <strong>Adafruit IO:</strong> Excellent real-time broker that supports both protocols (WSS on port 443) but limits free accounts to 10 "feeds". A pair of lamps fits well under this limit.<br>
                 &bull; <strong>Self-Hosted (e.g., Eclipse Mosquitto):</strong> An open-source broker for power users who want complete control. See the next question for configuration details.
                 <br><br>
-                <em>Please note: Cloud brokers like HiveMQ and Adafruit IO are third-party proprietary software. They
+                <em>Please note: Cloud brokers like HiveMQ are third-party proprietary software. They
                     are subject to change their pricing or Terms of Service at any time, and we are not affiliated with
                     or responsible for them.</em>
             </p>
@@ -248,7 +247,7 @@ keyfile /etc/mosquitto/certs/privkey.pem
                 While the physical lamps can connect using self-signed certificates, <strong>web browsers strictly enforce TLS certificate validation</strong> for WebSocket connections. If your broker uses a self-signed or invalid SSL certificate, the Web Dashboard will fail to connect silently. You must use a free certificate from a trusted Certificate Authority, such as <strong>Let's Encrypt</strong>.
                 <br><br>
                 <strong>3. Entering Details in the Setup Wizard:</strong><br>
-                During setup, input your broker URL with the custom WebSockets port (e.g., <code>mqtt.yourdomain.com:8884</code>). The browser-based setup wizard will use the WebSockets port to run name auto-detection. When writing the config to the lamps, it will automatically strip the port and save the standard port <code>8883</code> for direct TCP/TLS.
+                During setup, expand the <strong>Advanced Settings</strong> dropdown. There you can configure your custom <strong>MQTT Port</strong> (for the physical lamps) and <strong>Websockets URL / Websockets Port</strong> (for the Web Dashboard and Setup Wizard). The setup page will automatically use these ports for flashing your device and generating the pairing tokens without requiring you to append port numbers to your URLs.
             </p>
         </div>
 
@@ -421,7 +420,7 @@ keyfile /etc/mosquitto/certs/privkey.pem
         </div>
         <div class="max-w mt-3" style="text-align: center; font-size: 0.8rem; color: var(--text-dim); padding: 0 20px;">
             * The Linked Lamp software and hardware designs are open source. Third-party services required for
-            connectivity (such as HiveMQ, Adafruit IO, or AWS) are proprietary and governed by their respective owners.
+            connectivity (such as HiveMQ, or AWS) are proprietary and governed by their respective owners.
         </div>
     </footer>
 

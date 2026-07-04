@@ -73,10 +73,10 @@
     async function generateManual(userName, uid) {
         /* ── guard: libraries loaded? ── */
         if (typeof PDFLib === 'undefined') {
-            throw new Error('pdf-lib is not loaded. Add the CDN script tag.');
+            throw new Error('pdf-lib is not loaded. Add the CDN tag.');
         }
         if (typeof qrcode === 'undefined') {
-            throw new Error('qrcode-generator is not loaded. Add the CDN script tag.');
+            throw new Error('qrcode-generator is not loaded. Add the CDN tag.');
         }
 
         const { PDFDocument, rgb, StandardFonts, degrees } = PDFLib;
