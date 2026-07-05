@@ -2267,6 +2267,8 @@ function deleteAccount(index) {
 // ==========================================================================
 let html5QrCode = null;
 let qrTargetAction = 'login'; // 'login' or 'addAccount'
+let cameraDevices = [];
+let currentCameraIndex = 0;
 
 function openQRScanner(actionType = 'login') {
     qrTargetAction = actionType;
@@ -2276,17 +2278,128 @@ function openQRScanner(actionType = 'login') {
         html5QrCode = new Html5Qrcode("qr-reader");
     }
     
-    // Automatically start the camera and request permissions
+    // Automatically query available cameras
+    Html5Qrcode.getCameras().then(devices => {
+        cameraDevices = devices || [];
+        const switchBtn = document.getElementById("switchCameraBtn");
+        if (cameraDevices.length > 1) {
+            if (switchBtn) switchBtn.style.display = "inline-flex";
+            // Default to back/rear camera index
+            const backIdx = cameraDevices.findIndex(device => 
+                device.label.toLowerCase().includes("back") || 
+                device.label.toLowerCase().includes("environment") ||
+                device.label.toLowerCase().includes("rear")
+            );
+            currentCameraIndex = backIdx >= 0 ? backIdx : 0;
+        } else {
+            if (switchBtn) switchBtn.style.display = "none";
+        }
+        startCamera();
+    }).catch(err => {
+        console.warn("Error listing cameras, falling back to facingMode:", err);
+        startCameraWithFacingMode();
+    });
+}
+
+function startCamera() {
+    if (cameraDevices.length === 0) {
+        startCameraWithFacingMode();
+        return;
+    }
+    const deviceId = cameraDevices[currentCameraIndex].id;
+    html5QrCode.start(
+        deviceId,
+        { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 },
+        onScanSuccess,
+        onScanFailure
+    ).then(() => {
+        setupZoomSlider();
+    }).catch(err => {
+        console.warn("Failed to start camera by ID, falling back to facingMode:", err);
+        startCameraWithFacingMode();
+    });
+}
+
+function startCameraWithFacingMode() {
     html5QrCode.start(
         { facingMode: "environment" },
         { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 },
         onScanSuccess,
         onScanFailure
-    ).catch(err => {
+    ).then(() => {
+        setupZoomSlider();
+    }).catch(err => {
         console.error("Error starting QR scanner:", err);
         alert("Could not start camera. Please ensure permissions are granted.");
         closeQRScanner();
     });
+}
+
+function switchCamera() {
+    if (cameraDevices.length <= 1) return;
+    if (html5QrCode && html5QrCode.isScanning) {
+        html5QrCode.stop().then(() => {
+            currentCameraIndex = (currentCameraIndex + 1) % cameraDevices.length;
+            startCamera();
+        }).catch(err => {
+            console.error("Error stopping camera for switch:", err);
+        });
+    }
+}
+
+function setupZoomSlider() {
+    const slider = document.getElementById("zoomSlider");
+    const container = document.getElementById("zoomContainer");
+    if (!slider || !container) return;
+
+    // Reset transform constraints on any running video element
+    const video = document.querySelector("#qr-reader video");
+    if (video) {
+        video.style.transform = "";
+        video.style.transition = "transform 0.15s ease-out";
+    }
+
+    let nativeZoomSupported = false;
+    let capabilities = null;
+    try {
+        capabilities = html5QrCode.getRunningTrackCapabilities();
+        if (capabilities && capabilities.zoom) {
+            nativeZoomSupported = true;
+        }
+    } catch (e) {
+        console.warn("Failed to get track capabilities:", e);
+    }
+
+    container.style.display = "flex";
+
+    if (nativeZoomSupported && capabilities.zoom) {
+        slider.min = capabilities.zoom.min;
+        slider.max = capabilities.zoom.max;
+        slider.step = capabilities.zoom.step || 0.1;
+        slider.value = capabilities.zoom.min || 1;
+        
+        slider.oninput = (e) => {
+            const zoomVal = parseFloat(e.target.value);
+            html5QrCode.applyVideoConstraints({
+                advanced: [{ zoom: zoomVal }]
+            }).catch(err => console.error("Error applying native zoom:", err));
+        };
+    } else {
+        // CSS Digital Zoom fallback (e.g. for iOS Safari)
+        slider.min = 1;
+        slider.max = 3.5;
+        slider.step = 0.1;
+        slider.value = 1;
+        
+        slider.oninput = (e) => {
+            const zoomVal = parseFloat(e.target.value);
+            const videoElement = document.querySelector("#qr-reader video");
+            if (videoElement) {
+                videoElement.style.transform = `scale(${zoomVal})`;
+                videoElement.style.transformOrigin = "center";
+            }
+        };
+    }
 }
 
 function closeQRScanner() {
@@ -2298,6 +2411,9 @@ function closeQRScanner() {
         });
     }
     document.getElementById("qrScannerModal").style.display = "none";
+    document.getElementById("zoomContainer").style.display = "none";
+    const switchBtn = document.getElementById("switchCameraBtn");
+    if (switchBtn) switchBtn.style.display = "none";
 }
 
 function onScanSuccess(decodedText, decodedResult) {
