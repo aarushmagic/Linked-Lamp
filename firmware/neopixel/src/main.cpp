@@ -732,6 +732,11 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       
       if (nightMaxBrightness == 0) {
         Serial.println("Nighttime mode: lamp kept OFF (brightness=0).");
+        // Update last tap timestamp for the PWA dashboard (MQTT only, no flash write)
+        time_t now;
+        time(&now);
+        lastTapTimestamp = (unsigned long)now;
+        publishSettingsViaMQTT();
         return;
       }
     } else {

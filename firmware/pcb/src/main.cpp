@@ -731,6 +731,10 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
 
       if (nightMaxBrightness == 0) {
         Serial.println("Nighttime mode: lamp kept OFF (brightness=0).");
+        time_t now;
+        time(&now);
+        lastTapTimestamp = (unsigned long)now;
+        publishSettingsViaMQTT();
         return;
       }
     } else {
