@@ -85,7 +85,6 @@ let ambientColorPicker = null;
 let currentPresetMode = 'single'; // 'single' or 'cycle'
 let cycleColorEntries = [];       // [{hex, hold, trans}, ...]
 let selectedCycleIndex = 0;       // Which entry's color is being edited
-const MAX_CYCLE_COLORS = 10;
 
 // ==========================================================================
 // UID Encoding / Decoding (Base64url)
@@ -152,7 +151,7 @@ window.addEventListener("load", () => {
     // Show/hide account switcher button (PWA only)
     initAccountSwitcherButton();
 
-    // Determine the default landing page based on number of accounts & default landing preference
+    // Determine the default landing page based on number of accounts & default landing preference (PWA only)
     const accounts = loadAccounts() || [];
     if (accounts.length > 1) {
         const defaultLandingUid = localStorage.getItem("ll_default_landing_uid");
@@ -541,7 +540,7 @@ function connectMQTT() {
                 console.error("Failed to parse partner settings:", e);
             }
 
-        // Supplementary status topics
+            // Supplementary status topics
         } else if (topic === getSupTopic(myDeviceId)) {
             if (msg.length === 0) {
                 // Empty retained message = supplementary doesn't exist
@@ -668,7 +667,7 @@ function updateStatusUI() {
 // Show or hide detailed status popup
 function toggleStatusPopup(e) {
     const popup = document.getElementById("statusPopup");
-    
+
     // If it's already open and the click was on the indicator (not inside the popup itself), close it
     if (popup.style.display === "block" && !popup.contains(e.target)) {
         popup.style.display = "none";
@@ -702,11 +701,11 @@ function updateStatusPopupContent() {
     lamps.forEach(l => {
         const dotClass = l.online ? 'status-dot-green' : 'status-dot-red';
         let rowHtml = `<div class="status-lamp-row"`;
-        
+
         if (!l.online && l.mine) {
             rowHtml += ` onclick="promptRemoveLamp('${l.id}', '${l.name}')" style="cursor: pointer;" title="Click to remove offline lamp"`;
         }
-        
+
         rowHtml += `><span class="status-lamp-dot ${dotClass}"></span><span class="status-lamp-name">${l.name}</span></div>`;
         html += rowHtml;
     });
@@ -715,7 +714,7 @@ function updateStatusPopupContent() {
     popup.innerHTML = html;
 }
 
-window.promptRemoveLamp = function(lampId, lampName) {
+window.promptRemoveLamp = function (lampId, lampName) {
     if (confirm(`Do you wish to remove ${lampName} from your group?`)) {
         let topic = "";
         if (lampId === 'primary') {
@@ -723,7 +722,7 @@ window.promptRemoveLamp = function(lampId, lampName) {
         } else if (lampId === 'secondary') {
             topic = getSupTopic(myDeviceId);
         }
-        
+
         if (topic && mqttClient && mqttClient.connected) {
             mqttClient.publish(topic, "", { retain: true, qos: 1 }, (err) => {
                 if (err) console.error("Failed to clear lamp status:", err);
@@ -972,6 +971,10 @@ function forceHardReload() {
 // Tab Navigation
 // ==========================================================================
 function switchTab(tabId) {
+    // Reset scroll position of the content area to the top
+    const contentArea = document.querySelector(".content-area");
+    if (contentArea) contentArea.scrollTop = 0;
+
     document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
     document.getElementById("view-" + tabId).classList.add("active");
 
@@ -2002,10 +2005,10 @@ function renderCycleColorEntries() {
         });
     }
 
-    // Update Add button visibility
+    // Update Add button visibility (always flex since there is no limit)
     const addBtn = document.getElementById("btnAddColor");
     if (addBtn) {
-        addBtn.style.display = cycleColorEntries.length >= MAX_CYCLE_COLORS ? 'none' : 'flex';
+        addBtn.style.display = 'flex';
     }
 }
 
@@ -2046,7 +2049,6 @@ function selectCycleEntry(idx) {
 }
 
 function addCycleColorEntry() {
-    if (cycleColorEntries.length >= MAX_CYCLE_COLORS) return;
 
     // New color defaults: pick a slightly different hue from the last entry
     const lastColor = cycleColorEntries.length > 0
@@ -2272,10 +2274,15 @@ function initAccountSwitcherButton() {
     const card = document.getElementById("accountSwitcherCard");
     if (!btn || !card) return;
 
-    btn.style.display = "flex";
-    card.style.display = "block";
-    // Also ensure current account is in the accounts list
-    migrateCurrentToAccounts();
+    if (isPWA()) {
+        btn.style.display = "flex";
+        card.style.display = "block";
+        // Also ensure current account is in the accounts list
+        migrateCurrentToAccounts();
+    } else {
+        btn.style.display = "none";
+        card.style.display = "none";
+    }
 }
 
 function openAccountSwitcher() {
@@ -2360,7 +2367,7 @@ function switchToAccount(index) {
     localStorage.setItem("ll_p", decoded.p);
     const deviceId = decoded.id.toUpperCase() === "B" ? "B" : "A";
     localStorage.setItem("ll_id", deviceId);
-    
+
     if (decoded.name) {
         localStorage.setItem("ll_name", decoded.name);
     } else {
@@ -2535,11 +2542,11 @@ let currentCameraIndex = 0;
 function openQRScanner(actionType = 'login') {
     qrTargetAction = actionType;
     document.getElementById("qrScannerModal").style.display = "flex";
-    
+
     if (!html5QrCode) {
         html5QrCode = new Html5Qrcode("qr-reader");
     }
-    
+
     // Automatically query available cameras
     Html5Qrcode.getCameras().then(devices => {
         cameraDevices = devices || [];
@@ -2547,8 +2554,8 @@ function openQRScanner(actionType = 'login') {
         if (cameraDevices.length > 1) {
             if (switchBtn) switchBtn.style.display = "inline-flex";
             // Default to back/rear camera index
-            const backIdx = cameraDevices.findIndex(device => 
-                device.label.toLowerCase().includes("back") || 
+            const backIdx = cameraDevices.findIndex(device =>
+                device.label.toLowerCase().includes("back") ||
                 device.label.toLowerCase().includes("environment") ||
                 device.label.toLowerCase().includes("rear")
             );
@@ -2639,7 +2646,7 @@ function setupZoomSlider() {
         slider.max = capabilities.zoom.max;
         slider.step = capabilities.zoom.step || 0.1;
         slider.value = capabilities.zoom.min || 1;
-        
+
         slider.oninput = (e) => {
             const zoomVal = parseFloat(e.target.value);
             html5QrCode.applyVideoConstraints({
@@ -2652,7 +2659,7 @@ function setupZoomSlider() {
         slider.max = 3.5;
         slider.step = 0.1;
         slider.value = 1;
-        
+
         slider.oninput = (e) => {
             const zoomVal = parseFloat(e.target.value);
             const videoElement = document.querySelector("#qr-reader video");
@@ -2688,10 +2695,10 @@ function onScanSuccess(decodedText, decodedResult) {
             if (!searchParams.has("uid") && url.hash.includes("uid=")) {
                 searchParams = new URLSearchParams(url.hash.substring(1));
             }
-            
+
             if (searchParams.has("uid")) {
                 const uid = searchParams.get("uid");
-                
+
                 if (qrTargetAction === 'login') {
                     document.getElementById("uidInput").value = uid;
                     closeQRScanner();
@@ -2733,6 +2740,28 @@ function formatTime12h(time24) {
     if (h === 0) h = 12;
     if (h > 12) h -= 12;
     return `${h}:${m} ${ampm}`;
+}
+
+function formatLastTapDate(timestamp) {
+    if (!timestamp || timestamp <= 0) return "Unknown";
+    const date = new Date(timestamp * 1000);
+    const testDate = new Date(2026, 11, 31);
+    const formattedTest = testDate.toLocaleDateString();
+    const monthFirst = formattedTest.indexOf("12") < formattedTest.indexOf("31");
+
+    const m = String(date.getMonth() + 1);
+    const d = String(date.getDate());
+
+    let h = date.getHours();
+    const min = String(date.getMinutes()).padStart(2, '0');
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12;
+    h = h ? h : 12;
+
+    const timeStr = `${h}:${min} ${ampm}`;
+    const dateStr = monthFirst ? `${m}/${d}` : `${d}/${m}`;
+
+    return `${dateStr}, ${timeStr}`;
 }
 
 function renderGroupsPage() {
@@ -2794,7 +2823,7 @@ function renderGroupsPage() {
                 const parsed = JSON.parse(saved);
                 Object.assign(settings, parsed);
             }
-        } catch (e) {}
+        } catch (e) { }
 
         const card = document.createElement("div");
         card.className = "group-card";
@@ -2823,7 +2852,7 @@ function renderGroupsPage() {
         try {
             const savedPresets = localStorage.getItem("ll_presets_" + acct.uid);
             if (savedPresets) acctPresets = JSON.parse(savedPresets);
-        } catch(e) {}
+        } catch (e) { }
         const topPresets = acctPresets.slice(0, 2);
 
         const defaultLandingUid = localStorage.getItem("ll_default_landing_uid");
@@ -2858,14 +2887,14 @@ function renderGroupsPage() {
                         </span>
                         ` : ''}
                     </div>
-                    <div class="group-last-tap" id="lastTap-${acct.uid}" style="margin-top: 4px;">
-                        Last Tap: ${settings.lastTapTimestamp > 0 ? new Date(settings.lastTapTimestamp * 1000).toLocaleString() : 'Unknown'}
+                    <div class="group-last-tap" id="lastTap-${acct.uid}" style="margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%;">
+                        Last Tap: ${formatLastTapDate(settings.lastTapTimestamp)}
                     </div>
                 </div>
-                <div class="group-actions" style="display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; align-self: stretch; min-width: 90px;">
+                <div class="group-actions" style="display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; align-self: stretch;">
                     <div class="group-status" id="status-${acct.uid}">
                         <span class="dot connecting"></span>
-                        <span class="status-text">Connecting</span>
+                        <span class="status-text" style="display: none !important;">Connecting</span>
                     </div>
                     <button class="icon-btn group-page-btn" onclick="navigateToGroup('${acct.uid}')" style="display: ${isGroupsEditMode ? 'none' : 'flex'}; margin-top: auto;" title="View Group Details">
                         <span class="material-icons-round">description</span>
@@ -2884,9 +2913,8 @@ function renderGroupsPage() {
             </div>
             <div class="group-presets-row" style="display: flex; gap: 10px; width: 100%; margin-top: 15px;">
                 ${topPresets.map(p => `
-                    <button class="action-btn secondary-btn group-preset-btn" style="flex: 1; display: inline-flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); color: var(--text); font-weight: 500; cursor: pointer; background: rgba(255,255,255,0.05);" onclick="handleGroupPresetTap('${acct.uid}', ${JSON.stringify(p).replace(/"/g, '&quot;')}, event)">
-                        <span>${p.name}</span>
-                        <span class="preset-color-dot" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: ${p.type === 'cycle' && p.colors && p.colors.length > 0 ? p.colors[0].hex : p.color}; box-shadow: 0 0 6px ${p.type === 'cycle' && p.colors && p.colors.length > 0 ? p.colors[0].hex : p.color};"></span>
+                    <button class="action-btn secondary-btn group-preset-btn" style="flex: 1; display: inline-flex; align-items: center; justify-content: flex-start; padding: 10px 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); color: var(--text); font-weight: 500; cursor: pointer; background: rgba(255,255,255,0.05); --preset-color: ${p.type === 'cycle' && p.colors && p.colors.length > 0 ? p.colors[0].hex : p.color};" onclick="handleGroupPresetTap('${acct.uid}', ${JSON.stringify(p).replace(/"/g, '&quot;')}, event)">
+                        <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; width: 100%;">${p.name}</span>
                     </button>
                 `).join('')}
             </div>
@@ -2907,7 +2935,7 @@ function renderGroupsPage() {
 
 function toggleGroupsEdit() {
     isGroupsEditMode = !isGroupsEditMode;
-    
+
     // Hide inline add group input if exiting edit mode
     if (!isGroupsEditMode) {
         const addSection = document.getElementById("inlineAddGroupSection");
@@ -2958,7 +2986,7 @@ function addInlineNewAccount() {
                     name: searchParams.get("name") || searchParams.get("partner") || null
                 };
             }
-        } catch (e) {}
+        } catch (e) { }
     }
 
     if (!decoded) {
@@ -3003,7 +3031,7 @@ function deleteGroup(uid) {
     if (backgroundMqttClients[uid]) {
         try {
             backgroundMqttClients[uid].client.end(true);
-        } catch(e) {}
+        } catch (e) { }
         delete backgroundMqttClients[uid];
     }
 
@@ -3029,7 +3057,7 @@ function deleteGroup(uid) {
     } else if (wasActive) {
         accounts[0].active = true;
         saveAccounts(accounts);
-        
+
         // Update root localStorage to accounts[0] before reloading
         const nextActive = accounts[0];
         const decoded = decodeUID(nextActive.uid);
@@ -3163,7 +3191,7 @@ function initBackgroundMqtt() {
                     const settings = JSON.parse(msg);
                     localStorage.setItem("ll_settings_" + acct.uid, msg);
                     updateGroupTileDetails(acct.uid, settings);
-                } catch(e) {}
+                } catch (e) { }
             } else if (topic === getAccountTopic(partnerDeviceId, "settings")) {
                 try {
                     const partnerSettings = JSON.parse(msg);
@@ -3178,13 +3206,13 @@ function initBackgroundMqtt() {
                     if (partnerSettings.ownerName) {
                         updateGroupTileName(acct.uid, partnerSettings.ownerName);
                     }
-                } catch(e) {}
+                } catch (e) { }
             } else if (topic === getAccountTopic(myDeviceId, "presets")) {
                 try {
                     const parsed = JSON.parse(msg);
                     localStorage.setItem("ll_presets_" + acct.uid, msg);
                     updateGroupTilePresets(acct.uid, parsed);
-                } catch(e) {}
+                } catch (e) { }
             }
         });
     });
@@ -3299,11 +3327,7 @@ function updateGroupTileDetails(uid, settings) {
 
     const label = card.querySelector(`#lastTap-${uid}`);
     if (label && !label.classList.contains("sending") && !label.classList.contains("sent")) {
-        let lastTapVal = "Unknown";
-        if (settings.lastTapTimestamp > 0) {
-            lastTapVal = new Date(settings.lastTapTimestamp * 1000).toLocaleString();
-        }
-        label.innerText = "Last Tap: " + lastTapVal;
+        label.innerText = "Last Tap: " + formatLastTapDate(settings.lastTapTimestamp);
     }
 }
 
@@ -3335,7 +3359,7 @@ function handleGroupTileTap(uid) {
     try {
         const saved = localStorage.getItem("ll_settings_" + uid);
         if (saved) settings = JSON.parse(saved);
-    } catch(e) {}
+    } catch (e) { }
 
     // Send the MQTT tap
     state.client.publish(topic, settings.defaultColor);
@@ -3394,11 +3418,9 @@ function resetGroupLastTapLabel(uid) {
         const saved = localStorage.getItem("ll_settings_" + uid);
         if (saved) {
             const settings = JSON.parse(saved);
-            if (settings.lastTapTimestamp > 0) {
-                lastTapVal = new Date(settings.lastTapTimestamp * 1000).toLocaleString();
-            }
+            lastTapVal = formatLastTapDate(settings.lastTapTimestamp);
         }
-    } catch(e) {}
+    } catch (e) { }
     label.innerText = "Last Tap: " + lastTapVal;
 }
 
@@ -3429,13 +3451,13 @@ function makeGroupCardsDraggable() {
             if (!draggingCard) return;
 
             const siblings = [...list.querySelectorAll(".group-card:not(.dragging)")];
-            
+
             let nextSibling = siblings.find(sibling => {
                 const box = sibling.getBoundingClientRect();
                 const offset = e.clientY - box.top - box.height / 2;
                 return offset < 0;
             });
-            
+
             list.insertBefore(draggingCard, nextSibling);
         });
 
@@ -3466,7 +3488,7 @@ function makeGroupCardsTouchDraggable() {
 
     list.addEventListener("touchmove", (e) => {
         if (!isGroupsEditMode || !touchDragEl) return;
-        
+
         const touch = e.touches[0];
         const cards = [...list.querySelectorAll(".group-card:not(.dragging)")];
 
@@ -3476,7 +3498,7 @@ function makeGroupCardsTouchDraggable() {
         });
 
         list.insertBefore(touchDragEl, nextSibling);
-        
+
         // Prevent scrolling while reordering
         e.preventDefault();
     }, { passive: false });
@@ -3566,9 +3588,8 @@ function updateGroupTilePresets(uid, presetsList) {
     }
 
     container.innerHTML = topPresets.map(p => `
-        <button class="action-btn secondary-btn group-preset-btn" style="flex: 1; display: inline-flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); color: var(--text); font-weight: 500; cursor: pointer; background: rgba(255,255,255,0.05);" onclick="handleGroupPresetTap('${uid}', ${JSON.stringify(p).replace(/"/g, '&quot;')}, event)">
-            <span>${p.name}</span>
-            <span class="preset-color-dot" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: ${p.type === 'cycle' && p.colors && p.colors.length > 0 ? p.colors[0].hex : p.color}; box-shadow: 0 0 6px ${p.type === 'cycle' && p.colors && p.colors.length > 0 ? p.colors[0].hex : p.color};"></span>
+        <button class="action-btn secondary-btn group-preset-btn" style="flex: 1; display: inline-flex; align-items: center; justify-content: flex-start; padding: 10px 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); color: var(--text); font-weight: 500; cursor: pointer; background: rgba(255,255,255,0.05); --preset-color: ${p.type === 'cycle' && p.colors && p.colors.length > 0 ? p.colors[0].hex : p.color};" onclick="handleGroupPresetTap('${uid}', ${JSON.stringify(p).replace(/"/g, '&quot;')}, event)">
+            <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; width: 100%;">${p.name}</span>
         </button>
     `).join('');
 }
@@ -3576,7 +3597,7 @@ function updateGroupTilePresets(uid, presetsList) {
 function saveNewPresetsOrder() {
     const grid = document.getElementById("presetsGrid");
     const buttons = [...grid.querySelectorAll(".preset-btn")];
-    
+
     const newOrder = buttons.map(btn => {
         const id = btn.dataset.id;
         return presets.find(p => p.id === id);
@@ -3620,7 +3641,7 @@ function updateGroupTileName(uid, name) {
     }
 }
 
-window.toggleDefaultGroup = function(uid, event) {
+window.toggleDefaultGroup = function (uid, event) {
     if (event) event.stopPropagation();
 
     const currentDefault = localStorage.getItem("ll_default_landing_uid");

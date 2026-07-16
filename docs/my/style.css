@@ -1606,25 +1606,22 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     align-items: flex-end;
     justify-content: space-between;
     align-self: stretch;
-    min-width: 90px;
+    min-width: 45px;
 }
 
 .group-status {
     display: flex;
     align-items: center;
-    gap: 4px;
-    font-size: 0.7rem;
-    color: var(--text-dim);
-    background: rgba(0, 0, 0, 0.2);
-    padding: 3px 8px;
-    border-radius: 12px;
-    border: 1px solid var(--border);
+    justify-content: center;
+    background: transparent;
+    padding: 0;
+    border: none;
     margin-bottom: 4px;
 }
 
 .group-status .dot {
-    width: 6px;
-    height: 6px;
+    width: 10px;
+    height: 10px;
 }
 
 .group-page-btn, .group-delete-btn {
@@ -1650,7 +1647,21 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 }
 
 .group-preset-btn {
+    position: relative;
+    overflow: hidden;
+    padding-left: 18px !important;
     transition: transform 0.1s, background-color 0.2s, border-color 0.2s;
+}
+
+.group-preset-btn::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: var(--preset-color, #888);
+    border-radius: 8px 0 0 8px;
 }
 
 .group-preset-btn:hover {
