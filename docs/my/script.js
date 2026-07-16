@@ -152,6 +152,28 @@ window.addEventListener("load", () => {
     // Show/hide account switcher button (PWA only)
     initAccountSwitcherButton();
 
+    // Determine the default landing page based on number of accounts & default landing preference
+    const accounts = loadAccounts() || [];
+    if (accounts.length > 1) {
+        const defaultLandingUid = localStorage.getItem("ll_default_landing_uid");
+        if (defaultLandingUid) {
+            const defaultIdx = accounts.findIndex(a => a.uid === defaultLandingUid);
+            if (defaultIdx >= 0) {
+                const activeUid = localStorage.getItem("ll_uid");
+                if (activeUid !== defaultLandingUid) {
+                    switchToAccount(defaultIdx);
+                }
+                switchTab('partner');
+            } else {
+                switchTab('groups');
+            }
+        } else {
+            switchTab('groups');
+        }
+    } else {
+        switchTab('partner');
+    }
+
     // Update page title
     document.getElementById("pageTitle").innerText = "My Group";
     document.getElementById("signalSubtitle").innerText = "Tap to turn on " + partnerName + "'s lamp";
@@ -188,6 +210,9 @@ function loadCredentials() {
             myDeviceId = decoded.id.toUpperCase() === "B" ? "B" : "A";
             partnerDeviceId = myDeviceId === "A" ? "B" : "A";
             mqtt_delimiter = decoded.d || "/";
+
+            const urlName = params.get("name") || params.get("partner");
+            if (urlName) decoded.name = urlName;
 
             if (decoded.name) {
                 partnerName = decoded.name;
@@ -251,14 +276,44 @@ function loadCredentials() {
         if (savedName) partnerName = savedName;
     }
 
+    // Generate missing UID for legacy clients
+    if (mqtt_server && mqtt_user && mqtt_pass && !localStorage.getItem("ll_uid")) {
+        const uid = encodeUID(mqtt_server, mqtt_user, mqtt_pass, myDeviceId, mqtt_delimiter);
+        localStorage.setItem("ll_uid", uid);
+    }
+
+    // Run migration to copy legacy settings/presets to the UID-based keys
+    migrateCurrentToAccounts();
+
     // Load saved settings & presets
-    const saved = localStorage.getItem("ll_settings_" + myDeviceId);
+    const activeUid = localStorage.getItem("ll_uid");
+    const saved = activeUid ? localStorage.getItem("ll_settings_" + activeUid) : null;
     if (saved) {
         try { mySettings = JSON.parse(saved); } catch (e) { /* use defaults */ }
+    } else {
+        mySettings = {
+            defaultColor: "#FF0000",
+            dayTimeMin: 5,
+            dayBright: 255,
+            ambientMode: false,
+            ambientColor: "#0000FF",
+            nightMode: false,
+            nightStart: "22:00",
+            nightEnd: "08:00",
+            nightTimeMin: 5,
+            nightBright: 76,
+            timezone: "EST5EDT",
+            lastTapTimestamp: 0
+        };
     }
-    const savedPresets = localStorage.getItem("ll_presets_" + myDeviceId);
+    const savedPresets = activeUid ? localStorage.getItem("ll_presets_" + activeUid) : null;
     if (savedPresets) {
         try { presets = JSON.parse(savedPresets); } catch (e) { /* use defaults */ }
+    } else {
+        presets = [
+            { id: "default_love", name: "I Love You", color: "#FF0000" },
+            { id: "default_miss", name: "I Miss You", color: "#00FF00" }
+        ];
     }
 
     return !!(mqtt_server && mqtt_user && mqtt_pass);
@@ -421,6 +476,8 @@ function connectMQTT() {
                 if (changed) {
                     console.log("Applied remote settings from MQTT:", mySettings);
                     // Save to local storage
+                    const activeUid = localStorage.getItem("ll_uid");
+                    if (activeUid) localStorage.setItem("ll_settings_" + activeUid, JSON.stringify(mySettings));
                     localStorage.setItem("ll_settings_" + myDeviceId, JSON.stringify(mySettings));
                     // Update UI elements visually
                     applySettingsToUI();
@@ -435,6 +492,8 @@ function connectMQTT() {
                 const incomingPresets = JSON.parse(msg);
                 if (Array.isArray(incomingPresets)) {
                     presets = incomingPresets;
+                    const activeUid = localStorage.getItem("ll_uid");
+                    if (activeUid) localStorage.setItem("ll_presets_" + activeUid, JSON.stringify(presets));
                     localStorage.setItem("ll_presets_" + myDeviceId, JSON.stringify(presets));
                     renderPresets();
                     console.log("Applied remote presets from MQTT.");
@@ -468,15 +527,13 @@ function connectMQTT() {
                     updateStatusUI();
 
                     // Also update the account name in the switcher list
-                    if (isPWA()) {
-                        const currentUid = localStorage.getItem("ll_uid");
-                        const accounts = loadAccounts();
-                        if (accounts && currentUid) {
-                            const acct = accounts.find(a => a.uid === currentUid);
-                            if (acct) {
-                                acct.name = partnerName;
-                                saveAccounts(accounts);
-                            }
+                    const currentUid = localStorage.getItem("ll_uid");
+                    const accounts = loadAccounts();
+                    if (accounts && currentUid) {
+                        const acct = accounts.find(a => a.uid === currentUid);
+                        if (acct) {
+                            acct.name = partnerName;
+                            saveAccounts(accounts);
                         }
                     }
                 }
@@ -766,7 +823,9 @@ function resetSignalSubtitle() {
 }
 
 function publishSettings() {
+    const activeUid = localStorage.getItem("ll_uid");
     const payload = JSON.stringify(mySettings);
+    if (activeUid) localStorage.setItem("ll_settings_" + activeUid, payload);
     localStorage.setItem("ll_settings_" + myDeviceId, payload);
 
     if (!mqttClient || !mqttClient.connected) return;
@@ -787,7 +846,9 @@ function publishSettings() {
 }
 
 function publishPresets() {
+    const activeUid = localStorage.getItem("ll_uid");
     const payload = JSON.stringify(presets);
+    if (activeUid) localStorage.setItem("ll_presets_" + activeUid, payload);
     localStorage.setItem("ll_presets_" + myDeviceId, payload);
 
     if (!mqttClient || !mqttClient.connected) return;
@@ -819,6 +880,7 @@ function applySettingsToUI() {
         if (slider && label) {
             slider.value = mySettings[m[1]];
             label.innerText = formatSliderVal(mySettings[m[1]], m[2], m[3]);
+            slider.dispatchEvent(new Event("input"));
         }
     });
 
@@ -913,10 +975,20 @@ function switchTab(tabId) {
     document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
     document.getElementById("view-" + tabId).classList.add("active");
 
-    document.getElementById("navSend").classList.toggle("active", tabId === "partner");
-    document.getElementById("navSettings").classList.toggle("active", tabId === "settings");
-    // Update page title based on view
-    document.getElementById("pageTitle").innerText = tabId === "partner" ? "My Group" : "My Settings";
+    const bottomNav = document.querySelector(".bottom-nav");
+    const appHeader = document.querySelector(".app-header");
+
+    if (tabId === "groups") {
+        if (bottomNav) bottomNav.style.display = "none";
+        if (appHeader) appHeader.style.display = "none";
+        renderGroupsPage();
+    } else {
+        if (bottomNav) bottomNav.style.display = "flex";
+        if (appHeader) appHeader.style.display = "flex";
+        document.getElementById("navSend").classList.toggle("active", tabId === "partner");
+        document.getElementById("navSettings").classList.toggle("active", tabId === "settings");
+        document.getElementById("pageTitle").innerText = tabId === "partner" ? "My Group" : "My Settings";
+    }
 }
 
 // ==========================================================================
@@ -1518,9 +1590,17 @@ function renderPresets() {
     const grid = document.getElementById("presetsGrid");
     grid.innerHTML = "";
 
-    presets.forEach(p => {
+    let touchTimer = null;
+    let isTouchDragging = false;
+    let dragEl = null;
+
+    presets.forEach((p, idx) => {
         const btn = document.createElement("button");
         btn.className = "preset-btn";
+        btn.draggable = true;
+        btn.dataset.id = p.id;
+        btn.dataset.index = idx;
+
         const isCycle = p.type === 'cycle' && p.colors && p.colors.length > 0;
         btn.style.setProperty("--preset-color", isCycle ? p.colors[0].hex : p.color);
 
@@ -1566,9 +1646,12 @@ function renderPresets() {
         editIcon.innerText = "edit";
         btn.appendChild(editIcon);
 
-        // Tap the button area = send signal, tap edit icon = edit
+        // Tap edit icon = edit
         editIcon.onclick = (e) => { e.stopPropagation(); openPresetModal(p.id); };
+
+        // Tap the button area = send signal
         btn.onclick = () => {
+            if (isTouchDragging) return; // Prevent tap while dragging
             if (isCycle) {
                 sendSignal(p); // Pass full preset object for cycle encoding
             } else {
@@ -1578,6 +1661,71 @@ function renderPresets() {
             btn.style.transform = "scale(0.93)";
             setTimeout(() => { btn.style.transform = ""; }, 200);
         };
+
+        // Desktop Drag and Drop reordering
+        btn.addEventListener("dragstart", (e) => {
+            e.dataTransfer.setData("text/plain", p.id);
+            btn.classList.add("dragging");
+            dragEl = btn;
+        });
+
+        btn.addEventListener("dragend", () => {
+            btn.classList.remove("dragging");
+            dragEl = null;
+        });
+
+        btn.addEventListener("dragover", (e) => {
+            e.preventDefault();
+            const draggingBtn = grid.querySelector(".dragging");
+            if (!draggingBtn) return;
+            const siblings = [...grid.querySelectorAll(".preset-btn:not(.dragging):not(.add-new)")];
+            let nextSibling = siblings.find(sibling => {
+                const box = sibling.getBoundingClientRect();
+                return e.clientX < box.left + box.width / 2 && e.clientY < box.bottom;
+            });
+            const addBtn = grid.querySelector(".add-new");
+            grid.insertBefore(draggingBtn, nextSibling || addBtn);
+        });
+
+        btn.addEventListener("drop", (e) => {
+            e.preventDefault();
+            saveNewPresetsOrder();
+        });
+
+        // Mobile Touch long press to drag reordering
+        btn.addEventListener("touchstart", (e) => {
+            touchTimer = setTimeout(() => {
+                isTouchDragging = true;
+                btn.classList.add("dragging");
+                if (navigator.vibrate) navigator.vibrate(50);
+            }, 300); // 300ms hold to drag
+        }, { passive: true });
+
+        btn.addEventListener("touchmove", (e) => {
+            if (!isTouchDragging) {
+                clearTimeout(touchTimer);
+                return;
+            }
+            e.preventDefault(); // Prevent scrolling
+            const touch = e.touches[0];
+            const siblings = [...grid.querySelectorAll(".preset-btn:not(.dragging):not(.add-new)")];
+            let nextSibling = siblings.find(sibling => {
+                const box = sibling.getBoundingClientRect();
+                return touch.clientX < box.left + box.width / 2 && touch.clientY < box.bottom;
+            });
+            const addBtn = grid.querySelector(".add-new");
+            grid.insertBefore(btn, nextSibling || addBtn);
+        }, { passive: false });
+
+        btn.addEventListener("touchend", () => {
+            clearTimeout(touchTimer);
+            if (isTouchDragging) {
+                btn.classList.remove("dragging");
+                // Reset dragging state after a tiny delay so the click event doesn't fire
+                setTimeout(() => { isTouchDragging = false; }, 50);
+                saveNewPresetsOrder();
+            }
+        });
 
         grid.appendChild(btn);
     });
@@ -1615,7 +1763,7 @@ function openPresetModal(presetId = null) {
     } else {
         title.innerText = "New Signal";
         nameInp.value = "";
-        presetColorPicker.color.hexString = "#ffffff";
+        presetColorPicker.color.hexString = mySettings.defaultColor || "#ffffff";
         cycleColorEntries = [
             { hex: "#FF0000", hold: 30, trans: 10 },
             { hex: "#0000FF", hold: 30, trans: 10 }
@@ -1676,6 +1824,8 @@ function savePreset() {
         }
     }
 
+    const activeUid = localStorage.getItem("ll_uid");
+    if (activeUid) localStorage.setItem("ll_presets_" + activeUid, JSON.stringify(presets));
     localStorage.setItem("ll_presets_" + myDeviceId, JSON.stringify(presets));
     publishPresets();
     renderPresets();
@@ -1685,6 +1835,8 @@ function savePreset() {
 function deleteCurrentPreset() {
     if (!confirm("Delete this signal preset?")) return;
     presets = presets.filter(x => x.id !== editingPresetId);
+    const activeUid = localStorage.getItem("ll_uid");
+    if (activeUid) localStorage.setItem("ll_presets_" + activeUid, JSON.stringify(presets));
     localStorage.setItem("ll_presets_" + myDeviceId, JSON.stringify(presets));
     publishPresets();
     renderPresets();
@@ -1722,6 +1874,8 @@ function setPresetMode(mode) {
 // ==========================================================================
 // Cycle Color Entry Management
 // ==========================================================================
+let touchDragColorEl = null;
+
 function renderCycleColorEntries() {
     const list = document.getElementById("colorEntryList");
     list.innerHTML = "";
@@ -1729,14 +1883,20 @@ function renderCycleColorEntries() {
     cycleColorEntries.forEach((entry, idx) => {
         const el = document.createElement("div");
         el.className = "color-entry" + (idx === selectedCycleIndex ? " selected" : "");
+        el.dataset.idx = idx;
+        el.draggable = true;
+
         el.onclick = (e) => {
-            // Don't select when clicking remove or inputs
-            if (e.target.closest('.color-entry-remove') || e.target.tagName === 'INPUT') return;
+            // Don't select when clicking remove, inputs, or drag handle
+            if (e.target.closest('.color-entry-remove') || e.target.closest('.color-entry-drag-handle') || e.target.tagName === 'INPUT') return;
             selectCycleEntry(idx);
         };
 
         el.innerHTML = `
             <div class="color-entry-header">
+                <div class="color-entry-drag-handle" style="cursor: grab; display: flex; align-items: center; color: var(--text-dim); margin-right: 4px; user-select: none;">
+                    <span class="material-icons-round" style="font-size: 18px;">drag_indicator</span>
+                </div>
                 <div class="color-entry-dot" style="background-color: ${entry.hex}"></div>
                 <span class="color-entry-label">Color ${idx + 1}</span>
                 <span class="color-entry-hex">${entry.hex}</span>
@@ -1770,14 +1930,104 @@ function renderCycleColorEntries() {
             </div>
         `;
 
+        // Desktop Drag and Drop listeners
+        el.addEventListener("dragstart", (e) => {
+            if (e.target.closest('.color-entry-remove') || e.target.tagName === 'INPUT') {
+                e.preventDefault();
+                return;
+            }
+            e.dataTransfer.setData("text/plain", idx);
+            el.classList.add("dragging");
+        });
+
+        el.addEventListener("dragend", () => {
+            el.classList.remove("dragging");
+            saveNewCycleColorsOrder();
+        });
+
+        el.addEventListener("dragover", (e) => {
+            e.preventDefault();
+            const draggingEl = list.querySelector(".color-entry.dragging");
+            if (!draggingEl) return;
+
+            const siblings = [...list.querySelectorAll(".color-entry:not(.dragging)")];
+            let nextSibling = siblings.find(sibling => {
+                const box = sibling.getBoundingClientRect();
+                const offset = e.clientY - box.top - box.height / 2;
+                return offset < 0;
+            });
+
+            list.insertBefore(draggingEl, nextSibling);
+        });
+
+        el.addEventListener("drop", (e) => {
+            e.preventDefault();
+        });
+
+        // Mobile touch drag handle binding
+        const handle = el.querySelector(".color-entry-drag-handle");
+        if (handle) {
+            handle.addEventListener("touchstart", (e) => {
+                touchDragColorEl = el;
+                el.classList.add("dragging");
+            }, { passive: true });
+        }
+
         list.appendChild(el);
     });
+
+    // Mobile touch move/end listeners on parent list
+    if (!list.dataset.touchBound) {
+        list.dataset.touchBound = "true";
+
+        list.addEventListener("touchmove", (e) => {
+            if (!touchDragColorEl) return;
+            const touch = e.touches[0];
+            const entries = [...list.querySelectorAll(".color-entry:not(.dragging)")];
+
+            let nextSibling = entries.find(sibling => {
+                const box = sibling.getBoundingClientRect();
+                return touch.clientY < box.top + box.height / 2;
+            });
+
+            list.insertBefore(touchDragColorEl, nextSibling);
+            e.preventDefault(); // prevent scrolling
+        }, { passive: false });
+
+        list.addEventListener("touchend", () => {
+            if (!touchDragColorEl) return;
+            touchDragColorEl.classList.remove("dragging");
+            touchDragColorEl = null;
+            saveNewCycleColorsOrder();
+        });
+    }
 
     // Update Add button visibility
     const addBtn = document.getElementById("btnAddColor");
     if (addBtn) {
         addBtn.style.display = cycleColorEntries.length >= MAX_CYCLE_COLORS ? 'none' : 'flex';
     }
+}
+
+function saveNewCycleColorsOrder() {
+    // Sync UI inputs before reordering
+    syncCycleDurationsFromUI();
+
+    const list = document.getElementById("colorEntryList");
+    const entries = [...list.querySelectorAll(".color-entry")];
+
+    const newOrder = entries.map(el => {
+        const idx = parseInt(el.dataset.idx);
+        return cycleColorEntries[idx];
+    });
+
+    cycleColorEntries = newOrder;
+
+    const newSelectedIndex = entries.findIndex(el => el.classList.contains("selected"));
+    selectedCycleIndex = newSelectedIndex >= 0 ? newSelectedIndex : 0;
+
+    renderCycleColorEntries();
+    selectCycleEntry(selectedCycleIndex);
 }
 
 function selectCycleEntry(idx) {
@@ -1984,8 +2234,6 @@ function saveAccounts(accounts) {
  * localStorage entries into the accounts array.
  */
 function migrateCurrentToAccounts() {
-    if (!isPWA()) return; // Accounts feature is PWA-only
-
     const accounts = loadAccounts();
     const currentUID = localStorage.getItem("ll_uid");
     if (!currentUID) return;
@@ -2006,6 +2254,17 @@ function migrateCurrentToAccounts() {
     // No accounts array yet — create one from current credentials
     const name = localStorage.getItem("ll_name") || "Partner";
     saveAccounts([{ uid: currentUID, name: name, active: true }]);
+
+    // Migrate legacy settings & presets to the new UID key
+    const myId = localStorage.getItem("ll_id") || "A";
+    const legacySettings = localStorage.getItem("ll_settings_" + myId);
+    if (legacySettings && !localStorage.getItem("ll_settings_" + currentUID)) {
+        localStorage.setItem("ll_settings_" + currentUID, legacySettings);
+    }
+    const legacyPresets = localStorage.getItem("ll_presets_" + myId);
+    if (legacyPresets && !localStorage.getItem("ll_presets_" + currentUID)) {
+        localStorage.setItem("ll_presets_" + currentUID, legacyPresets);
+    }
 }
 
 function initAccountSwitcherButton() {
@@ -2013,15 +2272,10 @@ function initAccountSwitcherButton() {
     const card = document.getElementById("accountSwitcherCard");
     if (!btn || !card) return;
 
-    if (isPWA()) {
-        btn.style.display = "flex";
-        card.style.display = "block";
-        // Also ensure current account is in the accounts list
-        migrateCurrentToAccounts();
-    } else {
-        btn.style.display = "none";
-        card.style.display = "none";
-    }
+    btn.style.display = "flex";
+    card.style.display = "block";
+    // Also ensure current account is in the accounts list
+    migrateCurrentToAccounts();
 }
 
 function openAccountSwitcher() {
@@ -2106,7 +2360,12 @@ function switchToAccount(index) {
     localStorage.setItem("ll_p", decoded.p);
     const deviceId = decoded.id.toUpperCase() === "B" ? "B" : "A";
     localStorage.setItem("ll_id", deviceId);
-    if (decoded.name) localStorage.setItem("ll_name", decoded.name);
+    
+    if (decoded.name) {
+        localStorage.setItem("ll_name", decoded.name);
+    } else {
+        localStorage.setItem("ll_name", target.name || "Partner");
+    }
     localStorage.setItem("ll_uid", target.uid);
     localStorage.setItem("ll_delim", decoded.d || "/");
 
@@ -2120,7 +2379,7 @@ function switchToAccount(index) {
     mqtt_delimiter = decoded.d || "/";
 
     // Load settings & presets for the new account
-    const saved = localStorage.getItem("ll_settings_" + myDeviceId);
+    const saved = localStorage.getItem("ll_settings_" + target.uid);
     if (saved) {
         try { mySettings = JSON.parse(saved); } catch (e) { /* use defaults */ }
     } else {
@@ -2132,7 +2391,7 @@ function switchToAccount(index) {
             nightTimeMin: 5, nightBright: 76, timezone: "EST5EDT", lastTapTimestamp: 0
         };
     }
-    const savedPresets = localStorage.getItem("ll_presets_" + myDeviceId);
+    const savedPresets = localStorage.getItem("ll_presets_" + target.uid);
     if (savedPresets) {
         try { presets = JSON.parse(savedPresets); } catch (e) {
             presets = [
@@ -2170,6 +2429,7 @@ function switchToAccount(index) {
 
     closeAccountSwitcher();
     renderAccountList();
+    renderGroupsPage();
 }
 
 function showAddAccountInput() {
@@ -2205,6 +2465,8 @@ function addNewAccount() {
             }
             if (searchParams.has("uid")) {
                 decoded = decodeUID(searchParams.get("uid"));
+                const urlName = searchParams.get("name") || searchParams.get("partner");
+                if (decoded && urlName) decoded.name = urlName;
             } else if (searchParams.has("s") && searchParams.has("u") && searchParams.has("p") && searchParams.has("id")) {
                 decoded = {
                     s: searchParams.get("s"), u: searchParams.get("u"),
@@ -2438,6 +2700,10 @@ function onScanSuccess(decodedText, decodedResult) {
                     document.getElementById("newAccountUidInput").value = uid;
                     closeQRScanner();
                     addNewAccount();
+                } else if (qrTargetAction === 'inlineAddAccount') {
+                    document.getElementById("inlineNewAccountUidInput").value = uid;
+                    closeQRScanner();
+                    addInlineNewAccount();
                 }
             }
         }
@@ -2450,4 +2716,922 @@ function onScanFailure(error) {
     // html5-qrcode calls this on every frame that doesn't have a code.
     // We ignore it to let the scanner keep looking.
 }
+
+// ==========================================================================
+// My Groups Page Management
+// ==========================================================================
+let isGroupsEditMode = false;
+let backgroundMqttClients = {}; // uid -> state object
+
+function formatTime12h(time24) {
+    if (!time24) return "";
+    const parts = time24.split(":");
+    if (parts.length < 2) return time24;
+    let h = parseInt(parts[0]);
+    const m = parts[1];
+    const ampm = h >= 12 ? "PM" : "AM";
+    if (h === 0) h = 12;
+    if (h > 12) h -= 12;
+    return `${h}:${m} ${ampm}`;
+}
+
+function renderGroupsPage() {
+    const list = document.getElementById("groupsList");
+    if (!list) return;
+
+    const accounts = loadAccounts() || [];
+    list.innerHTML = "";
+
+    // If no accounts exist, make sure active one is initialized
+    if (accounts.length === 0) {
+        migrateCurrentToAccounts();
+    }
+
+    const updatedAccounts = loadAccounts() || [];
+
+    // Edit button / Add icon logic
+    const editBtn = document.getElementById("btnGroupsEdit");
+    const editIcon = document.getElementById("groupsEditIcon");
+    const addContainer = document.getElementById("groupsAddContainer");
+
+    if (updatedAccounts.length <= 1) {
+        // If only 1 account, show add icon instead of edit
+        if (editIcon) editIcon.innerText = "add";
+        if (editBtn) editBtn.onclick = () => {
+            isGroupsEditMode = false; // Turn off edit mode
+            showInlineAddGroup();
+        };
+        if (addContainer) addContainer.style.display = "none";
+    } else {
+        if (editIcon) {
+            editIcon.innerText = isGroupsEditMode ? "check" : "edit";
+        }
+        if (editBtn) editBtn.onclick = () => toggleGroupsEdit();
+        if (addContainer) {
+            addContainer.style.display = isGroupsEditMode ? "block" : "none";
+        }
+    }
+
+    updatedAccounts.forEach((acct, idx) => {
+        // Load cached settings
+        const settings = {
+            defaultColor: "#FF0000",
+            dayBright: 255,
+            dayTimeMin: 5,
+            ambientMode: false,
+            ambientColor: "#0000FF",
+            nightMode: false,
+            nightStart: "22:00",
+            nightEnd: "08:00",
+            nightTimeMin: 5,
+            nightBright: 76,
+            timezone: "EST5EDT",
+            lastTapTimestamp: 0
+        };
+        try {
+            const saved = localStorage.getItem("ll_settings_" + acct.uid);
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                Object.assign(settings, parsed);
+            }
+        } catch (e) {}
+
+        const card = document.createElement("div");
+        card.className = "group-card";
+        card.dataset.uid = acct.uid;
+        card.dataset.index = idx;
+
+        const decoded = decodeUID(acct.uid);
+        let partnerNameVal = acct.name;
+        if (acct.active) {
+            partnerNameVal = localStorage.getItem("ll_name") || acct.name;
+        }
+        if (!partnerNameVal) {
+            partnerNameVal = decoded ? decoded.name || "Partner" : "Partner";
+        }
+
+        let displayName = partnerNameVal;
+        if (!displayName.toLowerCase().includes("lamp")) {
+            displayName = `${displayName}'s Lamp`;
+        }
+
+        // Load presets for this group, take top 2
+        let acctPresets = [
+            { id: "default_love", name: "I Love You", color: "#FF0000" },
+            { id: "default_miss", name: "I Miss You", color: "#00FF00" }
+        ];
+        try {
+            const savedPresets = localStorage.getItem("ll_presets_" + acct.uid);
+            if (savedPresets) acctPresets = JSON.parse(savedPresets);
+        } catch(e) {}
+        const topPresets = acctPresets.slice(0, 2);
+
+        const defaultLandingUid = localStorage.getItem("ll_default_landing_uid");
+        const isDefault = acct.uid === defaultLandingUid;
+
+        card.innerHTML = `
+            <div class="group-card-top" style="display: flex; width: 100%; align-items: center; gap: 16px; position: relative;">
+                <div class="group-drag-handle" style="display: ${isGroupsEditMode ? 'flex' : 'none'};">
+                    <span class="material-icons-round">drag_indicator</span>
+                </div>
+                <div class="group-color-circle ${getLuminance(settings.defaultColor) > 0.6 ? 'dark-text' : 'light-text'}" style="background-color: ${settings.defaultColor};" onclick="if(!isGroupsEditMode) handleGroupTileTap('${acct.uid}')" title="Tap to send signal">
+                    <span class="material-icons-round">send</span>
+                </div>
+                <div class="group-details" style="flex: 1; min-width: 0;">
+                    <h3 class="group-title">${displayName}</h3>
+                    <div class="group-settings-row">
+                        <span class="group-setting-item" title="Day Brightness & Duration">
+                            <span class="material-icons-round">wb_sunny</span>
+                            <span>${Math.round((settings.dayBright / 255) * 100)}% (${settings.dayTimeMin}m)</span>
+                        </span>
+                        ${settings.ambientMode ? `
+                        <span class="group-setting-item active" style="color: var(--accent);" title="Ambient Mode On">
+                            <span class="material-icons-round">wb_twilight</span>
+                            <span class="ambient-color-dot" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: ${settings.ambientColor || '#0000FF'}; margin: 0 2px; border: 1px solid rgba(255,255,255,0.2);"></span>
+                            <span>On</span>
+                        </span>
+                        ` : ''}
+                        ${settings.nightMode ? `
+                        <span class="group-setting-item" title="Night Mode Timings">
+                            <span class="material-icons-round">nights_stay</span>
+                            <span>${formatTime12h(settings.nightStart)} - ${formatTime12h(settings.nightEnd)}</span>
+                        </span>
+                        ` : ''}
+                    </div>
+                    <div class="group-last-tap" id="lastTap-${acct.uid}" style="margin-top: 4px;">
+                        Last Tap: ${settings.lastTapTimestamp > 0 ? new Date(settings.lastTapTimestamp * 1000).toLocaleString() : 'Unknown'}
+                    </div>
+                </div>
+                <div class="group-actions" style="display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; align-self: stretch; min-width: 90px;">
+                    <div class="group-status" id="status-${acct.uid}">
+                        <span class="dot connecting"></span>
+                        <span class="status-text">Connecting</span>
+                    </div>
+                    <button class="icon-btn group-page-btn" onclick="navigateToGroup('${acct.uid}')" style="display: ${isGroupsEditMode ? 'none' : 'flex'}; margin-top: auto;" title="View Group Details">
+                        <span class="material-icons-round">description</span>
+                    </button>
+                    ${isGroupsEditMode ? `
+                    <div style="display: flex; gap: 12px; margin-top: auto; align-items: center;">
+                        <button class="icon-btn" onclick="toggleDefaultGroup('${acct.uid}', event)" style="color: ${isDefault ? '#f1c40f' : 'var(--text-dim)'}; filter: ${isDefault ? 'drop-shadow(0 0 4px rgba(241,196,15,0.4))' : 'none'};" title="${isDefault ? 'Default Landing Group' : 'Make Default Landing'}">
+                            <span class="material-icons-round">${isDefault ? 'star' : 'star_border'}</span>
+                        </button>
+                        <button class="icon-btn group-delete-btn" onclick="deleteGroup('${acct.uid}')" style="color: var(--danger);" title="Delete Group">
+                            <span class="material-icons-round">delete</span>
+                        </button>
+                    </div>
+                    ` : ''}
+                </div>
+            </div>
+            <div class="group-presets-row" style="display: flex; gap: 10px; width: 100%; margin-top: 15px;">
+                ${topPresets.map(p => `
+                    <button class="action-btn secondary-btn group-preset-btn" style="flex: 1; display: inline-flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); color: var(--text); font-weight: 500; cursor: pointer; background: rgba(255,255,255,0.05);" onclick="handleGroupPresetTap('${acct.uid}', ${JSON.stringify(p).replace(/"/g, '&quot;')}, event)">
+                        <span>${p.name}</span>
+                        <span class="preset-color-dot" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: ${p.type === 'cycle' && p.colors && p.colors.length > 0 ? p.colors[0].hex : p.color}; box-shadow: 0 0 6px ${p.type === 'cycle' && p.colors && p.colors.length > 0 ? p.colors[0].hex : p.color};"></span>
+                    </button>
+                `).join('')}
+            </div>
+        `;
+
+        list.appendChild(card);
+    });
+
+    // Initialize/sync background MQTT clients
+    initBackgroundMqtt();
+
+    // Make reorder dragging work
+    if (isGroupsEditMode) {
+        makeGroupCardsDraggable();
+        makeGroupCardsTouchDraggable();
+    }
+}
+
+function toggleGroupsEdit() {
+    isGroupsEditMode = !isGroupsEditMode;
+    
+    // Hide inline add group input if exiting edit mode
+    if (!isGroupsEditMode) {
+        const addSection = document.getElementById("inlineAddGroupSection");
+        if (addSection) addSection.style.display = "none";
+    }
+
+    renderGroupsPage();
+}
+
+function showInlineAddGroup() {
+    const section = document.getElementById("inlineAddGroupSection");
+    if (section) {
+        section.style.display = section.style.display === "block" ? "none" : "block";
+        document.getElementById("inlineNewAccountUidInput").value = "";
+        document.getElementById("inlineNewAccountError").style.display = "none";
+        document.getElementById("inlineNewAccountUidInput").focus();
+    }
+}
+
+function addInlineNewAccount() {
+    const input = document.getElementById("inlineNewAccountUidInput");
+    const errorEl = document.getElementById("inlineNewAccountError");
+    const raw = input.value.trim();
+
+    if (!raw) {
+        errorEl.style.display = "block";
+        errorEl.innerText = "Please enter a Unique ID.";
+        return;
+    }
+
+    let decoded = decodeUID(raw);
+
+    if (!decoded) {
+        try {
+            const url = new URL(raw);
+            let searchParams = new URLSearchParams(url.search);
+            if (!searchParams.has("uid") && !searchParams.has("s")) {
+                searchParams = new URLSearchParams(url.hash.substring(1));
+            }
+            if (searchParams.has("uid")) {
+                decoded = decodeUID(searchParams.get("uid"));
+                const urlName = searchParams.get("name") || searchParams.get("partner");
+                if (decoded && urlName) decoded.name = urlName;
+            } else if (searchParams.has("s") && searchParams.has("u") && searchParams.has("p") && searchParams.has("id")) {
+                decoded = {
+                    s: searchParams.get("s"), u: searchParams.get("u"),
+                    p: searchParams.get("p"), id: searchParams.get("id"),
+                    name: searchParams.get("name") || searchParams.get("partner") || null
+                };
+            }
+        } catch (e) {}
+    }
+
+    if (!decoded) {
+        errorEl.style.display = "block";
+        errorEl.innerText = "Invalid ID. Please check and try again.";
+        return;
+    }
+
+    const uid = encodeUID(decoded.s, decoded.u, decoded.p, decoded.id, decoded.d || "/");
+    const accounts = loadAccounts() || [];
+
+    if (accounts.some(a => a.uid === uid)) {
+        errorEl.style.display = "block";
+        errorEl.innerText = "This account is already added.";
+        return;
+    }
+
+    const name = decoded.name || "Partner";
+    accounts.push({ uid: uid, name: name, active: false });
+    saveAccounts(accounts);
+
+    // Hide input, re-render list
+    document.getElementById("inlineAddGroupSection").style.display = "none";
+    renderGroupsPage();
+}
+
+function deleteGroup(uid) {
+    if (localStorage.getItem("ll_default_landing_uid") === uid) {
+        localStorage.removeItem("ll_default_landing_uid");
+    }
+
+    const accounts = loadAccounts() || [];
+    const idx = accounts.findIndex(a => a.uid === uid);
+    if (idx < 0) return;
+
+    const target = accounts[idx];
+    if (!confirm(`Remove ${target.name}'s Group?`)) return;
+
+    const wasActive = target.active;
+
+    // Disconnect and clean up background client
+    if (backgroundMqttClients[uid]) {
+        try {
+            backgroundMqttClients[uid].client.end(true);
+        } catch(e) {}
+        delete backgroundMqttClients[uid];
+    }
+
+    accounts.splice(idx, 1);
+    saveAccounts(accounts);
+
+    if (accounts.length === 0) {
+        // Clear all active credentials since no groups are left
+        localStorage.removeItem("ll_s");
+        localStorage.removeItem("ll_u");
+        localStorage.removeItem("ll_p");
+        localStorage.removeItem("ll_name");
+        localStorage.removeItem("ll_id");
+        localStorage.removeItem("ll_uid");
+        localStorage.removeItem("ll_delim");
+
+        // Disconnect main MQTT client
+        if (mqttClient) {
+            mqttClient.end(true);
+            mqttClient = null;
+        }
+        isMqttConnected = false;
+    } else if (wasActive) {
+        accounts[0].active = true;
+        saveAccounts(accounts);
+        
+        // Update root localStorage to accounts[0] before reloading
+        const nextActive = accounts[0];
+        const decoded = decodeUID(nextActive.uid);
+        if (decoded) {
+            localStorage.setItem("ll_s", decoded.s);
+            localStorage.setItem("ll_u", decoded.u);
+            localStorage.setItem("ll_p", decoded.p);
+            const deviceId = decoded.id.toUpperCase() === "B" ? "B" : "A";
+            localStorage.setItem("ll_id", deviceId);
+            localStorage.setItem("ll_name", decoded.name || nextActive.name || "Partner");
+            localStorage.setItem("ll_uid", nextActive.uid);
+            localStorage.setItem("ll_delim", decoded.d || "/");
+        }
+    }
+
+    // Automatically refresh the page
+    window.location.reload();
+}
+
+function navigateToGroup(uid) {
+    const accounts = loadAccounts() || [];
+    const idx = accounts.findIndex(a => a.uid === uid);
+    if (idx >= 0) {
+        switchToAccount(idx);
+        switchTab('partner');
+    }
+}
+
+// Background MQTT Manager
+function initBackgroundMqtt() {
+    const accounts = loadAccounts() || [];
+    accounts.forEach(acct => {
+        if (backgroundMqttClients[acct.uid]) {
+            // Re-trigger visual status on render
+            updateGroupTileStatusUI(acct.uid);
+            return;
+        }
+
+        const decoded = decodeUID(acct.uid);
+        if (!decoded) return;
+
+        let clean_server = decoded.s;
+        let active_port = 8884;
+        if (decoded.s.includes(":")) {
+            const parts = decoded.s.split(":");
+            clean_server = parts[0];
+            active_port = parseInt(parts[1]) || 8884;
+        }
+
+        const brokerUrl = `wss://${clean_server}:${active_port}/mqtt`;
+        const clientId = "Bg-" + decoded.id.toUpperCase() + "-" + Math.random().toString(16).substring(2, 8);
+        const myDeviceId = decoded.id.toUpperCase() === "B" ? "B" : "A";
+        const partnerDeviceId = myDeviceId === "A" ? "B" : "A";
+        const delim = decoded.d || "/";
+
+        function getAccountTopic(devId, suffix) {
+            if (delim === "_" && decoded.u) {
+                const cleanSuffix = suffix.replace(/\//g, "_");
+                return `${decoded.u}/f/ll_${devId}_${cleanSuffix}`;
+            }
+            return `linkedlamp/${devId}/${suffix}`;
+        }
+
+        function getAccountSupTopic(devId) {
+            if (delim === "_" && decoded.u) {
+                return `${decoded.u}/f/ll_${devId}2_status`;
+            }
+            return `linkedlamp/${devId}2/status`;
+        }
+
+        const client = mqtt.connect(brokerUrl, {
+            clientId,
+            username: decoded.u,
+            password: decoded.p,
+            reconnectPeriod: 5000,
+            clean: true
+        });
+
+        const state = {
+            client,
+            myLampOnline: null,
+            partnerLampOnline: null,
+            mySupLampOnline: null,
+            partnerSupLampOnline: null,
+            hasMySupLamp: false,
+            hasPartnerSupLamp: false,
+            partnerLastTapTimestamp: 0,
+            pendingReadReceipt: false,
+            readReceiptTimeout: null
+        };
+
+        backgroundMqttClients[acct.uid] = state;
+
+        client.on("connect", () => {
+            client.subscribe(getAccountTopic(myDeviceId, "status"));
+            client.subscribe(getAccountTopic(partnerDeviceId, "status"));
+            client.subscribe(getAccountSupTopic(myDeviceId));
+            client.subscribe(getAccountSupTopic(partnerDeviceId));
+            client.subscribe(getAccountTopic(myDeviceId, "settings"));
+            client.subscribe(getAccountTopic(partnerDeviceId, "settings"));
+            client.subscribe(getAccountTopic(myDeviceId, "presets"));
+        });
+
+        client.on("message", (topic, message) => {
+            const msg = message.toString();
+
+            if (topic === getAccountTopic(myDeviceId, "status")) {
+                state.myLampOnline = msg.startsWith("ONLINE");
+                updateGroupTileStatusUI(acct.uid);
+            } else if (topic === getAccountTopic(partnerDeviceId, "status")) {
+                state.partnerLampOnline = msg.startsWith("ONLINE");
+                updateGroupTileStatusUI(acct.uid);
+            } else if (topic === getAccountSupTopic(myDeviceId)) {
+                if (msg.length > 0) {
+                    state.hasMySupLamp = true;
+                    state.mySupLampOnline = msg.startsWith("ONLINE");
+                } else {
+                    state.hasMySupLamp = false;
+                }
+                updateGroupTileStatusUI(acct.uid);
+            } else if (topic === getAccountSupTopic(partnerDeviceId)) {
+                if (msg.length > 0) {
+                    state.hasPartnerSupLamp = true;
+                    state.partnerSupLampOnline = msg.startsWith("ONLINE");
+                } else {
+                    state.hasPartnerSupLamp = false;
+                }
+                updateGroupTileStatusUI(acct.uid);
+            } else if (topic === getAccountTopic(myDeviceId, "settings")) {
+                try {
+                    const settings = JSON.parse(msg);
+                    localStorage.setItem("ll_settings_" + acct.uid, msg);
+                    updateGroupTileDetails(acct.uid, settings);
+                } catch(e) {}
+            } else if (topic === getAccountTopic(partnerDeviceId, "settings")) {
+                try {
+                    const partnerSettings = JSON.parse(msg);
+                    const newTimestamp = partnerSettings.lastTapTimestamp || 0;
+
+                    if (state.pendingReadReceipt && newTimestamp > state.partnerLastTapTimestamp) {
+                        confirmGroupReadReceipt(acct.uid);
+                    }
+                    state.partnerLastTapTimestamp = newTimestamp;
+
+                    // Automatically sync and display partner name from their settings MQTT topic
+                    if (partnerSettings.ownerName) {
+                        updateGroupTileName(acct.uid, partnerSettings.ownerName);
+                    }
+                } catch(e) {}
+            } else if (topic === getAccountTopic(myDeviceId, "presets")) {
+                try {
+                    const parsed = JSON.parse(msg);
+                    localStorage.setItem("ll_presets_" + acct.uid, msg);
+                    updateGroupTilePresets(acct.uid, parsed);
+                } catch(e) {}
+            }
+        });
+    });
+}
+
+function updateGroupTileStatusUI(uid) {
+    const state = backgroundMqttClients[uid];
+    const statusEl = document.querySelector(`#status-${uid}`);
+    if (!state || !statusEl) return;
+
+    const dot = statusEl.querySelector(".dot");
+    const text = statusEl.querySelector(".status-text");
+    if (!dot || !text) return;
+
+    if (state.myLampOnline === null && state.partnerLampOnline === null) {
+        dot.className = "dot connecting";
+        text.innerText = "Connecting";
+        return;
+    }
+
+    const anySupplementary = state.hasMySupLamp || state.hasPartnerSupLamp;
+
+    if (!anySupplementary) {
+        const myStatus = state.myLampOnline === null ? false : state.myLampOnline;
+        const partnerStatus = state.partnerLampOnline === null ? false : state.partnerLampOnline;
+
+        const decoded = decodeUID(uid);
+        const pName = decoded ? decoded.name || "Partner" : "Partner";
+
+        if (myStatus && partnerStatus) {
+            dot.className = "dot online";
+            text.innerText = "Both Online";
+        } else if (myStatus && !partnerStatus) {
+            dot.className = "dot partial";
+            text.innerText = pName + " Offline";
+        } else if (!myStatus && partnerStatus) {
+            dot.className = "dot partial";
+            text.innerText = "Your Lamp Offline";
+        } else {
+            dot.className = "dot offline";
+            text.innerText = "Lamps Offline";
+        }
+    } else {
+        const lamps = [];
+        lamps.push({ name: "My Lamp", online: state.myLampOnline === true, mine: true });
+        if (state.hasMySupLamp) lamps.push({ name: "My Lamp 2", online: state.mySupLampOnline === true, mine: true });
+        lamps.push({ name: "Partner's Lamp", online: state.partnerLampOnline === true, mine: false });
+        if (state.hasPartnerSupLamp) lamps.push({ name: "Partner's Lamp 2", online: state.partnerSupLampOnline === true, mine: false });
+
+        const totalLamps = lamps.length;
+        const offlineLamps = lamps.filter(l => !l.online);
+        const offlineCount = offlineLamps.length;
+        const anyMineOffline = offlineLamps.some(l => l.mine);
+
+        if (offlineCount === 0) {
+            dot.className = "dot online";
+            text.innerText = "All Online";
+        } else if (offlineCount === totalLamps) {
+            dot.className = "dot offline";
+            text.innerText = "All Offline";
+        } else if (anyMineOffline) {
+            dot.className = "dot mine-offline";
+            text.innerText = offlineCount === 1 ? "One Offline" : offlineCount + " Offline";
+        } else {
+            dot.className = "dot partial";
+            text.innerText = offlineCount === 1 ? "One Offline" : offlineCount + " Offline";
+        }
+    }
+}
+
+function updateGroupTileDetails(uid, settings) {
+    const card = document.querySelector(`.group-card[data-uid="${uid}"]`);
+    if (!card) return;
+
+    const circle = card.querySelector(".group-color-circle");
+    if (circle && settings.defaultColor) {
+        circle.style.backgroundColor = settings.defaultColor;
+        circle.classList.remove("light-text", "dark-text");
+        circle.classList.add(getLuminance(settings.defaultColor) > 0.6 ? "dark-text" : "light-text");
+    }
+
+    const settingsRow = card.querySelector(".group-settings-row");
+    if (settingsRow) {
+        let html = "";
+        if (settings.dayBright !== undefined) {
+            html += `
+                <span class="group-setting-item" title="Day Brightness & Duration">
+                    <span class="material-icons-round">wb_sunny</span>
+                    <span>${Math.round((settings.dayBright / 255) * 100)}% (${settings.dayTimeMin || 5}m)</span>
+                </span>
+            `;
+        }
+        if (settings.ambientMode) {
+            html += `
+                <span class="group-setting-item active" style="color: var(--accent);" title="Ambient Mode On">
+                    <span class="material-icons-round">wb_twilight</span>
+                    <span class="ambient-color-dot" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: ${settings.ambientColor || '#0000FF'}; margin: 0 2px; border: 1px solid rgba(255,255,255,0.2);"></span>
+                    <span>On</span>
+                </span>
+            `;
+        }
+        if (settings.nightMode) {
+            html += `
+                <span class="group-setting-item" title="Night Mode Timings">
+                    <span class="material-icons-round">nights_stay</span>
+                    <span>${formatTime12h(settings.nightStart)} - ${formatTime12h(settings.nightEnd)}</span>
+                </span>
+            `;
+        }
+        settingsRow.innerHTML = html;
+    }
+
+    const label = card.querySelector(`#lastTap-${uid}`);
+    if (label && !label.classList.contains("sending") && !label.classList.contains("sent")) {
+        let lastTapVal = "Unknown";
+        if (settings.lastTapTimestamp > 0) {
+            lastTapVal = new Date(settings.lastTapTimestamp * 1000).toLocaleString();
+        }
+        label.innerText = "Last Tap: " + lastTapVal;
+    }
+}
+
+function handleGroupTileTap(uid) {
+    const state = backgroundMqttClients[uid];
+    if (!state || !state.client || !state.client.connected) {
+        alert("Not connected to this group's network.");
+        return;
+    }
+
+    const decoded = decodeUID(uid);
+    if (!decoded) return;
+
+    const myDeviceId = decoded.id.toUpperCase() === "B" ? "B" : "A";
+    const partnerDeviceId = myDeviceId === "A" ? "B" : "A";
+    const delim = decoded.d || "/";
+
+    function getAccountTopic(devId, suffix) {
+        if (delim === "_" && decoded.u) {
+            const cleanSuffix = suffix.replace(/\//g, "_");
+            return `${decoded.u}/f/ll_${devId}_${cleanSuffix}`;
+        }
+        return `linkedlamp/${devId}/${suffix}`;
+    }
+
+    const topic = getAccountTopic(partnerDeviceId, "color_trigger");
+
+    let settings = { defaultColor: "#FF0000" };
+    try {
+        const saved = localStorage.getItem("ll_settings_" + uid);
+        if (saved) settings = JSON.parse(saved);
+    } catch(e) {}
+
+    // Send the MQTT tap
+    state.client.publish(topic, settings.defaultColor);
+    console.log(`Background signal sent: ${settings.defaultColor} to ${topic}`);
+
+    startGroupReadReceiptTracking(uid);
+}
+
+function startGroupReadReceiptTracking(uid) {
+    const state = backgroundMqttClients[uid];
+    if (!state) return;
+
+    state.pendingReadReceipt = true;
+
+    const label = document.querySelector(`#lastTap-${uid}`);
+    if (label) {
+        label.innerText = "Tap Sending...";
+        label.className = "group-last-tap sending";
+    }
+
+    if (state.readReceiptTimeout) clearTimeout(state.readReceiptTimeout);
+    state.readReceiptTimeout = setTimeout(() => {
+        if (state.pendingReadReceipt) {
+            state.pendingReadReceipt = false;
+            resetGroupLastTapLabel(uid);
+        }
+    }, 5000);
+}
+
+function confirmGroupReadReceipt(uid) {
+    const state = backgroundMqttClients[uid];
+    if (!state) return;
+
+    state.pendingReadReceipt = false;
+    if (state.readReceiptTimeout) clearTimeout(state.readReceiptTimeout);
+
+    const label = document.querySelector(`#lastTap-${uid}`);
+    if (label) {
+        label.innerText = "Tap Sent! ✨";
+        label.className = "group-last-tap sent";
+    }
+
+    setTimeout(() => {
+        resetGroupLastTapLabel(uid);
+    }, 4000);
+}
+
+function resetGroupLastTapLabel(uid) {
+    const label = document.querySelector(`#lastTap-${uid}`);
+    if (!label) return;
+
+    label.className = "group-last-tap";
+
+    let lastTapVal = "Unknown";
+    try {
+        const saved = localStorage.getItem("ll_settings_" + uid);
+        if (saved) {
+            const settings = JSON.parse(saved);
+            if (settings.lastTapTimestamp > 0) {
+                lastTapVal = new Date(settings.lastTapTimestamp * 1000).toLocaleString();
+            }
+        }
+    } catch(e) {}
+    label.innerText = "Last Tap: " + lastTapVal;
+}
+
+// Drag and drop reordering
+function makeGroupCardsDraggable() {
+    const list = document.getElementById("groupsList");
+    const cards = list.querySelectorAll(".group-card");
+
+    cards.forEach(card => {
+        card.draggable = isGroupsEditMode;
+
+        card.addEventListener("dragstart", (e) => {
+            if (!isGroupsEditMode) {
+                e.preventDefault();
+                return;
+            }
+            e.dataTransfer.setData("text/plain", card.dataset.uid);
+            card.classList.add("dragging");
+        });
+
+        card.addEventListener("dragend", () => {
+            card.classList.remove("dragging");
+        });
+
+        card.addEventListener("dragover", (e) => {
+            e.preventDefault();
+            const draggingCard = list.querySelector(".dragging");
+            if (!draggingCard) return;
+
+            const siblings = [...list.querySelectorAll(".group-card:not(.dragging)")];
+            
+            let nextSibling = siblings.find(sibling => {
+                const box = sibling.getBoundingClientRect();
+                const offset = e.clientY - box.top - box.height / 2;
+                return offset < 0;
+            });
+            
+            list.insertBefore(draggingCard, nextSibling);
+        });
+
+        card.addEventListener("drop", (e) => {
+            e.preventDefault();
+            saveNewGroupsOrder();
+        });
+    });
+}
+
+// Mobile touch reordering
+let touchDragEl = null;
+
+function makeGroupCardsTouchDraggable() {
+    const list = document.getElementById("groupsList");
+    if (!list) return;
+
+    list.addEventListener("touchstart", (e) => {
+        if (!isGroupsEditMode) return;
+        const card = e.target.closest(".group-card");
+        if (!card) return;
+        // Only reorder if dragging the drag handle
+        if (!e.target.closest(".group-drag-handle")) return;
+
+        touchDragEl = card;
+        card.classList.add("dragging");
+    }, { passive: true });
+
+    list.addEventListener("touchmove", (e) => {
+        if (!isGroupsEditMode || !touchDragEl) return;
+        
+        const touch = e.touches[0];
+        const cards = [...list.querySelectorAll(".group-card:not(.dragging)")];
+
+        let nextSibling = cards.find(sibling => {
+            const box = sibling.getBoundingClientRect();
+            return touch.clientY < box.top + box.height / 2;
+        });
+
+        list.insertBefore(touchDragEl, nextSibling);
+        
+        // Prevent scrolling while reordering
+        e.preventDefault();
+    }, { passive: false });
+
+    list.addEventListener("touchend", () => {
+        if (!touchDragEl) return;
+        touchDragEl.classList.remove("dragging");
+        touchDragEl = null;
+        saveNewGroupsOrder();
+    });
+}
+
+function saveNewGroupsOrder() {
+    const list = document.getElementById("groupsList");
+    const cards = [...list.querySelectorAll(".group-card")];
+    const accounts = loadAccounts() || [];
+
+    const newOrder = cards.map(card => {
+        const uid = card.dataset.uid;
+        return accounts.find(a => a.uid === uid);
+    }).filter(Boolean);
+
+    saveAccounts(newOrder);
+    console.log("Groups reordered and saved:", newOrder);
+}
+
+function onScanFailure(error) {
+    // html5-qrcode calls this on every frame that doesn't have a code.
+    // We ignore it to let the scanner keep looking.
+}
+
+function handleGroupPresetTap(uid, preset, event) {
+    if (event) event.stopPropagation();
+
+    const state = backgroundMqttClients[uid];
+    if (!state || !state.client || !state.client.connected) {
+        alert("Not connected to this group's network.");
+        return;
+    }
+
+    const decoded = decodeUID(uid);
+    if (!decoded) return;
+
+    const myDeviceId = decoded.id.toUpperCase() === "B" ? "B" : "A";
+    const partnerDeviceId = myDeviceId === "A" ? "B" : "A";
+    const delim = decoded.d || "/";
+
+    function getAccountTopic(devId, suffix) {
+        if (delim === "_" && decoded.u) {
+            const cleanSuffix = suffix.replace(/\//g, "_");
+            return `${decoded.u}/f/ll_${devId}_${cleanSuffix}`;
+        }
+        return `linkedlamp/${devId}/${suffix}`;
+    }
+
+    const topic = getAccountTopic(partnerDeviceId, "color_trigger");
+
+    let payload = "";
+    if (preset.type === 'cycle' && preset.colors) {
+        const parts = preset.colors.map(c => {
+            const hex = c.hex.replace('#', '');
+            return `${hex},${c.hold},${c.trans}`;
+        });
+        payload = 'CC:' + parts.join(';');
+    } else {
+        payload = preset.color;
+    }
+
+    // Send preset payload
+    state.client.publish(topic, payload);
+    console.log(`Background preset signal sent: ${payload} to ${topic}`);
+
+    startGroupReadReceiptTracking(uid);
+}
+
+function updateGroupTilePresets(uid, presetsList) {
+    const card = document.querySelector(`.group-card[data-uid="${uid}"]`);
+    if (!card) return;
+
+    const container = card.querySelector(".group-presets-row");
+    if (!container) return;
+
+    const topPresets = (presetsList || []).slice(0, 2);
+    if (topPresets.length === 0) {
+        container.innerHTML = "";
+        return;
+    }
+
+    container.innerHTML = topPresets.map(p => `
+        <button class="action-btn secondary-btn group-preset-btn" style="flex: 1; display: inline-flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); color: var(--text); font-weight: 500; cursor: pointer; background: rgba(255,255,255,0.05);" onclick="handleGroupPresetTap('${uid}', ${JSON.stringify(p).replace(/"/g, '&quot;')}, event)">
+            <span>${p.name}</span>
+            <span class="preset-color-dot" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: ${p.type === 'cycle' && p.colors && p.colors.length > 0 ? p.colors[0].hex : p.color}; box-shadow: 0 0 6px ${p.type === 'cycle' && p.colors && p.colors.length > 0 ? p.colors[0].hex : p.color};"></span>
+        </button>
+    `).join('');
+}
+
+function saveNewPresetsOrder() {
+    const grid = document.getElementById("presetsGrid");
+    const buttons = [...grid.querySelectorAll(".preset-btn")];
+    
+    const newOrder = buttons.map(btn => {
+        const id = btn.dataset.id;
+        return presets.find(p => p.id === id);
+    }).filter(Boolean);
+
+    presets = newOrder;
+
+    const activeUid = localStorage.getItem("ll_uid");
+    if (activeUid) localStorage.setItem("ll_presets_" + activeUid, JSON.stringify(presets));
+    localStorage.setItem("ll_presets_" + myDeviceId, JSON.stringify(presets));
+
+    publishPresets();
+}
+
+function updateGroupTileName(uid, name) {
+    const accounts = loadAccounts() || [];
+    const idx = accounts.findIndex(a => a.uid === uid);
+    if (idx >= 0 && accounts[idx].name !== name) {
+        accounts[idx].name = name;
+        saveAccounts(accounts);
+    }
+
+    const card = document.querySelector(`.group-card[data-uid="${uid}"]`);
+    if (!card) return;
+
+    let displayName = name;
+    if (!displayName.toLowerCase().includes("lamp")) {
+        displayName = `${displayName}'s Lamp`;
+    }
+
+    const title = card.querySelector(".group-title");
+    if (title) title.innerText = displayName;
+
+    // If this is the currently active account, keep ll_name root key updated
+    const activeUid = localStorage.getItem("ll_uid");
+    if (uid === activeUid) {
+        localStorage.setItem("ll_name", name);
+        partnerName = name;
+        const sub = document.getElementById("signalSubtitle");
+        if (sub) sub.innerText = "Tap to turn on " + name + "'s lamp";
+    }
+}
+
+window.toggleDefaultGroup = function(uid, event) {
+    if (event) event.stopPropagation();
+
+    const currentDefault = localStorage.getItem("ll_default_landing_uid");
+    if (currentDefault === uid) {
+        localStorage.removeItem("ll_default_landing_uid");
+        console.log("Unset default landing group.");
+    } else {
+        localStorage.setItem("ll_default_landing_uid", uid);
+        console.log("Set default landing group to:", uid);
+    }
+
+    renderGroupsPage();
+};
 

@@ -216,14 +216,53 @@
                     </button>
                 </div>
 
-                <!-- Switch Accounts (PWA only, hidden by default) -->
-                <div class="settings-card" id="accountSwitcherCard" style="display: none;">
-                    <button id="btnSwitchAccounts" class="action-btn secondary-btn" onclick="openAccountSwitcher()" style="display: none;">
+                <!-- Switch Accounts -->
+                <div class="settings-card" id="accountSwitcherCard">
+                    <button id="btnSwitchAccounts" class="action-btn secondary-btn" onclick="switchTab('groups')">
                         <span class="material-icons-round">swap_horiz</span> Switch Accounts
                     </button>
                 </div>
 
                 <div style="height: 80px;"></div>
+            </div>
+
+            <!-- ============ View 3: My Groups ============ -->
+            <div id="view-groups" class="view">
+                <div class="groups-header">
+                    <h2>My Groups</h2>
+                    <button id="btnGroupsEdit" class="icon-btn" onclick="toggleGroupsEdit()">
+                        <span class="material-icons-round" id="groupsEditIcon">edit</span>
+                    </button>
+                </div>
+
+                <div id="groupsList" class="groups-list mt-3">
+                    <!-- JS renders group tiles here -->
+                </div>
+
+                <div id="groupsAddContainer" class="mt-4" style="display: none;">
+                    <button class="action-btn secondary-btn" onclick="showInlineAddGroup()">
+                        <span class="material-icons-round">add</span> Add Group
+                    </button>
+                </div>
+
+                <!-- Inline Add Group Form (shown below list in Edit Mode) -->
+                <div id="inlineAddGroupSection" style="display: none; margin-top: 15px; background: rgba(255,255,255,0.04); padding: 15px; border-radius: 12px; border: 1px solid var(--border);">
+                    <p class="desc" style="margin-bottom: 10px; font-size: 0.82rem;">Enter the Unique ID for the new account:</p>
+                    <input type="text" id="inlineNewAccountUidInput" placeholder="Paste Unique ID here"
+                        style="width: 100%; padding: 10px; border-radius: 8px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); color: white; font-family: monospace; font-size: 0.82rem; outline: none; margin-bottom: 10px; box-sizing: border-box;"
+                        autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+                    <div style="display: flex; gap: 10px;">
+                        <button class="action-btn primary-btn" onclick="addInlineNewAccount()" style="font-size: 0.85rem; padding: 9px; flex: 1;">
+                            <span class="material-icons-round" style="font-size: 16px;">add_circle</span> Add
+                        </button>
+                        <button class="action-btn secondary-btn" onclick="openQRScanner('inlineAddAccount')" style="font-size: 0.85rem; padding: 9px; flex: 1; background: rgba(255,255,255,0.05); border: 1px solid var(--border);">
+                            <span class="material-icons-round" style="font-size: 16px;">qr_code_scanner</span> Scan QR
+                        </button>
+                    </div>
+                    <p id="inlineNewAccountError" style="color: #ff4757; font-size: 0.78rem; margin-top: 8px; display: none;"></p>
+                </div>
+
+                <div style="height: 100px;"></div>
             </div>
 
         </main>
