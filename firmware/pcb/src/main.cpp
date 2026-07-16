@@ -132,7 +132,7 @@ struct CycleEntry {
   unsigned long holdMs;
   unsigned long transMs;
 };
-const int MAX_CYCLE_ENTRIES = 10;
+const int MAX_CYCLE_ENTRIES = 50;
 CycleEntry cycleEntries[MAX_CYCLE_ENTRIES];
 int cycleEntryCount = 0;
 int cycleCurrentIndex = 0;
@@ -601,7 +601,7 @@ void setupMQTT() {
   espClientSecure.setInsecure();
   mqttClient.setServer(mqtt_server.c_str(), mqtt_port);
   mqttClient.setCallback(mqttCallback);
-  mqttClient.setBufferSize(1024); // Configure larger buffers for custom JSON payloads
+  mqttClient.setBufferSize(2048); // Configure larger buffers for custom JSON payloads
   mqttClient.setKeepAlive(60);   // Adjust keep-alive duration to decrease broker overhead
 }
 

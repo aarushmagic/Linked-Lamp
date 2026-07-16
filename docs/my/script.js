@@ -971,9 +971,15 @@ function forceHardReload() {
 // Tab Navigation
 // ==========================================================================
 function switchTab(tabId) {
-    // Reset scroll position of the content area to the top
+    // Reset scroll position of the content area to the top instantly (bypassing smooth scroll conflicts)
     const contentArea = document.querySelector(".content-area");
-    if (contentArea) contentArea.scrollTop = 0;
+    if (contentArea) {
+        const prevBehavior = contentArea.style.scrollBehavior;
+        contentArea.style.scrollBehavior = "auto";
+        contentArea.scrollTop = 0;
+        contentArea.offsetHeight; // Force layout reflow
+        contentArea.style.scrollBehavior = prevBehavior;
+    }
 
     document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
     document.getElementById("view-" + tabId).classList.add("active");
@@ -2005,10 +2011,10 @@ function renderCycleColorEntries() {
         });
     }
 
-    // Update Add button visibility (always flex since there is no limit)
+    // Update Add button visibility
     const addBtn = document.getElementById("btnAddColor");
     if (addBtn) {
-        addBtn.style.display = 'flex';
+        addBtn.style.display = cycleColorEntries.length >= 50 ? 'none' : 'flex';
     }
 }
 
@@ -2049,6 +2055,7 @@ function selectCycleEntry(idx) {
 }
 
 function addCycleColorEntry() {
+    if (cycleColorEntries.length >= 50) return;
 
     // New color defaults: pick a slightly different hue from the last entry
     const lastColor = cycleColorEntries.length > 0
