@@ -3166,6 +3166,16 @@ function initBackgroundMqtt() {
             client.subscribe(getAccountTopic(myDeviceId, "settings"));
             client.subscribe(getAccountTopic(partnerDeviceId, "settings"));
             client.subscribe(getAccountTopic(myDeviceId, "presets"));
+
+            updateGroupTileStatusUI(acct.uid);
+        });
+
+        client.on("offline", () => {
+            updateGroupTileStatusUI(acct.uid);
+        });
+
+        client.on("close", () => {
+            updateGroupTileStatusUI(acct.uid);
         });
 
         client.on("message", (topic, message) => {
@@ -3233,6 +3243,13 @@ function updateGroupTileStatusUI(uid) {
     const dot = statusEl.querySelector(".dot");
     const text = statusEl.querySelector(".status-text");
     if (!dot || !text) return;
+
+    // If MQTT client is not connected, show connecting state (grey dot)
+    if (!state.client || !state.client.connected) {
+        dot.className = "dot connecting";
+        text.innerText = "Connecting";
+        return;
+    }
 
     if (state.myLampOnline === null && state.partnerLampOnline === null) {
         dot.className = "dot connecting";
