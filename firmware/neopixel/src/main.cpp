@@ -92,6 +92,24 @@ const unsigned long PULSE_DURATION_MS = 20000; // Pulse duration in ms
 uint8_t currentR = 0, currentG = 0, currentB = 0;
 int     currentMaxBrightness = 255;
 
+// Display Color Profile: Standard sRGB Transfer Function (IEC 61966-2-1)
+// Calibrated to match the perceptual color curve of iOS and Android phone screens
+inline float srgbToLinear(float c) {
+  if (c <= 0.0001f) return 0.0f;
+  if (c >= 1.0f)    return 1.0f;
+  if (c <= 0.04045f) {
+    return c / 12.92f;
+  }
+  return powf((c + 0.055f) / 1.055f, 2.4f);
+}
+
+// Ambient mode intensity ratio (calibrated ~4-5% dimmer to achieve subtle background glow)
+const float AMBIENT_RATIO = 0.35f;
+
+// Breathing pulse modulation: balanced 50% to 100% perceived brightness
+const float PULSE_MIN_FACTOR = 0.50f;
+const float PULSE_DEPTH      = 0.50f;
+
 // Touch sensor gesture state machine
 unsigned long lastTouchTime     = 0;
 unsigned long touchStartTime    = 0;
@@ -203,6 +221,9 @@ void mqttCallback(char* topic, byte* payload, unsigned int length);
 void parseSettings(String payload);
 void setColor(String hexColor);
 void setRGB(uint8_t r, uint8_t g, uint8_t b);
+void setRGBFloat(float rLin, float gLin, float bLin);
+void setRGBRaw(uint8_t r, uint8_t g, uint8_t b);
+uint8_t applyGammaNeo(float linearIntensity);
 void performOTA(String url);
 float hexToHue(String hexColor);
 bool isNighttime();
@@ -753,11 +774,12 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
         uint8_t ambR = (number >> 16) & 0xFF;
         uint8_t ambG = (number >> 8)  & 0xFF;
         uint8_t ambB =  number        & 0xFF;
-        int ambientBrightness = max(1, dayMaxBrightness / 10);
-        
-        currentR = min(255, (ambR * ambientBrightness) / max(1, currentMaxBrightness));
-        currentG = min(255, (ambG * ambientBrightness) / max(1, currentMaxBrightness));
-        currentB = min(255, (ambB * ambientBrightness) / max(1, currentMaxBrightness));
+        float ambFactor = ((float)dayMaxBrightness / 255.0f) * AMBIENT_RATIO;
+        float curMaxFactor = (float)max(1, currentMaxBrightness) / 255.0f;
+        float normScale = ambFactor / curMaxFactor;
+        currentR = (uint8_t)min(255.0f, (float)ambR * normScale + 0.5f);
+        currentG = (uint8_t)min(255.0f, (float)ambG * normScale + 0.5f);
+        currentB = (uint8_t)min(255.0f, (float)ambB * normScale + 0.5f);
       } else {
         currentR = 0;
         currentG = 0;
@@ -875,9 +897,10 @@ void parseColorCycle(String payload) {
   pulseStartTime = millis();
 
   // Flush initial cycle target to hardware
-  setRGB((currentR * currentMaxBrightness) / 255,
-         (currentG * currentMaxBrightness) / 255,
-         (currentB * currentMaxBrightness) / 255);
+  float initCycleFactor = (float)currentMaxBrightness / 255.0f;
+  setRGBFloat(((float)currentR / 255.0f) * initCycleFactor,
+              ((float)currentG / 255.0f) * initCycleFactor,
+              ((float)currentB / 255.0f) * initCycleFactor);
 
   Serial.println("Color Cycle started!");
 }
@@ -1104,11 +1127,11 @@ void handleTouch() {
       else if (hue < 300) { rf = x; gf = 0; bf = c; }
       else                 { rf = c; gf = 0; bf = x; }
 
-      currentR = (uint8_t)((rf + m) * 255);
-      currentG = (uint8_t)((gf + m) * 255);
-      currentB = (uint8_t)((bf + m) * 255);
+      currentR = (uint8_t)((rf + m) * 255.0f + 0.5f);
+      currentG = (uint8_t)((gf + m) * 255.0f + 0.5f);
+      currentB = (uint8_t)((bf + m) * 255.0f + 0.5f);
 
-      setRGB(currentR, currentG, currentB);
+      setRGBFloat(rf + m, gf + m, bf + m);
     }
   }
 
@@ -1255,9 +1278,10 @@ void handleLEDs() {
         currentR = preSendR;
         currentG = preSendG;
         currentB = preSendB;
-        setRGB((currentR * currentMaxBrightness) / 255,
-               (currentG * currentMaxBrightness) / 255,
-               (currentB * currentMaxBrightness) / 255);
+        float factor = (float)currentMaxBrightness / 255.0f;
+        setRGBFloat(((float)currentR / 255.0f) * factor,
+                    ((float)currentG / 255.0f) * factor,
+                    ((float)currentB / 255.0f) * factor);
       } else {
         setRGB(0, 0, 0);
       }
@@ -1275,9 +1299,10 @@ void handleLEDs() {
         currentR = prePickR;
         currentG = prePickG;
         currentB = prePickB;
-        setRGB((currentR * currentMaxBrightness) / 255,
-               (currentG * currentMaxBrightness) / 255,
-               (currentB * currentMaxBrightness) / 255);
+        float factor = (float)currentMaxBrightness / 255.0f;
+        setRGBFloat(((float)currentR / 255.0f) * factor,
+                    ((float)currentG / 255.0f) * factor,
+                    ((float)currentB / 255.0f) * factor);
         
         isLampOn = true;
       } else {
@@ -1302,11 +1327,24 @@ void handleLEDs() {
       uint8_t ambG = (number >> 8)  & 0xFF;
       uint8_t ambB =  number        & 0xFF;
 
-      
-      int ambientBrightness = max(1, dayMaxBrightness / 10);
-      setRGB((ambR * ambientBrightness) / 255, 
-             (ambG * ambientBrightness) / 255, 
-             (ambB * ambientBrightness) / 255);
+      float ambBrightnessFactor = ((float)dayMaxBrightness / 255.0f) * AMBIENT_RATIO;
+      float rLin = ((float)ambR / 255.0f) * ambBrightnessFactor;
+      float gLin = ((float)ambG / 255.0f) * ambBrightnessFactor;
+      float bLin = ((float)ambB / 255.0f) * ambBrightnessFactor;
+
+      uint8_t dR = applyGammaNeo(rLin);
+      uint8_t dG = applyGammaNeo(gLin);
+      uint8_t dB = applyGammaNeo(bLin);
+
+      // If ambient mode is active and any color channel is configured, ensure at least 1 count
+      // on the dominant channel(s) so extreme dimming never leaves the lamp completely dark
+      if (dR == 0 && dG == 0 && dB == 0 && (ambR > 0 || ambG > 0 || ambB > 0)) {
+        if (ambR >= ambG && ambR >= ambB && ambR > 0) dR = 1;
+        if (ambG >= ambR && ambG >= ambB && ambG > 0) dG = 1;
+        if (ambB >= ambR && ambB >= ambG && ambB > 0) dB = 1;
+      }
+
+      setRGBRaw(dR, dG, dB);
     } else {
       setRGB(0, 0, 0);
     }
@@ -1331,67 +1369,58 @@ void handleLEDs() {
     int nextIdx = (cycleCurrentIndex + 1) % cycleEntryCount;
     CycleEntry &nxt = cycleEntries[nextIdx];
 
+    float normR = 0.0f, normG = 0.0f, normB = 0.0f;
+
     if (cyclePhase == CYCLE_HOLD) {
-      
       currentR = cur.r;
       currentG = cur.g;
       currentB = cur.b;
+      normR = (float)cur.r / 255.0f;
+      normG = (float)cur.g / 255.0f;
+      normB = (float)cur.b / 255.0f;
 
       if (stepElapsed >= cur.holdMs) {
-        
         cyclePhase = CYCLE_TRANSITION;
         cycleStepStartMs = millis();
       }
     } else {
-      
-      if (cur.transMs == 0) {
-        
+      if (cur.transMs == 0 || stepElapsed >= cur.transMs) {
         currentR = nxt.r;
         currentG = nxt.g;
         currentB = nxt.b;
-        cycleCurrentIndex = nextIdx;
-        cyclePhase = CYCLE_HOLD;
-        cycleStepStartMs = millis();
-      } else if (stepElapsed >= cur.transMs) {
-        
-        currentR = nxt.r;
-        currentG = nxt.g;
-        currentB = nxt.b;
+        normR = (float)nxt.r / 255.0f;
+        normG = (float)nxt.g / 255.0f;
+        normB = (float)nxt.b / 255.0f;
         cycleCurrentIndex = nextIdx;
         cyclePhase = CYCLE_HOLD;
         cycleStepStartMs = millis();
       } else {
-        
         float t = (float)stepElapsed / (float)cur.transMs;
-        currentR = cur.r + (int)((nxt.r - cur.r) * t);
-        currentG = cur.g + (int)((nxt.g - cur.g) * t);
-        currentB = cur.b + (int)((nxt.b - cur.b) * t);
+        float fR = (float)cur.r + ((float)nxt.r - (float)cur.r) * t;
+        float fG = (float)cur.g + ((float)nxt.g - (float)cur.g) * t;
+        float fB = (float)cur.b + ((float)nxt.b - (float)cur.b) * t;
+        currentR = (uint8_t)(fR + 0.5f);
+        currentG = (uint8_t)(fG + 0.5f);
+        currentB = (uint8_t)(fB + 0.5f);
+        normR = fR / 255.0f;
+        normG = fG / 255.0f;
+        normB = fB / 255.0f;
       }
     }
 
-    
-    uint8_t outR = currentR, outG = currentG, outB = currentB;
+    float factor = (float)currentMaxBrightness / 255.0f;
     if (isPulsing) {
       unsigned long pulseElapsed = millis() - pulseStartTime;
       if (pulseElapsed < PULSE_DURATION_MS) {
-        float phase = (float)(pulseElapsed % 2000) / 2000.0 * 2.0 * PI;
-        float pulseFactor = 0.3 + 0.7 * ((sin(phase) + 1.0) / 2.0);
-        outR = (uint8_t)(currentR * pulseFactor * currentMaxBrightness / 255);
-        outG = (uint8_t)(currentG * pulseFactor * currentMaxBrightness / 255);
-        outB = (uint8_t)(currentB * pulseFactor * currentMaxBrightness / 255);
+        float phase = (float)(pulseElapsed % 2000) / 2000.0f * 2.0f * PI;
+        float pulseFactor = PULSE_MIN_FACTOR + PULSE_DEPTH * ((sinf(phase) + 1.0f) / 2.0f);
+        factor *= pulseFactor;
       } else {
         isPulsing = false;
-        outR = (currentR * currentMaxBrightness) / 255;
-        outG = (currentG * currentMaxBrightness) / 255;
-        outB = (currentB * currentMaxBrightness) / 255;
       }
-    } else {
-      outR = (currentR * currentMaxBrightness) / 255;
-      outG = (currentG * currentMaxBrightness) / 255;
-      outB = (currentB * currentMaxBrightness) / 255;
     }
 
-    setRGB(outR, outG, outB);
+    setRGBFloat(normR * factor, normG * factor, normB * factor);
     return;
   }
 
@@ -1401,32 +1430,23 @@ void handleLEDs() {
     if (elapsed < TRANSITION_DURATION) {
       float t = (float)elapsed / (float)TRANSITION_DURATION;
 
-      uint8_t r = transFromR + (int)((transToR - transFromR) * t);
-      uint8_t g = transFromG + (int)((transToG - transFromG) * t);
-      uint8_t b = transFromB + (int)((transToB - transFromB) * t);
+      float normR = ((float)transFromR + ((float)transToR - (float)transFromR) * t) / 255.0f;
+      float normG = ((float)transFromG + ((float)transToG - (float)transFromG) * t) / 255.0f;
+      float normB = ((float)transFromB + ((float)transToB - (float)transFromB) * t) / 255.0f;
 
-      
+      float factor = (float)currentMaxBrightness / 255.0f;
       if (isPulsing) {
         unsigned long pulseElapsed = millis() - pulseStartTime;
         if (pulseElapsed < PULSE_DURATION_MS) {
-          float phase = (float)(pulseElapsed % 2000) / 2000.0 * 2.0 * PI;
-          float pulseFactor = 0.3 + 0.7 * ((sin(phase) + 1.0) / 2.0);
-          r = (uint8_t)(r * pulseFactor * currentMaxBrightness / 255);
-          g = (uint8_t)(g * pulseFactor * currentMaxBrightness / 255);
-          b = (uint8_t)(b * pulseFactor * currentMaxBrightness / 255);
+          float phase = (float)(pulseElapsed % 2000) / 2000.0f * 2.0f * PI;
+          float pulseFactor = PULSE_MIN_FACTOR + PULSE_DEPTH * ((sinf(phase) + 1.0f) / 2.0f);
+          factor *= pulseFactor;
         } else {
           isPulsing = false;
-          r = (r * currentMaxBrightness) / 255;
-          g = (g * currentMaxBrightness) / 255;
-          b = (b * currentMaxBrightness) / 255;
         }
-      } else {
-        r = (r * currentMaxBrightness) / 255;
-        g = (g * currentMaxBrightness) / 255;
-        b = (b * currentMaxBrightness) / 255;
       }
 
-      setRGB(r, g, b);
+      setRGBFloat(normR * factor, normG * factor, normB * factor);
     } else {
       isTransitioning = false;
       Serial.println("Color transition complete.");
@@ -1438,21 +1458,21 @@ void handleLEDs() {
   if (isPulsing) {
     unsigned long elapsed = millis() - pulseStartTime;
     if (elapsed < PULSE_DURATION_MS) {
-      // Modulate active duty cycles with a breathing sine wave
-      float phase = (float)(elapsed % 2000) / 2000.0 * 2.0 * PI;
-      float pulseFactor = 0.3 + 0.7 * ((sin(phase) + 1.0) / 2.0);
+      // Modulate active duty cycles with a gentle, subtle breathing sine wave
+      float phase = (float)(elapsed % 2000) / 2000.0f * 2.0f * PI;
+      float pulseFactor = PULSE_MIN_FACTOR + PULSE_DEPTH * ((sinf(phase) + 1.0f) / 2.0f);
+      float factor = ((float)currentMaxBrightness / 255.0f) * pulseFactor;
 
-      int r = (int)(currentR * pulseFactor * currentMaxBrightness / 255);
-      int g = (int)(currentG * pulseFactor * currentMaxBrightness / 255);
-      int b = (int)(currentB * pulseFactor * currentMaxBrightness / 255);
-
-      setRGB((uint8_t)r, (uint8_t)g, (uint8_t)b);
+      setRGBFloat(((float)currentR / 255.0f) * factor,
+                  ((float)currentG / 255.0f) * factor,
+                  ((float)currentB / 255.0f) * factor);
     } else {
       isPulsing = false;
       Serial.println("Pulsing ended. Steady ON.");
-      setRGB((currentR * currentMaxBrightness) / 255,
-             (currentG * currentMaxBrightness) / 255,
-             (currentB * currentMaxBrightness) / 255);
+      float factor = (float)currentMaxBrightness / 255.0f;
+      setRGBFloat(((float)currentR / 255.0f) * factor,
+                  ((float)currentG / 255.0f) * factor,
+                  ((float)currentB / 255.0f) * factor);
     }
   }
   
@@ -1467,11 +1487,29 @@ void setColor(String hexColor) {
   Serial.printf("Color parsed: R:%d G:%d B:%d\n", currentR, currentG, currentB);
 }
 
-void setRGB(uint8_t r, uint8_t g, uint8_t b) {
+void setRGBRaw(uint8_t r, uint8_t g, uint8_t b) {
   // Flush uniform color output to WS2812 interface
   uint32_t color = strip.Color(r, g, b);
   strip.fill(color);
   strip.show();
+}
+
+uint8_t applyGammaNeo(float linearIntensity) {
+  if (linearIntensity <= 0.0001f) return 0;
+  if (linearIntensity >= 1.0f)    return 255;
+  
+  float corrected = srgbToLinear(linearIntensity);
+  uint32_t duty = (uint32_t)(corrected * 255.0f + 0.5f);
+  if (duty > 255) duty = 255;
+  return (uint8_t)duty;
+}
+
+void setRGBFloat(float rLin, float gLin, float bLin) {
+  setRGBRaw(applyGammaNeo(rLin), applyGammaNeo(gLin), applyGammaNeo(bLin));
+}
+
+void setRGB(uint8_t r, uint8_t g, uint8_t b) {
+  setRGBFloat((float)r / 255.0f, (float)g / 255.0f, (float)b / 255.0f);
 }
 
 // =============================================================================
