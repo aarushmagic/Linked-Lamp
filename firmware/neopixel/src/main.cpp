@@ -178,6 +178,7 @@ const unsigned long WIFI_RESTART_TIMEOUT  = 300000; // Reboot threshold (ms) on 
 
 // Persistent RTC memory (survives soft resets)
 RTC_NOINIT_ATTR uint32_t rtcBootMarker;
+RTC_NOINIT_ATTR bool rtcLastKnownIsNight;
 const uint32_t BOOT_MARKER_VALUE = 0xCAFEBEEF;
 bool isColdBoot = false;
 
@@ -246,6 +247,7 @@ void setup() {
   if (rtcBootMarker != BOOT_MARKER_VALUE) {
     isColdBoot = true;
     rtcBootMarker = BOOT_MARKER_VALUE;
+    rtcLastKnownIsNight = false; // Default to day on cold boot
     Serial.println("Cold boot detected (power cycle).");
   } else {
     isColdBoot = false;
@@ -339,7 +341,7 @@ void setup() {
   // Mark firmware valid only after successful MQTT link to allow rollback recovery
 
   // Sync system time using network NTP server
-  configTzTime(userTimezone.c_str(), "pool.ntp.org", "time.nist.gov");
+  configTzTime(userTimezone.c_str(), "pool.ntp.org", "time.nist.gov", "time.google.com");
   Serial.println("NTP configured with timezone: " + userTimezone);
 
   // Pin serial listener thread to Core 0 to prevent blocking during core loops
@@ -403,7 +405,7 @@ void onWifiConnect() {
   }
 
   // Sync time against configured timezone
-  configTzTime(userTimezone.c_str(), "pool.ntp.org", "time.nist.gov");
+  configTzTime(userTimezone.c_str(), "pool.ntp.org", "time.nist.gov", "time.google.com");
 }
 
 void handleWifi() {
@@ -952,7 +954,7 @@ void parseSettings(String payload) {
   
   if (newTimezone != userTimezone || changed) {
     userTimezone = newTimezone;
-    configTzTime(userTimezone.c_str(), "pool.ntp.org", "time.nist.gov");
+    configTzTime(userTimezone.c_str(), "pool.ntp.org", "time.nist.gov", "time.google.com");
   }
 
   // Commit parameters to flash only on actual variance to conserve write cycles
@@ -1515,9 +1517,10 @@ void setRGB(uint8_t r, uint8_t g, uint8_t b) {
 // =============================================================================
 // NTP / Time Helpers
 // =============================================================================
+
 bool isNighttime() {
   struct tm timeinfo;
-  if (!getLocalTime(&timeinfo, 0)) return false; // Non-blocking: timeout=0
+  if (!getLocalTime(&timeinfo, 0)) return rtcLastKnownIsNight; // Non-blocking: timeout=0
 
   int nowMinutes = timeinfo.tm_hour * 60 + timeinfo.tm_min;
 
@@ -1530,13 +1533,15 @@ bool isNighttime() {
   int startMinutes = startH * 60 + startM;
   int endMinutes   = endH * 60 + endM;
 
+  bool currentIsNight;
   if (startMinutes <= endMinutes) {
-    
-    return (nowMinutes >= startMinutes && nowMinutes < endMinutes);
+    currentIsNight = (nowMinutes >= startMinutes && nowMinutes < endMinutes);
   } else {
-    
-    return (nowMinutes >= startMinutes || nowMinutes < endMinutes);
+    currentIsNight = (nowMinutes >= startMinutes || nowMinutes < endMinutes);
   }
+  
+  rtcLastKnownIsNight = currentIsNight;
+  return currentIsNight;
 }
 
 float hexToHue(String hexColor) {
