@@ -29,7 +29,7 @@
 - **Preset Signals** — Quick-send "I Love You", "I Miss You", or custom messages
 - **Ambient Mode** — Optional low-power glow (10% of daytime brightness) in your chosen color when the lamp is inactive
 - **OTA Updates** — Firmware updates pushed wirelessly with automatic rollback protection (firmware is only marked valid after MQTT connects)
-- **Multi-Broker Support** — Works with HiveMQ, Eclipse Mosquitto, and any TLS-capable MQTT broker
+- **Multi-Broker Support** — Works with EMQX, HiveMQ, Eclipse Mosquitto, and any TLS-capable MQTT broker
 - **Resilient Connectivity** — Auto-reconnects WiFi and MQTT; reboots after 5 minutes of WiFi failure; retries MQTT every 5 seconds with escalating recovery strategies
 
 ## 🔧 Hardware Options

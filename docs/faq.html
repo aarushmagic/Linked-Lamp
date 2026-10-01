@@ -209,13 +209,14 @@
                 <br><br>
                 1. <strong>Raw TCP/TLS</strong> (usually on port <strong>8883</strong>) &mdash; Required by the physical lamps, which connect via raw sockets using the C++ firmware.
                 <br>
-                2. <strong>Secure WebSockets (WSS)</strong> (usually on port <strong>8884</strong> or <strong>443</strong>) &mdash; Required by the Web Dashboard and Setup Wizard, which run inside a web browser sandbox.
+                2. <strong>Secure WebSockets (WSS)</strong> (usually on port <strong>8084</strong> or <strong>443</strong>) &mdash; Required by the Web Dashboard and Setup Wizard, which run inside a web browser sandbox.
                 <br><br>
                 <strong>Recommended Free Options:</strong><br>
+                &bull; <strong>EMQX Serverless:</strong> The free tier supports both protocols out of the box and provides more than enough bandwidth.<br>
                 &bull; <strong>HiveMQ Cloud:</strong> The "Serverless Multi-tenant" free tier supports both protocols out of the box and provides more than enough bandwidth.<br>
                 &bull; <strong>Self-Hosted (e.g., Eclipse Mosquitto):</strong> An open-source broker for power users who want complete control. See the next question for configuration details.
                 <br><br>
-                <em>Please note: Cloud brokers like HiveMQ are third-party proprietary software. They
+                <em>Please note: Cloud brokers like EMQX and HiveMQ are third-party proprietary software. They
                     are subject to change their pricing or Terms of Service at any time, and we are not affiliated with
                     or responsible for them.</em>
             </p>
@@ -237,7 +238,7 @@ certfile /etc/mosquitto/certs/fullchain.pem
 keyfile /etc/mosquitto/certs/privkey.pem
 
 # Listener 2: Secure WebSockets (WSS) for the Web Dashboard
-listener 8884
+listener 8084
 protocol websockets
 certfile /etc/mosquitto/certs/fullchain.pem
 keyfile /etc/mosquitto/certs/privkey.pem
@@ -420,7 +421,7 @@ keyfile /etc/mosquitto/certs/privkey.pem
         </div>
         <div class="max-w mt-3" style="text-align: center; font-size: 0.8rem; color: var(--text-dim); padding: 0 20px;">
             * The Linked Lamp software and hardware designs are open source. Third-party services required for
-            connectivity (such as HiveMQ, or AWS) are proprietary and governed by their respective owners.
+            connectivity (such as EMQX, HiveMQ, or AWS) are proprietary and governed by their respective owners.
         </div>
     </footer>
 

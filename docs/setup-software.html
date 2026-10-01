@@ -517,8 +517,8 @@
                     <strong>MQTT Broker Details</strong><br>
                     <span style="font-size: 0.9rem; color: #ccc;">
                         You need a free MQTT broker to let the lamps talk to each other. Go to <a
-                            href="https://www.hivemq.com/mqtt-cloud-broker/" target="_blank"
-                            style="color:var(--accent);">HiveMQ Cloud</a>, sign up for a free account,
+                            href="https://www.emqx.com/en/cloud/serverless-mqtt" target="_blank"
+                            style="color:var(--accent);">EMQX Serverless</a>, sign up for a free account,
                         create
                         credentials, and paste them here. For a fully open source, self hosted alternative, you may use
                         <a href="https://mosquitto.org/" target="_blank" style="color:var(--accent);">Eclipse
@@ -598,11 +598,12 @@
                             <span
                                 style="font-size: 0.85rem; color: #ccc; line-height: 1.4; display: block; margin-top: 5px;">
                                 The port used by web clients for Secure WebSockets (WSS). Web browsers strictly enforce
-                                secure WebSocket protocols. Default is usually <strong>8884</strong> or
+                                secure WebSocket protocols. Default is usually <strong>8884</strong>,
+                                <strong>8084</strong> or
                                 <strong>443</strong>.
                             </span>
                         </div>
-                        <input type="number" id="in_ws_port" value="8884" placeholder="8884">
+                        <input type="number" id="in_ws_port" value="8084" placeholder="8084">
                     </div>
                     <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 15px;">
                         <span
@@ -630,7 +631,7 @@
                         <span
                             style="font-size: 0.85rem; color: #ccc; line-height: 1.4; display: block; margin-top: 5px;">
                             Determines how MQTT topic paths are separated.
-                            Use <strong>Slash (/)</strong> for standard MQTT brokers (e.g. HiveMQ or Mosquitto).
+                            Use <strong>Slash (/)</strong> for standard MQTT brokers (e.g. EMQX, HiveMQ or Mosquitto).
                             Use <strong>Underscore (_)</strong> for brokers that don't support multi-level subtopic
                             directories in feed names.
                         </span>
@@ -1231,7 +1232,7 @@
             const n1 = getOwnerNameForLamp('A') || 'Lamp A';
             const n2 = getOwnerNameForLamp('B') || 'Lamp B';
             const wsUrl = document.getElementById("in_ws_url").value.trim() || document.getElementById("in_mqtt_url").value.trim();
-            const wsPort = parseInt(document.getElementById("in_ws_port").value) || 8884;
+            const wsPort = parseInt(document.getElementById("in_ws_port").value) || 8084;
             const wsServer = wsPort ? `${wsUrl}:${wsPort}` : wsUrl;
             const mUser = document.getElementById("in_mqtt_user").value.trim();
             const mPw = document.getElementById("in_mqtt_pw").value.trim();
@@ -1405,7 +1406,7 @@
         function attemptMqttNameDetection() {
             return new Promise((resolve) => {
                 const wsUrl = document.getElementById("in_ws_url").value.trim() || document.getElementById("in_mqtt_url").value.trim();
-                const wsPort = parseInt(document.getElementById("in_ws_port").value) || 8884;
+                const wsPort = parseInt(document.getElementById("in_ws_port").value) || 8084;
                 const mUser = document.getElementById("in_mqtt_user").value.trim();
                 const mPw = document.getElementById("in_mqtt_pw").value.trim();
 

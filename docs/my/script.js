@@ -389,7 +389,7 @@ function connectWithUID() {
 // ==========================================================================
 function connectMQTT() {
     let clean_server = mqtt_server;
-    let active_port = 8884; // Default WSS port (HiveMQ)
+    let active_port = 8084; // Default WSS port (EMQX, HiveMQ)
 
     if (mqtt_server.includes(":")) {
         const parts = mqtt_server.split(":");
@@ -3107,11 +3107,11 @@ function initBackgroundMqtt() {
         if (!decoded) return;
 
         let clean_server = decoded.s;
-        let active_port = 8884;
+        let active_port = 8084;
         if (decoded.s.includes(":")) {
             const parts = decoded.s.split(":");
             clean_server = parts[0];
-            active_port = parseInt(parts[1]) || 8884;
+            active_port = parseInt(parts[1]) || 8084;
         }
 
         const brokerUrl = `wss://${clean_server}:${active_port}/mqtt`;
