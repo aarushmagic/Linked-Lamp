@@ -68,6 +68,64 @@ let mySettings = {
     lastTapTimestamp: 0
 };
 
+// Cached partner settings & Bonfire state
+let cachedPartnerSettings = null;
+try {
+    const savedPSet = localStorage.getItem("ll_partner_settings_" + partnerDeviceId);
+    if (savedPSet) cachedPartnerSettings = JSON.parse(savedPSet);
+} catch (e) { }
+
+let bonfireState = {
+    active: false,
+    lastLogEpoch: 0,
+    isFlaring: false,
+    flareStartTime: 0
+};
+let bonfireCountdownInterval = null;
+let bonfireCanvasAnimId = null;
+
+// Timezone POSIX/Abbreviation to IANA mapping table for exact browser evaluation
+const tzToIanaMap = {
+    "Pacific/Midway": "Pacific/Midway",
+    "HST": "Pacific/Honolulu",
+    "America/Anchorage": "America/Anchorage",
+    "PST8PDT": "America/Los_Angeles",
+    "MST7MDT": "America/Denver",
+    "America/Phoenix": "America/Phoenix",
+    "CST6CDT": "America/Chicago",
+    "EST5EDT": "America/New_York",
+    "America/Bogota": "America/Bogota",
+    "AST4ADT": "America/Halifax",
+    "America/Caracas": "America/Caracas",
+    "America/Argentina/Buenos_Aires": "America/Argentina/Buenos_Aires",
+    "America/St_Johns": "America/St_Johns",
+    "America/Sao_Paulo": "America/Sao_Paulo",
+    "Atlantic/Azores": "Atlantic/Azores",
+    "GMT0BST": "Europe/London",
+    "Europe/Lisbon": "Europe/Lisbon",
+    "CET-1CEST": "Europe/Paris",
+    "Africa/Johannesburg": "Africa/Johannesburg",
+    "EET-2EEST": "Europe/Athens",
+    "Asia/Jerusalem": "Asia/Jerusalem",
+    "Europe/Moscow": "Europe/Moscow",
+    "Asia/Dubai": "Asia/Dubai",
+    "Asia/Kabul": "Asia/Kabul",
+    "Asia/Karachi": "Asia/Karachi",
+    "IST-5:30": "Asia/Kolkata",
+    "Asia/Kathmandu": "Asia/Kathmandu",
+    "Asia/Dhaka": "Asia/Dhaka",
+    "Asia/Yangon": "Asia/Yangon",
+    "Asia/Bangkok": "Asia/Bangkok",
+    "CST-8": "Asia/Shanghai",
+    "Asia/Singapore": "Asia/Singapore",
+    "Asia/Tokyo": "Asia/Tokyo",
+    "Australia/Adelaide": "Australia/Adelaide",
+    "AEST-10AEDT": "Australia/Sydney",
+    "Australia/Brisbane": "Australia/Brisbane",
+    "Pacific/Noumea": "Pacific/Noumea",
+    "Pacific/Auckland": "Pacific/Auckland"
+};
+
 let presets = [
     { id: "default_love", name: "I Love You", color: "#FF0000" },
     { id: "default_miss", name: "I Miss You", color: "#00FF00" }
@@ -423,6 +481,10 @@ function connectMQTT() {
         mqttClient.subscribe(getTopic(myDeviceId, "presets"));
         mqttClient.subscribe(getTopic(partnerDeviceId, "settings"));
 
+        // Bonfire State Topics
+        mqttClient.subscribe(getTopic(myDeviceId, "bonfire"));
+        mqttClient.subscribe(getTopic(partnerDeviceId, "bonfire"));
+
         updateStatusUI();
         applySettingsToUI();
     });
@@ -506,6 +568,8 @@ function connectMQTT() {
             // Also extract partner's ownerName from their lamp's settings topic
             try {
                 const partnerSettings = JSON.parse(msg);
+                cachedPartnerSettings = partnerSettings;
+                localStorage.setItem("ll_partner_settings_" + partnerDeviceId, msg);
                 const newTimestamp = partnerSettings.lastTapTimestamp || 0;
 
                 if (pendingReadReceipt && newTimestamp > partnerLastTapTimestamp) {
@@ -567,6 +631,8 @@ function connectMQTT() {
                 partnerSupLampOnline = false;
             }
             updateStatusUI();
+        } else if (topic === getTopic(myDeviceId, "bonfire") || topic === getTopic(partnerDeviceId, "bonfire")) {
+            handleIncomingBonfireMessage(msg);
         }
     });
 
@@ -745,6 +811,12 @@ function closeStatusPopup(e) {
 // Publishing
 // ==========================================================================
 function sendSignal(hexColorOrPreset) {
+    // If Bonfire is active, sending any signal counts as adding a log to the fire!
+    if (bonfireState.active) {
+        handleAddLogFromUI();
+        return;
+    }
+
     if (!mqttClient || !mqttClient.connected) {
         alert("Not connected to your lamp network.");
         return;
@@ -804,7 +876,7 @@ function confirmReadReceipt() {
     if (readReceiptTimeout) clearTimeout(readReceiptTimeout);
 
     const sub = document.getElementById("signalSubtitle");
-    sub.innerText = "Signal Sent! ✨";
+    sub.innerText = "Signal Sent!";
     sub.classList.remove("receipt-pending");
     sub.classList.add("receipt-confirmed");
 
@@ -914,6 +986,12 @@ function applySettingsToUI() {
         ambCircle.style.backgroundColor = mySettings.ambientColor;
     }
 
+    // Bonfire Toggle
+    const bonfireToggle = document.getElementById("bonfireToggle");
+    if (bonfireToggle) {
+        bonfireToggle.checked = bonfireState.active;
+    }
+
     // Last Tap display 
     const lastTapEl = document.getElementById("lastTapDisplay");
     if (lastTapEl) {
@@ -996,7 +1074,7 @@ function switchTab(tabId) {
         if (appHeader) appHeader.style.display = "flex";
         document.getElementById("navSend").classList.toggle("active", tabId === "partner");
         document.getElementById("navSettings").classList.toggle("active", tabId === "settings");
-        document.getElementById("pageTitle").innerText = tabId === "partner" ? "My Group" : "My Settings";
+        document.getElementById("pageTitle").innerText = tabId === "partner" ? (bonfireState.active ? "Virtual Bonfire" : "My Group") : "My Settings";
     }
 }
 
@@ -2865,14 +2943,54 @@ function renderGroupsPage() {
         const defaultLandingUid = localStorage.getItem("ll_default_landing_uid");
         const isDefault = acct.uid === defaultLandingUid;
 
+        const bgState = backgroundMqttClients[acct.uid];
+        const isCurrentActive = acct.uid === localStorage.getItem("ll_uid");
+        const hasBonfire = (isCurrentActive && bonfireState.active) || (bgState && bgState.bonfireActive);
+
+        let circleHtml = '';
+        let presetsHtml = '';
+
+        if (hasBonfire) {
+            circleHtml = `
+                <div class="group-bonfire-circle" onclick="if(!isGroupsEditMode) handleGroupBonfireTap('${acct.uid}')" title="Virtual Bonfire Active (Tap to add log)">
+                    <span class="material-icons-round flame-icon">local_fire_department</span>
+                </div>
+            `;
+            presetsHtml = `
+                <div class="group-presets-row" style="display: flex; gap: 10px; width: 100%; margin-top: 15px;">
+                    <button class="action-btn secondary-btn group-preset-btn group-bonfire-log-btn" style="flex: 1; display: inline-flex; align-items: center; justify-content: center; padding: 10px 14px; border-radius: 8px; cursor: pointer;" onclick="handleGroupAddLog('${acct.uid}', event)">
+                        <span class="material-icons-round" style="font-size: 18px; margin-right: 6px; color: #ff9800;">local_fire_department</span>
+                        <span>Add Log</span>
+                    </button>
+                    <button class="action-btn secondary-btn group-preset-btn group-bonfire-extinguish-btn" style="flex: 1; display: inline-flex; align-items: center; justify-content: center; padding: 10px 14px; border-radius: 8px; cursor: pointer;" onclick="handleGroupExtinguish('${acct.uid}', event)">
+                        <span class="material-icons-round" style="font-size: 18px; margin-right: 6px; color: #54a0ff;">water_drop</span>
+                        <span>Put Out Fire</span>
+                    </button>
+                </div>
+            `;
+        } else {
+            circleHtml = `
+                <div class="group-color-circle ${getLuminance(settings.defaultColor) > 0.6 ? 'dark-text' : 'light-text'}" style="background-color: ${settings.defaultColor};" onclick="if(!isGroupsEditMode) handleGroupTileTap('${acct.uid}')" title="Tap to send signal">
+                    <span class="material-icons-round">send</span>
+                </div>
+            `;
+            presetsHtml = `
+                <div class="group-presets-row" style="display: flex; gap: 10px; width: 100%; margin-top: 15px;">
+                    ${topPresets.map(p => `
+                        <button class="action-btn secondary-btn group-preset-btn" style="flex: 1; display: inline-flex; align-items: center; justify-content: flex-start; padding: 10px 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); color: var(--text); font-weight: 500; cursor: pointer; background: rgba(255,255,255,0.05); --preset-color: ${p.type === 'cycle' && p.colors && p.colors.length > 0 ? p.colors[0].hex : p.color};" onclick="handleGroupPresetTap('${acct.uid}', ${JSON.stringify(p).replace(/"/g, '&quot;')}, event)">
+                            <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; width: 100%;">${p.name}</span>
+                        </button>
+                    `).join('')}
+                </div>
+            `;
+        }
+
         card.innerHTML = `
             <div class="group-card-top" style="display: flex; width: 100%; align-items: center; gap: 16px; position: relative;">
                 <div class="group-drag-handle" style="display: ${isGroupsEditMode ? 'flex' : 'none'};">
                     <span class="material-icons-round">drag_indicator</span>
                 </div>
-                <div class="group-color-circle ${getLuminance(settings.defaultColor) > 0.6 ? 'dark-text' : 'light-text'}" style="background-color: ${settings.defaultColor};" onclick="if(!isGroupsEditMode) handleGroupTileTap('${acct.uid}')" title="Tap to send signal">
-                    <span class="material-icons-round">send</span>
-                </div>
+                ${circleHtml}
                 <div class="group-details" style="flex: 1; min-width: 0;">
                     <h3 class="group-title">${displayName}</h3>
                     <div class="group-settings-row">
@@ -2918,13 +3036,7 @@ function renderGroupsPage() {
                     ` : ''}
                 </div>
             </div>
-            <div class="group-presets-row" style="display: flex; gap: 10px; width: 100%; margin-top: 15px;">
-                ${topPresets.map(p => `
-                    <button class="action-btn secondary-btn group-preset-btn" style="flex: 1; display: inline-flex; align-items: center; justify-content: flex-start; padding: 10px 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); color: var(--text); font-weight: 500; cursor: pointer; background: rgba(255,255,255,0.05); --preset-color: ${p.type === 'cycle' && p.colors && p.colors.length > 0 ? p.colors[0].hex : p.color};" onclick="handleGroupPresetTap('${acct.uid}', ${JSON.stringify(p).replace(/"/g, '&quot;')}, event)">
-                        <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; width: 100%;">${p.name}</span>
-                    </button>
-                `).join('')}
-            </div>
+            ${presetsHtml}
         `;
 
         list.appendChild(card);
@@ -3153,7 +3265,9 @@ function initBackgroundMqtt() {
             hasPartnerSupLamp: false,
             partnerLastTapTimestamp: 0,
             pendingReadReceipt: false,
-            readReceiptTimeout: null
+            readReceiptTimeout: null,
+            bonfireActive: false,
+            lastBonfireLogEpoch: 0
         };
 
         backgroundMqttClients[acct.uid] = state;
@@ -3166,6 +3280,8 @@ function initBackgroundMqtt() {
             client.subscribe(getAccountTopic(myDeviceId, "settings"));
             client.subscribe(getAccountTopic(partnerDeviceId, "settings"));
             client.subscribe(getAccountTopic(myDeviceId, "presets"));
+            client.subscribe(getAccountTopic(myDeviceId, "bonfire"));
+            client.subscribe(getAccountTopic(partnerDeviceId, "bonfire"));
 
             updateGroupTileStatusUI(acct.uid);
         });
@@ -3230,6 +3346,8 @@ function initBackgroundMqtt() {
                     localStorage.setItem("ll_presets_" + acct.uid, msg);
                     updateGroupTilePresets(acct.uid, parsed);
                 } catch (e) { }
+            } else if (topic === getAccountTopic(myDeviceId, "bonfire") || topic === getAccountTopic(partnerDeviceId, "bonfire")) {
+                handleGroupIncomingBonfireMessage(acct.uid, msg);
             }
         });
     });
@@ -3362,6 +3480,12 @@ function handleGroupTileTap(uid) {
         return;
     }
 
+    // Intercept if bonfire is active for this group: tapping the tile adds a log!
+    if (state.bonfireActive) {
+        handleGroupAddLog(uid);
+        return;
+    }
+
     const decoded = decodeUID(uid);
     if (!decoded) return;
 
@@ -3422,7 +3546,7 @@ function confirmGroupReadReceipt(uid) {
 
     const label = document.querySelector(`#lastTap-${uid}`);
     if (label) {
-        label.innerText = "Tap Sent! ✨";
+        label.innerText = "Tap Sent!";
         label.className = "group-last-tap sent";
     }
 
@@ -3563,6 +3687,12 @@ function handleGroupPresetTap(uid, preset, event) {
         return;
     }
 
+    // Intercept if bonfire is active for this group: any preset tap adds a log!
+    if (state.bonfireActive) {
+        handleGroupAddLog(uid, event);
+        return;
+    }
+
     const decoded = decodeUID(uid);
     if (!decoded) return;
 
@@ -3679,4 +3809,1083 @@ window.toggleDefaultGroup = function (uid, event) {
 
     renderGroupsPage();
 };
+
+// =============================================================================
+// Virtual Bonfire (Co-Presence Glow) Implementation
+// =============================================================================
+
+function getPartnerSettings() {
+    if (cachedPartnerSettings) return cachedPartnerSettings;
+    try {
+        const saved = localStorage.getItem("ll_partner_settings_" + partnerDeviceId);
+        if (saved) {
+            cachedPartnerSettings = JSON.parse(saved);
+            return cachedPartnerSettings;
+        }
+    } catch (e) { }
+    return null;
+}
+
+/**
+ * Checks whether a given lamp's settings currently put it in night mode.
+ * Evaluates nightMode toggle, start/end times, and timezone.
+ */
+function isLampInNightMode(settings) {
+    if (!settings || !settings.nightMode) return false;
+
+    let tz = settings.timezone || "EST5EDT";
+    const mappedTz = tzToIanaMap[tz] || tz;
+
+    let nowMinutes;
+    try {
+        const formatter = new Intl.DateTimeFormat("en-US", {
+            timeZone: mappedTz,
+            hour: "numeric",
+            minute: "numeric",
+            hour12: false
+        });
+        const parts = formatter.formatToParts(new Date());
+        let h = 0, m = 0;
+        for (const p of parts) {
+            if (p.type === "hour") h = parseInt(p.value, 10);
+            if (p.type === "minute") m = parseInt(p.value, 10);
+        }
+        if (h === 24) h = 0;
+        nowMinutes = h * 60 + m;
+    } catch (e) {
+        const d = new Date();
+        nowMinutes = d.getHours() * 60 + d.getMinutes();
+    }
+
+    const startParts = (settings.nightStart || "22:00").split(":");
+    const endParts = (settings.nightEnd || "08:00").split(":");
+    const startMinutes = parseInt(startParts[0], 10) * 60 + parseInt(startParts[1], 10);
+    const endMinutes = parseInt(endParts[0], 10) * 60 + parseInt(endParts[1], 10);
+
+    if (startMinutes <= endMinutes) {
+        return (nowMinutes >= startMinutes && nowMinutes < endMinutes);
+    } else {
+        return (nowMinutes >= startMinutes || nowMinutes < endMinutes);
+    }
+}
+
+/**
+ * Handler when the Virtual Bonfire toggle switch is clicked in Settings.
+ * Runs pre-flight checks and initiates Zippo lighter or water bucket animation.
+ */
+function handleBonfireToggle(checkbox) {
+    if (!checkbox) return;
+
+    if (checkbox.checked) {
+        // User wants to light the fire
+        if (!mqttClient || !mqttClient.connected) {
+            checkbox.checked = false;
+            showToast("Cannot light bonfire: MQTT is not connected.", "error");
+            return;
+        }
+
+        // Pre-flight check 1: Both lamps must be online
+        if (myLampOnline !== true) {
+            checkbox.checked = false;
+            showToast("Cannot light bonfire: Your lamp is currently offline.", "error");
+            return;
+        }
+        if (partnerLampOnline !== true) {
+            checkbox.checked = false;
+            const pName = partnerName || "Partner";
+            showToast(`Cannot light bonfire: ${pName}'s lamp is currently offline.`, "error");
+            return;
+        }
+
+        // Pre-flight check 2: Neither lamp can be in night mode
+        if (isLampInNightMode(mySettings)) {
+            checkbox.checked = false;
+            showToast("Cannot light bonfire: Your lamp is currently in Night Mode.", "error");
+            return;
+        }
+        const partnerSet = getPartnerSettings();
+        if (partnerSet && isLampInNightMode(partnerSet)) {
+            checkbox.checked = false;
+            const pName = partnerName || "Partner";
+            showToast(`Cannot light bonfire: ${pName}'s lamp is currently in Night Mode.`, "error");
+            return;
+        }
+
+        // Keep toggle visually off until ignition completes
+        checkbox.checked = false;
+
+        let signalSent = false;
+        const sendIgnitionSignal = () => {
+            if (signalSent) return;
+            signalSent = true;
+            const nowSec = Math.floor(Date.now() / 1000);
+            const payload = `ON:${nowSec}`;
+
+            // Retained topic publish so lamps and reconnecting clients restore state
+            mqttClient.publish(getTopic(myDeviceId, "bonfire"), payload, { retain: true, qos: 1 });
+            mqttClient.publish(getTopic(partnerDeviceId, "bonfire"), payload, { retain: true, qos: 1 });
+
+            // Direct triggers for zero-latency execution
+            mqttClient.publish(getTopic(myDeviceId, "color_trigger"), "BONFIRE:START");
+            mqttClient.publish(getTopic(partnerDeviceId, "color_trigger"), "BONFIRE:START");
+
+            bonfireState.active = true;
+            bonfireState.lastLogEpoch = nowSec * 1000;
+        };
+
+        // All checks passed! Play Zippo lighter animation
+        playZippoLighterAnimation({
+            onIgnite: () => {
+                // Send the bonfire signal the exact moment the fire is actually lit!
+                sendIgnitionSignal();
+            },
+            onComplete: () => {
+                sendIgnitionSignal();
+                activateBonfire(bonfireState.lastLogEpoch || Date.now(), true);
+                switchTab("partner");
+            }
+        });
+    } else {
+        // User toggled it off: extinguish the fire
+        checkbox.checked = true; // Keep visually checked while water animation runs
+        handleExtinguishFromUI();
+    }
+}
+
+function handleLightBonfireClick() {
+    const toggle = document.getElementById("bonfireToggle");
+    if (toggle) {
+        toggle.checked = true;
+        handleBonfireToggle(toggle);
+    }
+}
+
+/**
+ * Realistic full-screen Zippo Lighter animation sequence.
+ * Perspective: Lighter starts close to the viewer (large foreground),
+ * strikes flame, moves away towards the logs, ignites the kindling at the base,
+ * and triggers onIgnite the exact moment fire catches.
+ */
+function playZippoLighterAnimation(callbacks) {
+    const onIgnite = typeof callbacks === 'object' && callbacks ? callbacks.onIgnite : null;
+    const onComplete = typeof callbacks === 'function' ? callbacks : (callbacks ? callbacks.onComplete : null);
+
+    const overlay = document.getElementById("bonfireLighterOverlay");
+    if (!overlay) {
+        if (onIgnite) onIgnite();
+        if (onComplete) onComplete();
+        return;
+    }
+
+    const zippo = document.getElementById("zippoLighter");
+    const lid = overlay.querySelector(".zippo-lid");
+    const flintWheel = overlay.querySelector(".zippo-flint-wheel");
+    const sparks = document.getElementById("zippoSparks");
+    const flame = document.getElementById("zippoFlame");
+    const hearthEruption = document.getElementById("hearthFireEruption");
+    const kindlingSpark = document.getElementById("kindlingCatchSpark");
+
+    // Reset initial state: close to viewer in foreground (scale 1.45)
+    overlay.style.display = "flex";
+    overlay.style.opacity = "1";
+    if (zippo) zippo.className = "zippo-lighter";
+    if (lid) lid.classList.remove("open");
+    if (flintWheel) flintWheel.classList.remove("sparking");
+    if (sparks) sparks.classList.remove("active");
+    if (flame) flame.classList.remove("ignited");
+    if (kindlingSpark) kindlingSpark.classList.remove("active");
+    if (hearthEruption) hearthEruption.classList.remove("ignited");
+
+    // Step 1: Open Zippo Lid close to viewer (400ms)
+    setTimeout(() => {
+        if (lid) lid.classList.add("open");
+    }, 400);
+
+    // Step 2: Spin Flint Wheel & Shower Sparks in foreground (800ms)
+    setTimeout(() => {
+        if (flintWheel) flintWheel.classList.add("sparking");
+        if (sparks) sparks.classList.add("active");
+    }, 800);
+
+    // Step 3: Flame catches on wick right in front of you! (1200ms)
+    setTimeout(() => {
+        if (sparks) sparks.classList.remove("active");
+        if (flame) flame.classList.add("ignited");
+    }, 1200);
+
+    // Step 4: Move Zippo away from you towards the logs at its base (1650ms)
+    setTimeout(() => {
+        if (zippo) zippo.classList.add("move-to-logs");
+    }, 1650);
+
+    // Step 5: Flame reaches and touches kindling at the base (2500ms)
+    setTimeout(() => {
+        if (kindlingSpark) kindlingSpark.classList.add("active");
+    }, 2500);
+
+    // Step 6: Logs catch fire at the base & erupt into flame! (2800ms)
+    // Send the bonfire signal the exact moment the fire is actually lit!
+    setTimeout(() => {
+        if (hearthEruption) hearthEruption.classList.add("ignited");
+        if (zippo) zippo.classList.add("retract");
+        if (onIgnite) onIgnite();
+    }, 2800);
+
+    // Step 7: Fade Out & Complete (3600ms)
+    setTimeout(() => {
+        overlay.style.transition = "opacity 0.45s ease";
+        overlay.style.opacity = "0";
+    }, 3600);
+
+    setTimeout(() => {
+        overlay.style.display = "none";
+        overlay.style.opacity = "1";
+        overlay.style.transition = "";
+        if (onComplete) onComplete();
+    }, 4100);
+}
+
+let waterAnimFrameId = null;
+
+/**
+ * Realistic full-screen Water Bucket Extinguish animation sequence.
+ * Renders physical cascading water pouring from the tilted bucket mouth,
+ * falling under gravity directly into the campfire, splashing, quenching the flames,
+ * and billowing white steam.
+ */
+function playWaterBucketAnimation(onComplete) {
+    const overlay = document.getElementById("bonfireWaterOverlay");
+    if (!overlay) {
+        if (onComplete) onComplete();
+        return;
+    }
+
+    const bucket = document.getElementById("waterBucket");
+    const dyingFlames = document.getElementById("dyingFireFlames");
+    const canvas = document.getElementById("waterPourCanvas");
+    const ctx = canvas ? canvas.getContext("2d") : null;
+
+    if (waterAnimFrameId) {
+        cancelAnimationFrame(waterAnimFrameId);
+        waterAnimFrameId = null;
+    }
+
+    // Reset initial state
+    overlay.style.display = "flex";
+    overlay.style.opacity = "1";
+    if (bucket) bucket.className = "water-bucket";
+    if (dyingFlames) dyingFlames.className = "dying-fire-flames";
+
+    if (ctx && canvas) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    const waterParticles = [];
+    const splashParticles = [];
+    const steamParticles = [];
+
+    let isPouring = false;
+    let waterHitFire = false;
+    const animStartTime = Date.now();
+
+    function renderWaterSim() {
+        if (!ctx || !canvas) return;
+        const now = Date.now();
+        const elapsed = now - animStartTime;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // 1. Spawn waterfall stream while bucket is tilted
+        if (isPouring) {
+            // Dynamically locate the pouring mouth of the bucket from its DOM rect
+            const bucketEl = document.getElementById("waterBucket");
+            const rimEl = bucketEl ? bucketEl.querySelector(".bucket-rim") : null;
+            const stageEl = document.querySelector(".water-bucket-stage");
+
+            let baseSpoutX = 176;
+            let baseSpoutY = 160;
+            if (rimEl && stageEl) {
+                const rimRect = rimEl.getBoundingClientRect();
+                const stageRect = stageEl.getBoundingClientRect();
+                baseSpoutX = rimRect.left - stageRect.left + 5; // Pouring lip of tilted rim
+                baseSpoutY = rimRect.bottom - stageRect.top - 2;
+            }
+
+            const count = 10;
+            const logTargetY = 360; // Hearth fire logs impact line
+            const ay = 0.52; // Gravity acceleration
+
+            for (let i = 0; i < count; i++) {
+                const px0 = baseSpoutX + (Math.random() - 0.5) * 8;
+                const py0 = baseSpoutY + (Math.random() - 0.5) * 6;
+                // Target the exact middle of the campfire logs (x = 160)
+                const targetX = 160 + (Math.random() - 0.5) * 16;
+                const dy = Math.max(10, logTargetY - py0);
+                const vy0 = 1.8 + Math.random() * 2.0;
+
+                // Time of flight to reach the logs under gravity
+                const t = (-vy0 + Math.sqrt(vy0 * vy0 + 2 * ay * dy)) / ay;
+                // Exact horizontal velocity to land dead-center on the logs
+                const vx = (targetX - px0) / t;
+
+                waterParticles.push({
+                    x: px0,
+                    y: py0,
+                    vx: vx,
+                    vy: vy0,
+                    size: 3.5 + Math.random() * 3.5,
+                    alpha: 0.8 + Math.random() * 0.2,
+                    color: Math.random() > 0.4 ? '#93c5fd' : '#bfdbfe'
+                });
+            }
+        }
+
+        const logTargetY = 360; // Hearth fire logs impact line
+
+        // Draw fluid stream body as a smooth curved water ribbon
+        if (waterParticles.length > 6) {
+            const sorted = waterParticles.slice().sort((a, b) => a.y - b.y);
+            const spinePoints = [];
+            const stepY = 22;
+            let currentBucketY = sorted[0].y;
+            let sumX = 0, countX = 0;
+            for (const p of sorted) {
+                if (p.y - currentBucketY < stepY) {
+                    sumX += p.x;
+                    countX++;
+                } else {
+                    if (countX > 0) spinePoints.push({ x: sumX / countX, y: currentBucketY + stepY / 2 });
+                    currentBucketY = p.y;
+                    sumX = p.x;
+                    countX = 1;
+                }
+            }
+            if (countX > 0) spinePoints.push({ x: sumX / countX, y: currentBucketY });
+
+            if (spinePoints.length > 1) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.moveTo(spinePoints[0].x, spinePoints[0].y);
+                for (let i = 1; i < spinePoints.length; i++) {
+                    const xc = (spinePoints[i - 1].x + spinePoints[i].x) / 2;
+                    const yc = (spinePoints[i - 1].y + spinePoints[i].y) / 2;
+                    ctx.quadraticCurveTo(spinePoints[i - 1].x, spinePoints[i - 1].y, xc, yc);
+                }
+                const last = spinePoints[spinePoints.length - 1];
+                ctx.lineTo(last.x, last.y);
+
+                // Outer fluid sheen
+                ctx.strokeStyle = 'rgba(147, 197, 253, 0.45)';
+                ctx.lineWidth = 18;
+                ctx.lineCap = 'round';
+                ctx.filter = 'blur(4px)';
+                ctx.stroke();
+
+                // Inner bright water core
+                ctx.strokeStyle = 'rgba(219, 234, 254, 0.65)';
+                ctx.lineWidth = 9;
+                ctx.filter = 'blur(1.5px)';
+                ctx.stroke();
+                ctx.restore();
+            }
+        }
+
+        // 2. Physics & Draw for falling water droplets
+        for (let i = waterParticles.length - 1; i >= 0; i--) {
+            const p = waterParticles[i];
+            p.vy += 0.52; // Gravity acceleration
+            p.x += p.vx;
+            p.y += p.vy;
+
+            // When water hits the fire/logs
+            if (p.y >= logTargetY) {
+                if (!waterHitFire && elapsed > 550) {
+                    waterHitFire = true;
+                    if (dyingFlames) dyingFlames.classList.add("quenched");
+                }
+
+                // Impact splash droplets erupting symmetrically around middle of the logs
+                const splashNum = 2 + Math.floor(Math.random() * 3);
+                for (let s = 0; s < splashNum; s++) {
+                    splashParticles.push({
+                        x: p.x,
+                        y: logTargetY - 2,
+                        vx: (Math.random() - 0.5) * 6.5,
+                        vy: -Math.random() * 4.5 - 1.5,
+                        size: 2.0 + Math.random() * 2.0,
+                        alpha: 0.85,
+                        life: 1.0,
+                        decay: 0.045 + Math.random() * 0.04
+                    });
+                }
+
+                // Rising steam puffs billowing right over the center of the hearth logs (x = 160)
+                if (Math.random() < 0.65) {
+                    steamParticles.push({
+                        x: 160 + (Math.random() - 0.5) * 26,
+                        y: logTargetY - 8,
+                        vx: (Math.random() - 0.5) * 1.3,
+                        vy: -1.6 - Math.random() * 2.2,
+                        radius: 10 + Math.random() * 12,
+                        maxRadius: 32 + Math.random() * 22,
+                        alpha: 0.75,
+                        decay: 0.015 + Math.random() * 0.012
+                    });
+                }
+
+                waterParticles.splice(i, 1);
+                continue;
+            }
+
+            // Draw falling droplet elongated along velocity vector
+            ctx.fillStyle = p.color;
+            ctx.globalAlpha = p.alpha;
+            ctx.beginPath();
+            ctx.ellipse(p.x, p.y, p.size * 0.75, p.size * 1.5, Math.atan2(p.vy, p.vx), 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // 3. Update & Draw Splash Particles
+        for (let i = splashParticles.length - 1; i >= 0; i--) {
+            const sp = splashParticles[i];
+            sp.vy += 0.42;
+            sp.x += sp.vx;
+            sp.y += sp.vy;
+            sp.life -= sp.decay;
+
+            if (sp.life <= 0) {
+                splashParticles.splice(i, 1);
+                continue;
+            }
+
+            ctx.fillStyle = '#dbeafe';
+            ctx.globalAlpha = sp.alpha * sp.life;
+            ctx.beginPath();
+            ctx.arc(sp.x, sp.y, sp.size, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // 4. Update & Draw Rising Steam Clouds centered directly over the fire
+        for (let i = steamParticles.length - 1; i >= 0; i--) {
+            const st = steamParticles[i];
+            st.x += st.vx;
+            st.y += st.vy;
+            st.radius += 0.48;
+            st.alpha -= st.decay;
+
+            if (st.alpha <= 0 || st.y < 30) {
+                steamParticles.splice(i, 1);
+                continue;
+            }
+
+            const grad = ctx.createRadialGradient(st.x, st.y, 0, st.x, st.y, st.radius);
+            grad.addColorStop(0, `rgba(245, 248, 255, ${st.alpha * 0.75})`);
+            grad.addColorStop(0.5, `rgba(225, 235, 250, ${st.alpha * 0.45})`);
+            grad.addColorStop(1, 'rgba(210, 225, 245, 0)');
+
+            ctx.fillStyle = grad;
+            ctx.globalAlpha = 1;
+            ctx.beginPath();
+            ctx.arc(st.x, st.y, st.radius, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        ctx.globalAlpha = 1;
+
+        if (elapsed < 2700) {
+            waterAnimFrameId = requestAnimationFrame(renderWaterSim);
+        }
+    }
+
+    // Step 1: Bucket tilts to pour (300ms)
+    setTimeout(() => {
+        if (bucket) bucket.classList.add("pouring");
+    }, 300);
+
+    // Step 2: Water begins pouring out of the bucket mouth (500ms)
+    setTimeout(() => {
+        isPouring = true;
+    }, 500);
+
+    // Step 3: Bucket finishes pouring (1500ms)
+    setTimeout(() => {
+        isPouring = false;
+    }, 1500);
+
+    // Step 4: Fade out overlay (2300ms)
+    setTimeout(() => {
+        overlay.style.transition = "opacity 0.45s ease";
+        overlay.style.opacity = "0";
+    }, 2300);
+
+    // Step 5: Complete & close (2800ms)
+    setTimeout(() => {
+        if (waterAnimFrameId) {
+            cancelAnimationFrame(waterAnimFrameId);
+            waterAnimFrameId = null;
+        }
+        overlay.style.display = "none";
+        overlay.style.opacity = "1";
+        overlay.style.transition = "";
+        if (onComplete) onComplete();
+    }, 2800);
+
+    // Start simulation loop
+    waterAnimFrameId = requestAnimationFrame(renderWaterSim);
+}
+
+/**
+ * Activates Bonfire mode locally, transitioning the Send tab into the Bonfire tab.
+ */
+function activateBonfire(logEpochMs, isFlare = true) {
+    bonfireState.active = true;
+    bonfireState.lastLogEpoch = logEpochMs || Date.now();
+    if (isFlare) {
+        bonfireState.isFlaring = true;
+        bonfireState.flareStartTime = Date.now();
+    }
+
+    const toggle = document.getElementById("bonfireToggle");
+    if (toggle) toggle.checked = true;
+
+    setBonfireModeUI(true);
+    startBonfireCountdown();
+    startBonfireCanvas();
+}
+
+/**
+ * Deactivates Bonfire mode locally, restoring the Send tab.
+ */
+function deactivateBonfire() {
+    bonfireState.active = false;
+    bonfireState.isFlaring = false;
+    bonfireState.lastLogEpoch = 0;
+
+    const toggle = document.getElementById("bonfireToggle");
+    if (toggle) toggle.checked = false;
+
+    stopBonfireCountdown();
+    stopBonfireCanvas();
+    setBonfireModeUI(false);
+}
+
+/**
+ * Switches the primary Partner View between Send mode and Bonfire mode.
+ */
+function setBonfireModeUI(isActive) {
+    const sendContainer = document.getElementById("partnerSendContainer");
+    const bonfireContainer = document.getElementById("partnerBonfireContainer");
+    const navSend = document.getElementById("navSend");
+    const pageTitle = document.getElementById("pageTitle");
+
+    if (isActive) {
+        if (sendContainer) sendContainer.style.display = "none";
+        if (bonfireContainer) bonfireContainer.style.display = "flex";
+
+        if (navSend) {
+            navSend.classList.add("bonfire-active");
+            const icon = navSend.querySelector(".material-icons-round");
+            const label = navSend.querySelector("span:not(.material-icons-round)");
+            if (icon) icon.innerText = "local_fire_department";
+            if (label) label.innerText = "Bonfire";
+        }
+        if (pageTitle && document.getElementById("view-partner").classList.contains("active")) {
+            pageTitle.innerText = "Virtual Bonfire";
+        }
+    } else {
+        if (bonfireContainer) bonfireContainer.style.display = "none";
+        if (sendContainer) sendContainer.style.display = "block";
+
+        if (navSend) {
+            navSend.classList.remove("bonfire-active");
+            const icon = navSend.querySelector(".material-icons-round");
+            const label = navSend.querySelector("span:not(.material-icons-round)");
+            if (icon) icon.innerText = "send";
+            if (label) label.innerText = "Send";
+        }
+        if (pageTitle && document.getElementById("view-partner").classList.contains("active")) {
+            pageTitle.innerText = "My Group";
+        }
+    }
+
+    // Refresh groups page in case it's currently rendered
+    if (document.getElementById("view-groups") && document.getElementById("view-groups").classList.contains("active")) {
+        renderGroupsPage();
+    }
+}
+
+/**
+ * Countdown timer loop (updates every second).
+ */
+function startBonfireCountdown() {
+    stopBonfireCountdown();
+    updateBonfireTimerUI();
+    bonfireCountdownInterval = setInterval(updateBonfireTimerUI, 1000);
+}
+
+function stopBonfireCountdown() {
+    if (bonfireCountdownInterval) {
+        clearInterval(bonfireCountdownInterval);
+        bonfireCountdownInterval = null;
+    }
+}
+
+function updateBonfireTimerUI() {
+    if (!bonfireState.active || bonfireState.lastLogEpoch === 0) return;
+
+    const now = Date.now();
+    const elapsedMs = now - bonfireState.lastLogEpoch;
+    const elapsedMinutes = elapsedMs / 60000.0;
+    const totalDurationMs = 60 * 60 * 1000;
+    const remainingMs = Math.max(0, totalDurationMs - elapsedMs);
+
+    // Check timeout: 60 minutes with no log added
+    if (remainingMs <= 0) {
+        deactivateBonfire();
+        return;
+    }
+
+    // Format remaining time MM:SS
+    const totalSec = Math.floor(remainingMs / 1000);
+    const m = Math.floor(totalSec / 60);
+    const s = totalSec % 60;
+    const timeStr = `${m}:${s < 10 ? '0' : ''}${s}`;
+
+    const timerEl = document.getElementById("bonfireTimerText");
+    if (timerEl) timerEl.innerText = `Fire dies in ${timeStr}`;
+
+    // Stage text
+    const stageBadge = document.getElementById("bonfireStageBadge");
+    if (stageBadge) {
+        if (bonfireState.isFlaring) {
+            stageBadge.innerText = "Flaring strong";
+            stageBadge.style.color = "#ffd166";
+        } else if (elapsedMinutes <= 30) {
+            stageBadge.innerText = "Roaring strong";
+            stageBadge.style.color = "var(--accent)";
+        } else {
+            const dyingFraction = (elapsedMinutes - 30.0) / 30.0;
+            const remainingPerceived = Math.max(0, Math.round((1.0 - dyingFraction) * 75));
+            stageBadge.innerText = `Dying down (${remainingPerceived}%)`;
+            stageBadge.style.color = "var(--text-dim)";
+        }
+    }
+
+    // Subheading with partner name
+    const subheading = document.getElementById("bonfireSubheading");
+    if (subheading) {
+        subheading.innerText = `Co-presence glow synchronized with ${partnerName || 'your partner'}.`;
+    }
+}
+
+/**
+ * Procedural Organic Canvas Fire Simulation matching lamp flame brightness.
+ */
+let flameParticles = [];
+let emberSparks = [];
+
+function startBonfireCanvas() {
+    stopBonfireCanvas();
+    const canvas = document.getElementById("bonfireCanvas");
+    if (!canvas) return;
+
+    flameParticles = [];
+    emberSparks = [];
+
+    const ctx = canvas.getContext("2d");
+
+    function renderLoop() {
+        renderBonfireCanvasFrame(canvas, ctx);
+        bonfireCanvasAnimId = requestAnimationFrame(renderLoop);
+    }
+    bonfireCanvasAnimId = requestAnimationFrame(renderLoop);
+}
+
+function stopBonfireCanvas() {
+    if (bonfireCanvasAnimId) {
+        cancelAnimationFrame(bonfireCanvasAnimId);
+        bonfireCanvasAnimId = null;
+    }
+    flameParticles = [];
+    emberSparks = [];
+}
+
+function renderBonfireCanvasFrame(canvas, ctx) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (!bonfireState.active || bonfireState.lastLogEpoch === 0) return;
+
+    const now = Date.now();
+    const elapsedMinutes = (now - bonfireState.lastLogEpoch) / 60000.0;
+
+    // Calculate current perceived intensity I matching lamp firmware
+    let intensity = 0.75;
+    if (bonfireState.isFlaring) {
+        const flareSec = (now - bonfireState.flareStartTime) / 1000.0;
+        if (flareSec < 15.0) {
+            intensity = 1.0 - (flareSec / 15.0) * 0.25;
+        } else {
+            bonfireState.isFlaring = false;
+            intensity = 0.75;
+        }
+    } else if (elapsedMinutes > 30.0) {
+        const dyingFraction = (elapsedMinutes - 30.0) / 30.0;
+        intensity = Math.max(0.01, 0.75 * (1.0 - dyingFraction));
+    }
+
+    // Origin of fire hearth
+    const originX = canvas.width / 2;
+    const originY = canvas.height - 24;
+
+    // Spawn new flame particles based on intensity
+    const spawnRate = Math.floor(4 * (intensity / 0.75));
+    for (let i = 0; i < spawnRate; i++) {
+        flameParticles.push({
+            x: originX + (Math.random() - 0.5) * 60,
+            y: originY + (Math.random() - 0.5) * 8,
+            vx: (Math.random() - 0.5) * 0.8,
+            vy: -(1.8 + Math.random() * 2.8) * (intensity / 0.75),
+            size: (16 + Math.random() * 20) * (intensity / 0.75),
+            maxLife: 35 + Math.random() * 25,
+            life: 0,
+            heat: 1.0
+        });
+    }
+
+    // Spawn occasional rising ember sparks
+    if (Math.random() < 0.35 * (intensity / 0.75)) {
+        emberSparks.push({
+            x: originX + (Math.random() - 0.5) * 50,
+            y: originY - 10,
+            vx: (Math.random() - 0.5) * 1.5,
+            vy: -(2.5 + Math.random() * 3.5),
+            size: 1.5 + Math.random() * 2.5,
+            life: 0,
+            maxLife: 45 + Math.random() * 40,
+            driftFreq: 0.05 + Math.random() * 0.08
+        });
+    }
+
+    // Draw flame particles with additive blending
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+
+    for (let i = flameParticles.length - 1; i >= 0; i--) {
+        const p = flameParticles[i];
+        p.life++;
+        p.x += p.vx + Math.sin(p.life * 0.1) * 0.4;
+        p.y += p.vy;
+        p.size *= 0.96;
+
+        const progress = p.life / p.maxLife;
+        if (progress >= 1.0 || p.size < 1.0) {
+            flameParticles.splice(i, 1);
+            continue;
+        }
+
+        // Color shift from hot core to outer flame mantle
+        let r = 255, g = 100, b = 20, alpha = (1.0 - progress) * 0.8;
+        if (progress < 0.25) {
+            // White-gold core
+            r = 255;
+            g = Math.floor(220 * intensity);
+            b = Math.floor(100 * intensity);
+        } else if (progress < 0.65) {
+            // Vibrant orange
+            r = 255;
+            g = Math.floor(120 * intensity);
+            b = 10;
+        } else {
+            // Deep crimson amber
+            r = Math.floor(200 * intensity);
+            g = Math.floor(40 * intensity);
+            b = 0;
+        }
+
+        const rad = Math.max(1, p.size);
+        const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, rad);
+        grad.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${alpha})`);
+        grad.addColorStop(0.6, `rgba(${r}, ${Math.floor(g * 0.6)}, 0, ${alpha * 0.5})`);
+        grad.addColorStop(1, `rgba(${r}, 0, 0, 0)`);
+
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, rad, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // Draw rising ember sparks
+    for (let i = emberSparks.length - 1; i >= 0; i--) {
+        const s = emberSparks[i];
+        s.life++;
+        s.x += s.vx + Math.sin(s.life * s.driftFreq) * 0.8;
+        s.y += s.vy;
+
+        const progress = s.life / s.maxLife;
+        if (progress >= 1.0) {
+            emberSparks.splice(i, 1);
+            continue;
+        }
+
+        const alpha = (1.0 - progress);
+        ctx.fillStyle = `rgba(255, ${Math.floor(200 + Math.random() * 55)}, 60, ${alpha})`;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    ctx.restore();
+}
+
+/**
+ * Action: User clicks "Add Log" in Bonfire tab.
+ * Does NOT update lastTapTimestamp. Spikes fire to 100% flare.
+ */
+function handleAddLogFromUI() {
+    if (!mqttClient || !mqttClient.connected) {
+        showToast("Cannot add log: Not connected to lamp network.", "error");
+        return;
+    }
+
+    const nowSec = Math.floor(Date.now() / 1000);
+    const payload = `ON:${nowSec}`;
+
+    // Retained state topic
+    mqttClient.publish(getTopic(myDeviceId, "bonfire"), payload, { retain: true, qos: 1 });
+    mqttClient.publish(getTopic(partnerDeviceId, "bonfire"), payload, { retain: true, qos: 1 });
+
+    // Direct log trigger command
+    mqttClient.publish(getTopic(myDeviceId, "color_trigger"), "BONFIRE:LOG");
+    mqttClient.publish(getTopic(partnerDeviceId, "color_trigger"), "BONFIRE:LOG");
+
+    // Local flare spike
+    bonfireState.active = true;
+    bonfireState.lastLogEpoch = nowSec * 1000;
+    bonfireState.isFlaring = true;
+    bonfireState.flareStartTime = Date.now();
+
+    updateBonfireTimerUI();
+    showToast("Added a log to the fire. Flames roaring strong.");
+}
+
+/**
+ * Action: User clicks "Put Out Fire" in Bonfire tab.
+ * Plays the full-screen Water Bucket animation and extinguishes fire.
+ */
+function handleExtinguishFromUI() {
+    playWaterBucketAnimation(() => {
+        if (mqttClient && mqttClient.connected) {
+            mqttClient.publish(getTopic(myDeviceId, "bonfire"), "OFF", { retain: true, qos: 1 });
+            mqttClient.publish(getTopic(partnerDeviceId, "bonfire"), "OFF", { retain: true, qos: 1 });
+            mqttClient.publish(getTopic(myDeviceId, "color_trigger"), "BONFIRE:STOP");
+            mqttClient.publish(getTopic(partnerDeviceId, "color_trigger"), "BONFIRE:STOP");
+        }
+        deactivateBonfire();
+    });
+}
+
+/**
+ * Remote or Retained Bonfire message handler on the primary MQTT connection.
+ */
+function handleIncomingBonfireMessage(msg) {
+    if (msg.startsWith("ON:")) {
+        const epochSec = parseInt(msg.substring(3), 10);
+        if (isNaN(epochSec) || epochSec <= 0) return;
+
+        const epochMs = epochSec * 1000;
+        const elapsedMs = Date.now() - epochMs;
+
+        // If retained message is older than 60 minutes, clean it up
+        if (elapsedMs >= 60 * 60 * 1000) {
+            console.log("Incoming retained bonfire is older than 60m — extinguishing.");
+            if (mqttClient && mqttClient.connected) {
+                mqttClient.publish(getTopic(myDeviceId, "bonfire"), "OFF", { retain: true, qos: 1 });
+            }
+            if (bonfireState.active) deactivateBonfire();
+            return;
+        }
+
+        // Active bonfire!
+        if (!bonfireState.active) {
+            activateBonfire(epochMs, false);
+        } else {
+            // Log was added remotely
+            bonfireState.lastLogEpoch = epochMs;
+            bonfireState.isFlaring = true;
+            bonfireState.flareStartTime = Date.now();
+            updateBonfireTimerUI();
+        }
+    } else if (msg === "OFF" || msg.startsWith("OFF:")) {
+        if (bonfireState.active) {
+            deactivateBonfire();
+        }
+    }
+}
+
+/**
+ * Groups Page Actions & Synchronization
+ */
+function handleGroupBonfireTap(uid) {
+    handleGroupAddLog(uid);
+}
+
+function handleGroupAddLog(uid, event) {
+    if (event) event.stopPropagation();
+
+    // If this is currently the active account, route through primary handler
+    const activeUid = localStorage.getItem("ll_uid");
+    if (uid === activeUid) {
+        handleAddLogFromUI();
+        return;
+    }
+
+    const state = backgroundMqttClients[uid];
+    if (!state || !state.client || !state.client.connected) {
+        showToast("Not connected to this group's lamp network.", "error");
+        return;
+    }
+
+    const decoded = decodeUID(uid);
+    if (!decoded) return;
+
+    const myDevId = decoded.id.toUpperCase() === "B" ? "B" : "A";
+    const partnerDevId = myDevId === "A" ? "B" : "A";
+    const delim = decoded.d || "/";
+
+    function getAccTopic(devId, suffix) {
+        if (delim === "_" && decoded.u) {
+            const cleanSuffix = suffix.replace(/\//g, "_");
+            return `${decoded.u}/f/ll_${devId}_${cleanSuffix}`;
+        }
+        return `linkedlamp/${devId}/${suffix}`;
+    }
+
+    const nowSec = Math.floor(Date.now() / 1000);
+    const payload = `ON:${nowSec}`;
+
+    state.client.publish(getAccTopic(myDevId, "bonfire"), payload, { retain: true, qos: 1 });
+    state.client.publish(getAccTopic(partnerDevId, "bonfire"), payload, { retain: true, qos: 1 });
+    state.client.publish(getAccTopic(myDevId, "color_trigger"), "BONFIRE:LOG");
+    state.client.publish(getAccTopic(partnerDevId, "color_trigger"), "BONFIRE:LOG");
+
+    state.bonfireActive = true;
+    state.lastBonfireLogEpoch = nowSec * 1000;
+
+    showToast("Added a log to the fire.");
+}
+
+function handleGroupExtinguish(uid, event) {
+    if (event) event.stopPropagation();
+
+    // Trigger full-screen water bucket animation
+    playWaterBucketAnimation(() => {
+        const activeUid = localStorage.getItem("ll_uid");
+        if (uid === activeUid) {
+            if (mqttClient && mqttClient.connected) {
+                mqttClient.publish(getTopic(myDeviceId, "bonfire"), "OFF", { retain: true, qos: 1 });
+                mqttClient.publish(getTopic(partnerDeviceId, "bonfire"), "OFF", { retain: true, qos: 1 });
+                mqttClient.publish(getTopic(myDeviceId, "color_trigger"), "BONFIRE:STOP");
+                mqttClient.publish(getTopic(partnerDeviceId, "color_trigger"), "BONFIRE:STOP");
+            }
+            deactivateBonfire();
+        } else {
+            const state = backgroundMqttClients[uid];
+            if (state && state.client && state.client.connected) {
+                const decoded = decodeUID(uid);
+                if (decoded) {
+                    const myDevId = decoded.id.toUpperCase() === "B" ? "B" : "A";
+                    const partnerDevId = myDevId === "A" ? "B" : "A";
+                    const delim = decoded.d || "/";
+                    function getAccTopic(devId, suffix) {
+                        if (delim === "_" && decoded.u) {
+                            return `${decoded.u}/f/ll_${devId}_${suffix.replace(/\//g, "_")}`;
+                        }
+                        return `linkedlamp/${devId}/${suffix}`;
+                    }
+                    state.client.publish(getAccTopic(myDevId, "bonfire"), "OFF", { retain: true, qos: 1 });
+                    state.client.publish(getAccTopic(partnerDevId, "bonfire"), "OFF", { retain: true, qos: 1 });
+                    state.client.publish(getAccTopic(myDevId, "color_trigger"), "BONFIRE:STOP");
+                    state.client.publish(getAccTopic(partnerDevId, "color_trigger"), "BONFIRE:STOP");
+                }
+                state.bonfireActive = false;
+            }
+        }
+        renderGroupsPage();
+    });
+}
+
+function handleGroupIncomingBonfireMessage(uid, msg) {
+    const state = backgroundMqttClients[uid];
+    if (!state) return;
+
+    if (msg.startsWith("ON:")) {
+        const epochSec = parseInt(msg.substring(3), 10);
+        if (!isNaN(epochSec) && epochSec > 0) {
+            const elapsed = Date.now() - (epochSec * 1000);
+            if (elapsed < 60 * 60 * 1000) {
+                state.bonfireActive = true;
+                state.lastBonfireLogEpoch = epochSec * 1000;
+            } else {
+                state.bonfireActive = false;
+            }
+        }
+    } else if (msg === "OFF" || msg.startsWith("OFF:")) {
+        state.bonfireActive = false;
+    }
+
+    // If groups view is currently active, re-render
+    if (document.getElementById("view-groups") && document.getElementById("view-groups").classList.contains("active")) {
+        renderGroupsPage();
+    }
+}
+
+/**
+ * Toast Notification Utility
+ */
+function showToast(message, type = "info") {
+    let toast = document.getElementById("appToast");
+    if (!toast) {
+        toast = document.createElement("div");
+        toast.id = "appToast";
+        toast.style.position = "fixed";
+        toast.style.bottom = "85px";
+        toast.style.left = "50%";
+        toast.style.transform = "translateX(-50%) translateY(20px)";
+        toast.style.background = "rgba(18, 20, 30, 0.95)";
+        toast.style.color = "#ffffff";
+        toast.style.padding = "10px 18px";
+        toast.style.borderRadius = "12px";
+        toast.style.border = "1px solid rgba(255, 255, 255, 0.15)";
+        toast.style.boxShadow = "0 8px 24px rgba(0, 0, 0, 0.6)";
+        toast.style.backdropFilter = "blur(10px)";
+        toast.style.webkitBackdropFilter = "blur(10px)";
+        toast.style.fontFamily = "var(--font)";
+        toast.style.fontSize = "0.88rem";
+        toast.style.fontWeight = "500";
+        toast.style.zIndex = "999999";
+        toast.style.pointerEvents = "none";
+        toast.style.opacity = "0";
+        toast.style.transition = "opacity 0.25s ease, transform 0.25s ease";
+        document.body.appendChild(toast);
+    }
+
+    if (type === "error") {
+        toast.style.borderColor = "rgba(255, 71, 87, 0.5)";
+        toast.style.color = "#ff6b81";
+    } else {
+        toast.style.borderColor = "rgba(255, 152, 0, 0.4)";
+        toast.style.color = "#ffffff";
+    }
+
+    toast.innerText = message;
+    toast.style.opacity = "1";
+    toast.style.transform = "translateX(-50%) translateY(0)";
+
+    if (window._toastTimer) clearTimeout(window._toastTimer);
+    window._toastTimer = setTimeout(() => {
+        toast.style.opacity = "0";
+        toast.style.transform = "translateX(-50%) translateY(20px)";
+    }, 3200);
+}
+
 

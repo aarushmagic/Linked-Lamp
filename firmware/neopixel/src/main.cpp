@@ -179,8 +179,18 @@ const unsigned long WIFI_RESTART_TIMEOUT  = 300000; // Reboot threshold (ms) on 
 // Persistent RTC memory (survives soft resets)
 RTC_NOINIT_ATTR uint32_t rtcBootMarker;
 RTC_NOINIT_ATTR bool rtcLastKnownIsNight;
+RTC_NOINIT_ATTR bool rtcBonfireActive;
+RTC_NOINIT_ATTR uint64_t rtcLastBonfireLogEpoch;
 const uint32_t BOOT_MARKER_VALUE = 0xCAFEBEEF;
 bool isColdBoot = false;
+
+// =============================================================================
+// Virtual Bonfire State (Co-Presence Glow) - Zero Flash Writes
+// =============================================================================
+bool          isBonfireActive     = false;
+uint64_t      lastBonfireLogEpoch = 0;
+uint64_t      flareStartEpoch     = 0;
+bool          isBonfireFlaring    = false;
 
 // MQTT connection state
 unsigned long  lastMqttReconnectAttempt = 0;
@@ -203,6 +213,8 @@ String settingsTopicSub;
 String statusTopicPub;
 String partnerStatusTopicSub;    // Subscribes to partner primary status
 String partnerSupStatusTopicSub; // Subscribes to partner secondary status
+String bonfireTopicSub;          // Retained bonfire state topic
+String bonfireTopicPub;          // Partner bonfire state topic
 
 // =============================================================================
 // Function Prototypes
@@ -234,6 +246,11 @@ void parseColorCycle(String payload);
 void serialCommandTask(void *pvParameters);
 void processSerialCommand(String cmd);
 void detectRole();
+uint64_t getEpochMs();
+void startBonfire(uint64_t logEpoch, bool publishMqtt);
+void addBonfireLog(bool publishMqtt);
+void extinguishBonfire(bool publishMqtt, const char* reason);
+void renderBonfireFrame(uint64_t epochMs);
 
 // =============================================================================
 // Setup
@@ -248,10 +265,18 @@ void setup() {
     isColdBoot = true;
     rtcBootMarker = BOOT_MARKER_VALUE;
     rtcLastKnownIsNight = false; // Default to day on cold boot
+    rtcBonfireActive = false;
+    rtcLastBonfireLogEpoch = 0;
     Serial.println("Cold boot detected (power cycle).");
   } else {
     isColdBoot = false;
     Serial.println("Software restart detected.");
+    if (rtcBonfireActive && rtcLastBonfireLogEpoch > 0) {
+      isBonfireActive = true;
+      lastBonfireLogEpoch = rtcLastBonfireLogEpoch;
+      isLampOn = true;
+      Serial.println("Restored active Bonfire from RTC memory.");
+    }
   }
 
   setupPins();
@@ -283,6 +308,8 @@ void setup() {
   triggerTopicSub  = topicPrefix + device_id + d_sep + "color_trigger";
   settingsTopicSub = topicPrefix + device_id + d_sep + "settings";
   triggerTopicPub  = topicPrefix + target_id + d_sep + "color_trigger";
+  bonfireTopicSub  = topicPrefix + device_id + d_sep + "bonfire";
+  bonfireTopicPub  = topicPrefix + target_id + d_sep + "bonfire";
 
   // Set status topic suffix based on primary/secondary role
   if (isSupplementary) {
@@ -659,6 +686,7 @@ void handleMqttReconnect() {
     // Subscribe to control and config feeds
     mqttClient.subscribe(triggerTopicSub.c_str());
     mqttClient.subscribe(settingsTopicSub.c_str());
+    mqttClient.subscribe(bonfireTopicSub.c_str());
     mqttClient.subscribe(statusTopicPub.c_str()); // Monitor own channel to prevent stale offline updates
 
     // Commit firmware write in NVS
@@ -687,6 +715,31 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   String msg((char*)payload, length); // Avoid byte-by-byte fragmentation
 
   Serial.println("MQTT [" + topicStr + "] " + msg);
+
+  if (topicStr == bonfireTopicSub) {
+    if (msg.startsWith("ON:")) {
+      unsigned long sec = strtoul(msg.substring(3).c_str(), NULL, 10);
+      uint64_t epochMs = (uint64_t)sec * 1000ULL;
+      uint64_t now = getEpochMs();
+      if (now > epochMs && (now - epochMs) >= 3600000ULL) {
+        Serial.println("Retained Bonfire is older than 60 minutes — extinguishing.");
+        extinguishBonfire(false, "retained_expired");
+      } else {
+        if (!isBonfireActive) {
+          startBonfire(epochMs, false);
+        } else {
+          lastBonfireLogEpoch = epochMs;
+          flareStartEpoch = now;
+          isBonfireFlaring = true;
+          rtcLastBonfireLogEpoch = epochMs;
+          Serial.println("Bonfire log updated from retained MQTT topic.");
+        }
+      }
+    } else if (msg.startsWith("OFF")) {
+      extinguishBonfire(false, msg.c_str());
+    }
+    return;
+  }
 
   if (topicStr == triggerTopicSub) {
     // Process control actions (OTA triggers, cycles, color updates)
@@ -720,6 +773,29 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       }
 
       performOTA(url);
+      return;
+    }
+
+    // Direct Bonfire commands via trigger topic
+    if (msg == "BONFIRE:START") {
+      startBonfire(0, false);
+      return;
+    }
+    if (msg == "BONFIRE:LOG") {
+      addBonfireLog(false);
+      return;
+    }
+    if (msg.startsWith("BONFIRE:STOP") || msg.startsWith("BONFIRE:OFF")) {
+      extinguishBonfire(false, msg.c_str());
+      return;
+    }
+
+    // If Bonfire is active: no colored taps or cycle signals can override it!
+    // Any color tap or color cycle tap is intercepted as adding a log to the fire.
+    // Crucial: Added logs DO NOT update lastTapTimestamp!
+    if (isBonfireActive) {
+      Serial.println("Signal received during active Bonfire: Adding log to fire!");
+      addBonfireLog(false);
       return;
     }
 
@@ -1096,17 +1172,19 @@ void handleTouch() {
     unsigned long holdTime = millis() - touchStartTime;
 
     if (holdTime > 1500 && !longPressTriggered) {
-      // Seed color spectrum cycling from active default
-      hue = hexToHue(defaultColor);
-      cycleStartHue = hue;
-      cycleStartTimeMs = millis();
-      longPressTriggered = true;
+      if (!isBonfireActive) {
+        // Seed color spectrum cycling from active default (suppressed during bonfire)
+        hue = hexToHue(defaultColor);
+        cycleStartHue = hue;
+        cycleStartTimeMs = millis();
+        longPressTriggered = true;
 
-      // Backup state before spectrum cycle override
-      prePickR = currentR;
-      prePickG = currentG;
-      prePickB = currentB;
-      wasLampOnBeforePick = isLampOn;
+        // Backup state before spectrum cycle override
+        prePickR = currentR;
+        prePickG = currentG;
+        prePickB = currentB;
+        wasLampOnBeforePick = isLampOn;
+      }
     }
 
     if (longPressTriggered) {
@@ -1178,6 +1256,13 @@ void doActionBasedOnTaps() {
   Serial.printf("Tap Count: %d\n", tapCount);
 
   if (tapCount == 1) {
+    if (isBonfireActive) {
+      Serial.println("Single Tap in Bonfire: Adding log to fire!");
+      addBonfireLog(true);
+      // Crucial: Added logs DO NOT update lastTapTimestamp!
+      return;
+    }
+
     // Tap gesture handler: publishes local default color to paired device
     Serial.println("Single Tap: Sending Signal!");
 
@@ -1210,6 +1295,12 @@ void doActionBasedOnTaps() {
     }
 
   } else if (tapCount == 2) {
+    if (isBonfireActive) {
+      Serial.println("Double Tap in Bonfire: Extinguishing fire!");
+      extinguishBonfire(true, "double_tap");
+      return;
+    }
+
     // Double tap gesture: forces lamp shutdown
     if (isLampOn) {
       
@@ -1317,6 +1408,17 @@ void handleLEDs() {
       Serial.println("Color pick flash ended. Reverted to previous state.");
     }
     return; 
+  }
+
+  if (isBonfireActive) {
+    if (nightModeEnabled && isNighttime()) {
+      Serial.println("Night mode active — extinguishing Virtual Bonfire.");
+      extinguishBonfire(true, "night");
+      return;
+    }
+    uint64_t now = getEpochMs();
+    renderBonfireFrame(now);
+    return;
   }
 
   if (!isLampOn) {
@@ -1564,6 +1666,223 @@ float hexToHue(String hexColor) {
 
   if (h < 0) h += 360.0;
   return h;
+}
+
+// =============================================================================
+// Virtual Bonfire Logic & Helpers (Zero Flash Writes)
+// =============================================================================
+
+uint64_t getEpochMs() {
+  struct timeval tv;
+  if (gettimeofday(&tv, NULL) == 0 && tv.tv_sec > 1600000000) {
+    return (uint64_t)tv.tv_sec * 1000ULL + (tv.tv_usec / 1000ULL);
+  }
+  return (uint64_t)millis();
+}
+
+void startBonfire(uint64_t logEpoch, bool publishMqtt) {
+  // Prevent ignition if night mode is currently active
+  if (nightModeEnabled && isNighttime()) {
+    Serial.println("Bonfire Blocked: Lamp is currently in Night Mode.");
+    if (publishMqtt && mqttClient.connected()) {
+      mqttClient.publish(bonfireTopicPub.c_str(), "OFF:NIGHT", true);
+      mqttClient.publish(bonfireTopicSub.c_str(), "OFF:NIGHT", true);
+    }
+    return;
+  }
+
+  isBonfireActive = true;
+  isLampOn = true;
+  isPulsing = false;
+  isTransitioning = false;
+  isColorCycling = false;
+  isSendFlashing = false;
+  isColorPickFlashing = false;
+
+  uint64_t now = getEpochMs();
+  if (logEpoch == 0) logEpoch = now;
+  lastBonfireLogEpoch = logEpoch;
+  flareStartEpoch = now;
+  isBonfireFlaring = true;
+
+  rtcBonfireActive = true;
+  rtcLastBonfireLogEpoch = logEpoch;
+
+  Serial.println("Virtual Bonfire Ignited! Base brightness 75%, initial flare 100%.");
+
+  if (publishMqtt && mqttClient.connected()) {
+    String payload = "ON:" + String((unsigned long)(logEpoch / 1000ULL));
+    mqttClient.publish(bonfireTopicPub.c_str(), payload.c_str(), true);
+    mqttClient.publish(bonfireTopicSub.c_str(), payload.c_str(), true);
+  }
+}
+
+void addBonfireLog(bool publishMqtt) {
+  if (!isBonfireActive) {
+    startBonfire(0, publishMqtt);
+    return;
+  }
+
+  uint64_t now = getEpochMs();
+  lastBonfireLogEpoch = now;
+  flareStartEpoch = now;
+  isBonfireFlaring = true;
+
+  rtcLastBonfireLogEpoch = now;
+  Serial.println("Log added to Virtual Bonfire! Flaring to 100%.");
+
+  if (publishMqtt && mqttClient.connected()) {
+    String payload = "ON:" + String((unsigned long)(now / 1000ULL));
+    mqttClient.publish(bonfireTopicPub.c_str(), payload.c_str(), true);
+    mqttClient.publish(bonfireTopicSub.c_str(), payload.c_str(), true);
+  }
+}
+
+void extinguishBonfire(bool publishMqtt, const char* reason) {
+  if (!isBonfireActive && !rtcBonfireActive) return;
+
+  Serial.printf("Extinguishing Virtual Bonfire (reason: %s)\n", reason ? reason : "manual");
+  isBonfireActive = false;
+  isBonfireFlaring = false;
+  rtcBonfireActive = false;
+  rtcLastBonfireLogEpoch = 0;
+
+  isLampOn = false;
+  setRGB(0, 0, 0); // Standby (handleLEDs will manage ambient mode if enabled)
+
+  if (publishMqtt && mqttClient.connected()) {
+    String payload = "OFF";
+    if (reason && (strcmp(reason, "night") == 0 || strstr(reason, "NIGHT") != NULL)) {
+      payload = "OFF:NIGHT";
+    }
+    mqttClient.publish(bonfireTopicPub.c_str(), payload.c_str(), true);
+    mqttClient.publish(bonfireTopicSub.c_str(), payload.c_str(), true);
+  }
+}
+
+// =============================================================================
+// Virtual Bonfire Organic Fire Animation Helpers & Rendering
+// =============================================================================
+
+inline float hashNoise1D(uint32_t x) {
+  x = ((x >> 16) ^ x) * 0x45d9f3b;
+  x = ((x >> 16) ^ x) * 0x45d9f3b;
+  x = (x >> 16) ^ x;
+  return (float)(x & 0xFFFF) / 65535.0f; // 0.0 to 1.0
+}
+
+inline float smoothNoise(float t) {
+  int32_t i0 = (int32_t)floorf(t);
+  int32_t i1 = i0 + 1;
+  float f = t - (float)i0;
+  // Quintic Hermite interpolant: 6f^5 - 15f^4 + 10f^3 (continuous 1st & 2nd derivatives)
+  float u = f * f * f * (f * (f * 6.0f - 15.0f) + 10.0f);
+  float n0 = hashNoise1D((uint32_t)i0 * 1013904223U);
+  float n1 = hashNoise1D((uint32_t)i1 * 1013904223U);
+  return n0 + u * (n1 - n0);
+}
+
+// Multi-octave natural flame turbulence (completely non-repeating, non-periodic)
+inline float fireNoise(float tSec, uint32_t seedOffset = 0) {
+  float t = tSec + (float)seedOffset * 0.317f;
+  float n1 = smoothNoise(t * 0.35f);
+  float n2 = smoothNoise(t * 1.35f + 17.31f);
+  float n3 = smoothNoise(t * 4.20f + 53.17f);
+  float n4 = smoothNoise(t * 10.50f + 89.73f);
+  return (n1 * 0.38f + n2 * 0.32f + n3 * 0.18f + n4 * 0.12f) * 2.0f - 1.0f;
+}
+
+void renderBonfireFrame(uint64_t epochMs) {
+  float minutesSinceLog = 0.0f;
+  if (lastBonfireLogEpoch > 0 && epochMs > lastBonfireLogEpoch) {
+    minutesSinceLog = (float)(epochMs - lastBonfireLogEpoch) / 60000.0f;
+  }
+
+  // Auto-extinguish at 60 minutes
+  if (minutesSinceLog >= 60.0f) {
+    Serial.println("60 minutes elapsed with no log: Bonfire died out.");
+    extinguishBonfire(true, "timeout");
+    return;
+  }
+
+  // Base perceived brightness:
+  // 0 - 30 min: steady strong 75% (0.75)
+  // 30 - 60 min: linear fade from 0.75 down to 0.0
+  float basePerceived = 0.75f;
+  if (minutesSinceLog > 30.0f) {
+    float progress = (minutesSinceLog - 30.0f) / 30.0f; // 0.0 -> 1.0
+    basePerceived = 0.75f * (1.0f - progress);
+    if (basePerceived < 0.0f) basePerceived = 0.0f;
+  }
+
+  // Flare boost on log added (spikes to 100% and decays to base over ~20s)
+  float flareBoost = 0.0f;
+  if (flareStartEpoch > 0 && epochMs >= flareStartEpoch) {
+    float flareElapsedSec = (float)(epochMs - flareStartEpoch) / 1000.0f;
+    if (flareElapsedSec < 20.0f) {
+      flareBoost = (1.0f - basePerceived) * expf(-flareElapsedSec / 5.0f);
+    } else {
+      isBonfireFlaring = false;
+    }
+  }
+
+  float targetPerceived = basePerceived + flareBoost;
+  if (targetPerceived > 1.0f) targetPerceived = 1.0f;
+  if (targetPerceived <= 0.001f) {
+    strip.clear();
+    strip.show();
+    return;
+  }
+
+  float tSec = (float)(epochMs % 86400000ULL) / 1000.0f;
+
+  // Occasional micro-draft flame surges (pops) - lively and natural
+  float popNoise = smoothNoise(tSec * 0.65f + 137.91f);
+  float pop = 0.0f;
+  if (popNoise > 0.65f) {
+    float pVal = (popNoise - 0.65f) / 0.35f;
+    pop = pVal * pVal * 0.28f; // Noticeable natural flame lick
+  }
+
+  // Scale flicker with fire strength
+  float flickerScale = targetPerceived / 0.75f;
+  if (flickerScale > 1.0f) flickerScale = 1.0f;
+  if (flickerScale < 0.20f) flickerScale = 0.20f;
+
+  // Global shared breathing pulse (noticeable campfire flicker matching PCB strength)
+  float globalTurbulence = fireNoise(tSec, 100);
+  float globalFlicker = (globalTurbulence * 0.24f + pop) * flickerScale;
+  float basePerceivedLed = targetPerceived + globalFlicker;
+
+  // Asynchronous flame tongues across 16 NeoPixels
+  // Wood fire is a rich, natural mix of yellow-orange, campfire orange, and red-orange!
+  for (int i = 0; i < NEOPIXEL_COUNT; i++) {
+    // Unique spatial turbulence per LED for flickering dancing flame tongues
+    float localNoise = fireNoise(tSec * 1.60f, (uint32_t)(i * 59 + 23));
+    float localFlicker = (localNoise * 0.18f) * flickerScale;
+
+    float ledPerceived = basePerceivedLed + localFlicker;
+    if (ledPerceived > 1.0f) ledPerceived = 1.0f;
+    if (ledPerceived < 0.02f) ledPerceived = 0.02f;
+
+    // Organic temperature noise across the 16 LEDs:
+    // Produces a rich, authentic mix of yellow-orange flame tips, campfire orange body, and deep red embers.
+    // Coupled with local brightness so hotter flame tips flare yellow-orange and ember bases glow deep red.
+    float tempNoise = fireNoise(tSec * 0.90f + 50.0f, (uint32_t)(i * 37 + 11));
+    float gRatio = 0.44f + 0.10f * tempNoise + 0.06f * (ledPerceived - 0.60f);
+    if (gRatio < 0.28f) gRatio = 0.28f;
+    if (gRatio > 0.58f) gRatio = 0.58f;
+
+    float ledR = ledPerceived;
+    float ledG = gRatio * ledPerceived;
+
+    // Apply single-pass gamma correction directly to hardware duty cycle
+    uint8_t dR = applyGammaNeo(ledR);
+    uint8_t dG = applyGammaNeo(ledG);
+    uint8_t dB = 0; // ZERO blue to completely eliminate any pinkish hue
+    strip.setPixelColor(i, strip.Color(dR, dG, dB));
+  }
+  strip.show();
 }
 
 // =============================================================================

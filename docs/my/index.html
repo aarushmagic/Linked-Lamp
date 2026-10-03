@@ -59,23 +59,61 @@
 
             <!-- ============ View 1: Partner Control ============ -->
             <div id="view-partner" class="view active">
-                <div class="main-action-area">
-                    <button id="btnMainSignal" class="pulse-button">
-                        <span class="material-icons-round">favorite</span>
-                        <span class="btn-text">Send Signal</span>
-                    </button>
-                    <p class="subtitle" id="signalSubtitle">Tap to turn on their lamp</p>
-                </div>
+                <div id="partnerSendContainer">
+                    <div class="main-action-area">
+                        <button id="btnMainSignal" class="pulse-button">
+                            <span class="material-icons-round">favorite</span>
+                            <span class="btn-text">Send Signal</span>
+                        </button>
+                        <p class="subtitle" id="signalSubtitle">Tap to turn on their lamp</p>
+                    </div>
 
-                <div class="presets-section">
-                    <h3>Quick Signals</h3>
-                    <div class="presets-grid" id="presetsGrid">
-                        <!-- JS generated -->
+                    <div class="presets-section">
+                        <h3>Quick Signals</h3>
+                        <div class="presets-grid" id="presetsGrid">
+                            <!-- JS generated -->
+                        </div>
+                    </div>
+                    <div style="text-align: center; margin-top: 25px; padding-bottom: 80px;">
+                        <p id="lastTapDisplay" style="font-size: 0.8rem; font-style: italic; color: rgba(255,255,255,0.5);">
+                            Last Tap Received: Unknown</p>
                     </div>
                 </div>
-                <div style="text-align: center; margin-top: 25px; padding-bottom: 80px;">
-                    <p id="lastTapDisplay" style="font-size: 0.8rem; font-style: italic; color: rgba(255,255,255,0.5);">
-                        Last Tap Received: Unknown</p>
+
+                <!-- Bonfire Mode View (shown during active bonfire) -->
+                <div id="partnerBonfireContainer" style="display: none;" class="bonfire-view-container">
+                    <div class="bonfire-scene">
+                        <canvas id="bonfireCanvas" width="360" height="260" class="bonfire-canvas"></canvas>
+                        <div class="bonfire-wood-base">
+                            <div class="hearth-stones"></div>
+                            <div class="hearth-logs">
+                                <div class="log log-1"></div>
+                                <div class="log log-2"></div>
+                                <div class="log log-3"></div>
+                            </div>
+                            <div class="glowing-embers-bed"></div>
+                        </div>
+                    </div>
+                    <div class="bonfire-info-area">
+                        <h3 id="bonfireHeading" class="bonfire-heading">Virtual Bonfire Burning</h3>
+                        <p id="bonfireSubheading" class="desc">Co-presence glow synchronized with your partner.</p>
+                        <p id="bonfireStatusLine" class="bonfire-status-line">
+                            <span id="bonfireTimerText">Fire dies in 60:00</span>
+                            <span class="status-sep">&bull;</span>
+                            <span id="bonfireStageBadge">Roaring strong</span>
+                        </p>
+                    </div>
+                    <div class="bonfire-actions-row">
+                        <button id="btnAddLogBtn" class="action-btn primary-btn bonfire-action-btn" onclick="handleAddLogFromUI()">
+                            <span class="material-icons-round">local_fire_department</span>
+                            <span>Add Log</span>
+                        </button>
+                        <button id="btnExtinguishBtn" class="action-btn secondary-btn bonfire-action-btn" onclick="handleExtinguishFromUI()">
+                            <span class="material-icons-round">water_drop</span>
+                            <span>Put Out Fire</span>
+                        </button>
+                    </div>
+                    <div style="height: 60px;"></div>
                 </div>
             </div>
 
@@ -206,6 +244,20 @@
                         </div>
                         <input type="range" id="nightBrightness" min="0" max="255" value="76" class="custom-slider">
                         <p class="desc mt-1">Set to 0% to keep lamp off at night.</p>
+                    </div>
+                </div>
+
+                <!-- Virtual Bonfire Mode Settings -->
+                <div class="settings-card" id="bonfireSettingsCard">
+                    <div class="night-mode-header">
+                        <div>
+                            <h3>Virtual Bonfire</h3>
+                            <p class="desc">Co-presence glow. Light a shared fire for the evening.</p>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="bonfireToggle" onchange="handleBonfireToggle(this)">
+                            <span class="toggle-slider"></span>
+                        </label>
                     </div>
                 </div>
 
@@ -541,6 +593,55 @@
             <button class="action-btn secondary-btn" onclick="closeQRScanner()" style="margin-top: 20px; font-size: 1rem; width: 100%; max-width: 400px;">
                 Cancel
             </button>
+        </div>
+    </div>
+
+    <!-- ============ Full-Screen Zippo Lighter Ignition Overlay ============ -->
+    <div id="bonfireLighterOverlay" class="bonfire-overlay" style="display: none;">
+        <div class="bonfire-overlay-backdrop"></div>
+        <div class="lighter-animation-stage">
+            <div class="hearth-stage">
+                <div class="logs-bundle">
+                    <div class="kindling-twigs"></div>
+                    <div class="log log-a"></div>
+                    <div class="log log-b"></div>
+                    <div class="log log-c"></div>
+                    <div id="kindlingCatchSpark" class="kindling-catch-spark"></div>
+                </div>
+                <div id="hearthFireEruption" class="hearth-fire-eruption"></div>
+            </div>
+            <div id="zippoLighter" class="zippo-lighter">
+                <div class="zippo-lid"></div>
+                <div class="zippo-chimney">
+                    <div class="chimney-holes"></div>
+                    <div class="zippo-flint-wheel"></div>
+                    <div id="zippoSparks" class="zippo-sparks"></div>
+                    <div id="zippoFlame" class="zippo-flame"></div>
+                </div>
+                <div class="zippo-case"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ Full-Screen Water Bucket Extinguish Overlay ============ -->
+    <div id="bonfireWaterOverlay" class="bonfire-overlay" style="display: none;">
+        <div class="bonfire-overlay-backdrop"></div>
+        <div class="water-bucket-stage">
+            <canvas id="waterPourCanvas" width="320" height="460" class="water-pour-canvas"></canvas>
+            <div class="dying-fire-pit">
+                <div class="hearth-logs">
+                    <div class="log log-1"></div>
+                    <div class="log log-2"></div>
+                    <div class="log log-3"></div>
+                </div>
+                <div id="dyingFireFlames" class="dying-fire-flames"></div>
+            </div>
+            <div id="waterBucket" class="water-bucket">
+                <div class="bucket-handle"></div>
+                <div class="bucket-body">
+                    <div class="bucket-rim"></div>
+                </div>
+            </div>
         </div>
     </div>
 

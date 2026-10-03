@@ -1678,3 +1678,717 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     border-color: var(--accent) !important;
     transform: scale(1.05);
 }
+
+/* ==========================================================================
+   Virtual Bonfire Mode — Styles & Animations
+   ========================================================================== */
+
+/* ==========================================================================
+   Virtual Bonfire Mode — Styles & Animations
+   ========================================================================== */
+
+/* Settings Tile Button (subtle fallback) */
+.bonfire-lighter-tile-btn {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--border);
+    color: white;
+    border-radius: 10px;
+    padding: 8px 14px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    transition: var(--ease);
+}
+
+.bonfire-lighter-tile-btn:hover {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.bonfire-lighter-tile-btn:active {
+    transform: scale(0.97);
+}
+
+.bonfire-lighter-tile-btn .material-icons-round {
+    font-size: 18px;
+    color: #ff9f43;
+}
+
+/* Nav Item Bonfire State (only highlighted when currently active tab) */
+.nav-item.bonfire-active.active {
+    color: var(--accent);
+}
+
+.nav-item.bonfire-active.active .material-icons-round {
+    color: var(--accent);
+}
+
+/* Bonfire Scene Container */
+.bonfire-view-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    animation: fadeSlideIn 0.35s ease forwards;
+    padding-top: 0.5rem;
+}
+
+.bonfire-scene {
+    position: relative;
+    width: 100%;
+    max-width: 380px;
+    height: 270px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    margin-bottom: 1.25rem;
+}
+
+.bonfire-canvas {
+    position: absolute;
+    bottom: 22px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 360px;
+    height: 250px;
+    pointer-events: none;
+    z-index: 2;
+}
+
+.bonfire-wood-base {
+    position: relative;
+    width: 240px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 3;
+}
+
+.hearth-stones {
+    position: absolute;
+    bottom: 2px;
+    width: 230px;
+    height: 18px;
+    border-radius: 50%;
+    background: radial-gradient(ellipse at center, #2d2f3b 0%, #15161e 75%, transparent 100%);
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.8);
+}
+
+.hearth-logs {
+    position: relative;
+    width: 180px;
+    height: 38px;
+}
+
+.hearth-logs .log {
+    position: absolute;
+    background: linear-gradient(180deg, #4a2c16 0%, #2b170c 60%, #150a04 100%);
+    border-radius: 8px;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.6), inset 0 1px 2px rgba(255,255,255,0.1);
+}
+
+.hearth-logs .log-1 {
+    width: 130px;
+    height: 17px;
+    bottom: 4px;
+    left: 10px;
+    transform: rotate(-10deg);
+}
+
+.hearth-logs .log-2 {
+    width: 130px;
+    height: 17px;
+    bottom: 5px;
+    right: 10px;
+    transform: rotate(12deg);
+}
+
+.hearth-logs .log-3 {
+    width: 110px;
+    height: 15px;
+    bottom: 16px;
+    left: 35px;
+    transform: rotate(-3deg);
+    background: linear-gradient(180deg, #59351a 0%, #341c0e 100%);
+}
+
+.glowing-embers-bed {
+    position: absolute;
+    bottom: 6px;
+    width: 140px;
+    height: 12px;
+    background: radial-gradient(ellipse at center, rgba(255, 120, 20, 0.8) 0%, rgba(255, 50, 0, 0.3) 60%, transparent 100%);
+    filter: blur(4px);
+    animation: embersGlowPulse 2.4s ease-in-out infinite alternate;
+}
+
+@keyframes embersGlowPulse {
+    0% { opacity: 0.6; transform: scaleX(0.92); }
+    100% { opacity: 1.0; transform: scaleX(1.05); }
+}
+
+/* Bonfire Clean Info Area (No boxed card, no nested pill rectangles) */
+.bonfire-info-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    margin: 0.25rem 0 1.5rem;
+    gap: 4px;
+    width: 100%;
+    max-width: 380px;
+}
+
+.bonfire-heading {
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: -0.2px;
+}
+
+.bonfire-info-area .desc {
+    font-size: 0.88rem;
+    color: var(--text-dim);
+}
+
+.bonfire-status-line {
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-weight: 500;
+}
+
+.bonfire-status-line .status-sep {
+    opacity: 0.4;
+    font-size: 0.9rem;
+}
+
+#bonfireStageBadge {
+    color: var(--accent);
+}
+
+/* Bonfire Action Buttons (Symmetrical, equal-width, clean) */
+.bonfire-actions-row {
+    display: flex;
+    gap: 12px;
+    width: 100%;
+    max-width: 380px;
+}
+
+.bonfire-actions-row .bonfire-action-btn {
+    flex: 1;
+    height: 48px;
+    padding: 0 16px;
+    border-radius: 12px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: var(--ease);
+}
+
+.bonfire-actions-row .bonfire-action-btn.primary-btn {
+    background: var(--accent);
+    color: white;
+    border: none;
+    box-shadow: 0 4px 15px var(--accent-glow);
+}
+
+.bonfire-actions-row .bonfire-action-btn.primary-btn:hover {
+    opacity: 0.95;
+}
+
+.bonfire-actions-row .bonfire-action-btn.secondary-btn {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--border);
+    color: white;
+}
+
+.bonfire-actions-row .bonfire-action-btn.secondary-btn:hover {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.bonfire-actions-row .bonfire-action-btn:active {
+    transform: scale(0.97);
+}
+
+.bonfire-actions-row .bonfire-action-btn .material-icons-round {
+    font-size: 20px;
+}
+
+/* ==========================================================================
+   Full-Screen Overlays (Zippo Lighter & Water Bucket)
+   ========================================================================== */
+.bonfire-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+}
+
+.bonfire-overlay-backdrop {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at center, rgba(35, 22, 14, 0.94) 0%, rgba(8, 9, 14, 0.98) 100%);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+/* --- Zippo Lighter Animation Stage --- */
+.lighter-animation-stage {
+    position: relative;
+    width: 320px;
+    height: 480px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    z-index: 2;
+    perspective: 1000px;
+}
+
+/* Hearth Base in Animation (positioned in background, further away from viewer) */
+.hearth-stage {
+    position: absolute;
+    top: 90px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 220px;
+    height: 100px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+}
+
+.logs-bundle {
+    position: relative;
+    width: 170px;
+    height: 52px;
+}
+
+.kindling-twigs {
+    position: absolute;
+    bottom: 2px;
+    left: 20px;
+    width: 130px;
+    height: 16px;
+    background: repeating-linear-gradient(45deg, #3d2314 0px, #3d2314 4px, #5a351d 4px, #5a351d 8px);
+    border-radius: 4px;
+    opacity: 0.85;
+}
+
+.logs-bundle .log {
+    position: absolute;
+    background: linear-gradient(180deg, #442713 0%, #261308 100%);
+    border-radius: 6px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.7);
+}
+
+.logs-bundle .log-a {
+    width: 110px;
+    height: 16px;
+    bottom: 6px;
+    left: 10px;
+    transform: rotate(-12deg);
+}
+
+.logs-bundle .log-b {
+    width: 110px;
+    height: 16px;
+    bottom: 6px;
+    right: 10px;
+    transform: rotate(14deg);
+}
+
+.logs-bundle .log-c {
+    width: 95px;
+    height: 14px;
+    bottom: 18px;
+    left: 35px;
+    transform: rotate(-2deg);
+    background: linear-gradient(180deg, #533017 0%, #2c160a 100%);
+}
+
+.kindling-catch-spark {
+    position: absolute;
+    bottom: 2px;
+    left: 45px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #fff59d 0%, #ff9800 60%, transparent 100%);
+    box-shadow: 0 0 12px #ff9800;
+    opacity: 0;
+    transform: scale(0.2);
+    transition: transform 0.3s ease, opacity 0.3s ease;
+    pointer-events: none;
+}
+
+.kindling-catch-spark.active {
+    opacity: 1;
+    transform: scale(1.6);
+}
+
+.hearth-fire-eruption {
+    position: absolute;
+    bottom: 4px;
+    left: 50%;
+    transform: translateX(-50%) scale(0.1);
+    transform-origin: center bottom;
+    width: 160px;
+    height: 140px;
+    border-radius: 50% 50% 20% 20%;
+    background: radial-gradient(ellipse at 50% 85%, rgba(255, 245, 170, 0.98) 0%, rgba(255, 140, 30, 0.88) 45%, rgba(255, 50, 0, 0.65) 75%, transparent 100%);
+    filter: blur(6px);
+    opacity: 0;
+    pointer-events: none;
+    transition: transform 0.7s cubic-bezier(0.18, 0.89, 0.32, 1.28), opacity 0.4s ease;
+}
+
+.hearth-fire-eruption.ignited {
+    opacity: 1;
+    transform: translateX(-50%) scale(1.35);
+    animation: eruptPulse 1.2s infinite alternate ease-in-out;
+}
+
+@keyframes eruptPulse {
+    0% { transform: translateX(-50%) scale(1.3) translateY(0); filter: blur(5px); }
+    100% { transform: translateX(-50%) scale(1.42) translateY(-6px); filter: blur(7px); }
+}
+
+/* The Zippo Lighter (starts close to you in foreground, large) */
+.zippo-lighter {
+    position: absolute;
+    bottom: 35px;
+    left: 50%;
+    margin-left: -40px;
+    width: 80px;
+    height: 125px;
+    transform-origin: center bottom;
+    transform: translate3d(25px, 0, 80px) scale(1.45) rotate(-6deg);
+    transition: transform 1.2s cubic-bezier(0.25, 1, 0.5, 1);
+    z-index: 10;
+}
+
+/* Moving away from viewer towards the base of the logs */
+.zippo-lighter.move-to-logs {
+    transform: translate3d(-35px, -165px, -60px) scale(0.8) rotate(22deg);
+}
+
+/* Slight recoil after igniting the fire */
+.zippo-lighter.retract {
+    transform: translate3d(-5px, -135px, -30px) scale(0.85) rotate(12deg);
+}
+
+/* Zippo Case (Bottom Body) */
+.zippo-case {
+    position: absolute;
+    bottom: 0;
+    width: 80px;
+    height: 75px;
+    background: linear-gradient(135deg, #d8dade 0%, #9ca3af 25%, #6b7280 60%, #4b5563 100%);
+    border-radius: 5px 5px 8px 8px;
+    border: 1px solid rgba(255,255,255,0.3);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.7), inset 0 1px 3px rgba(255,255,255,0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.zippo-brand {
+    font-size: 0.65rem;
+    font-weight: 800;
+    letter-spacing: 2px;
+    color: rgba(255, 255, 255, 0.45);
+    text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+}
+
+/* Chimney & Windscreen */
+.zippo-chimney {
+    position: absolute;
+    bottom: 74px;
+    left: 14px;
+    width: 52px;
+    height: 38px;
+    background: linear-gradient(180deg, #9ca3af 0%, #4b5563 100%);
+    border-radius: 3px 3px 0 0;
+    border: 1px solid rgba(255,255,255,0.25);
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
+}
+
+.chimney-holes {
+    position: absolute;
+    inset: 6px;
+    background: radial-gradient(circle, #1f2937 35%, transparent 36%) 0 0 / 12px 12px;
+    opacity: 0.85;
+}
+
+.zippo-flint-wheel {
+    position: absolute;
+    right: -4px;
+    top: 4px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: repeating-conic-gradient(#374151 0deg 20deg, #6b7280 20deg 40deg);
+    border: 1px solid #111827;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.6);
+}
+
+.zippo-flint-wheel.sparking {
+    animation: flintSpin 0.3s linear;
+}
+
+@keyframes flintSpin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Spark Shower */
+.zippo-sparks {
+    position: absolute;
+    right: 2px;
+    top: 0;
+    width: 40px;
+    height: 40px;
+    pointer-events: none;
+    opacity: 0;
+}
+
+.zippo-sparks.active {
+    opacity: 1;
+    background: radial-gradient(circle at 10% 90%, rgba(255,240,150,1) 0%, rgba(255,165,0,0.8) 30%, transparent 70%);
+    animation: sparkSpray 0.35s ease-out;
+}
+
+@keyframes sparkSpray {
+    0% { transform: scale(0.2) translate(0, 0); opacity: 1; }
+    50% { transform: scale(1.4) translate(-10px, -15px); opacity: 0.9; }
+    100% { transform: scale(1.8) translate(-16px, -24px); opacity: 0; }
+}
+
+/* Zippo Flame */
+.zippo-flame {
+    position: absolute;
+    bottom: 34px;
+    left: 12px;
+    width: 24px;
+    height: 52px;
+    border-radius: 50% 50% 25% 25% / 60% 60% 35% 35%;
+    background: radial-gradient(ellipse at 50% 90%, #0084ff 0%, #00d2ff 15%, #fff275 35%, #ff7700 70%, rgba(255, 60, 0, 0.4) 95%, transparent 100%);
+    filter: drop-shadow(0 0 12px rgba(255, 140, 0, 0.9));
+    opacity: 0;
+    transform-origin: bottom center;
+    transform: scale(0.1);
+    transition: transform 0.25s cubic-bezier(0.18, 0.89, 0.32, 1.28), opacity 0.2s ease;
+}
+
+.zippo-flame.ignited {
+    opacity: 1;
+    transform: scale(1);
+    animation: zippoFlameFlicker 0.15s infinite alternate ease-in-out;
+}
+
+@keyframes zippoFlameFlicker {
+    0% { transform: scale(1) scaleX(0.96) rotate(-2deg); }
+    100% { transform: scale(1.05) scaleX(1.04) rotate(2deg); }
+}
+
+/* Hinged Lid */
+.zippo-lid {
+    position: absolute;
+    bottom: 74px;
+    left: 0;
+    width: 80px;
+    height: 42px;
+    background: linear-gradient(135deg, #d8dade 0%, #9ca3af 30%, #6b7280 70%, #4b5563 100%);
+    border-radius: 8px 8px 2px 2px;
+    border: 1px solid rgba(255,255,255,0.3);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5), inset 0 1px 2px rgba(255,255,255,0.6);
+    transform-origin: bottom left;
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    z-index: 10;
+}
+
+.zippo-lid.open {
+    transform: rotate(-75deg);
+}
+
+
+/* --- Water Bucket Animation Stage --- */
+.water-bucket-stage {
+    position: relative;
+    width: 320px;
+    height: 460px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    z-index: 2;
+}
+
+.water-pour-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 320px;
+    height: 460px;
+    pointer-events: none;
+    z-index: 5;
+}
+
+.dying-fire-pit {
+    position: absolute;
+    bottom: 60px;
+    width: 220px;
+    height: 90px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    z-index: 3;
+}
+
+.dying-fire-pit .hearth-logs {
+    position: relative;
+    width: 170px;
+    height: 38px;
+}
+
+.dying-fire-flames {
+    position: absolute;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%) scale(1);
+    transform-origin: center bottom;
+    width: 110px;
+    height: 80px;
+    background: radial-gradient(ellipse at 50% 80%, rgba(255, 235, 140, 0.95) 0%, rgba(255, 120, 20, 0.85) 45%, rgba(255, 50, 0, 0.5) 75%, transparent 100%);
+    border-radius: 50% 50% 25% 25%;
+    filter: blur(5px);
+    transition: transform 0.4s ease-out, opacity 0.3s ease-out;
+    animation: dyingFlamesFlicker 0.2s infinite alternate ease-in-out;
+}
+
+@keyframes dyingFlamesFlicker {
+    0% { transform: translateX(-50%) scale(0.96) scaleY(0.94); }
+    100% { transform: translateX(-50%) scale(1.04) scaleY(1.06); }
+}
+
+.dying-fire-flames.quenched {
+    transform: translateX(-50%) scale(0.1);
+    opacity: 0;
+    filter: blur(8px);
+}
+
+/* Water Bucket */
+.water-bucket {
+    position: absolute;
+    top: 55px;
+    right: 38px;
+    width: 85px;
+    height: 95px;
+    transform-origin: 30% 70%;
+    transform: rotate(-10deg);
+    transition: transform 0.6s cubic-bezier(0.25, 0.8, 0.25, 1);
+    z-index: 4;
+}
+
+.water-bucket.pouring {
+    transform: rotate(-62deg) translate(-22px, 16px);
+}
+
+.bucket-body {
+    position: absolute;
+    bottom: 0;
+    width: 80px;
+    height: 75px;
+    background: linear-gradient(135deg, #718096 0%, #4a5568 50%, #2d3748 100%);
+    border-radius: 4px 4px 16px 16px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.6), inset 0 2px 4px rgba(255,255,255,0.3);
+}
+
+.bucket-rim {
+    position: absolute;
+    top: 0;
+    width: 100%;
+    height: 10px;
+    border-radius: 50%;
+    background: #a0aec0;
+    border: 1px solid rgba(255,255,255,0.4);
+}
+
+.bucket-handle {
+    position: absolute;
+    top: -24px;
+    left: 4px;
+    width: 72px;
+    height: 45px;
+    border: 3px solid #cbd5e0;
+    border-bottom: none;
+    border-radius: 40px 40px 0 0;
+    transform-origin: bottom center;
+}
+
+/* ==========================================================================
+   Groups Page — Virtual Bonfire Card Overrides
+   ========================================================================== */
+.group-bonfire-circle {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: rgba(255, 120, 0, 0.12);
+    border: 2px solid #ff9f43;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: var(--ease);
+}
+
+.group-bonfire-circle:active {
+    transform: scale(0.92);
+}
+
+.group-bonfire-circle .flame-icon {
+    font-size: 24px;
+    color: #ff9f43;
+}
+
+.group-bonfire-log-btn {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 159, 67, 0.35) !important;
+    color: #ff9f43 !important;
+    font-weight: 500 !important;
+}
+
+.group-bonfire-log-btn:hover {
+    background: rgba(255, 159, 67, 0.12) !important;
+}
+
+.group-bonfire-extinguish-btn {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: var(--text-dim) !important;
+    font-weight: 500 !important;
+}
+
+.group-bonfire-extinguish-btn:hover {
+    background: rgba(255, 255, 255, 0.1) !important;
+    color: #fff !important;
+}
