@@ -23,6 +23,7 @@
 - **Send Confirmation Flash** — Single tap briefly flashes your sent color for 1 second, then reverts
 - **Color Pick Confirmation** — After hold-release color selection, lamp flashes the picked color for 3 seconds
 - **Color Cycle Presets** — Send multi-color animated sequences from the web app with configurable hold and transition times
+- **Virtual Bonfire Mode** — Share a synchronized, organic flickering campfire with your partner from the web app, stoked by adding logs
 - **Customizable** — Set your default color, lamp-on duration (1–30 min), and max brightness
 - **Nighttime Mode** — Schedule quiet hours with timezone-aware NTP-based timing; reduce brightness or keep the lamp fully off
 - **Web App** — Send signals, manage presets, adjust settings, and check for updates from your phone
@@ -106,7 +107,7 @@ After the first visit, credentials are saved — you can just open the page norm
 | Action | What Happens |
 |---|---|
 | **Single Tap** | Sends your default color to the other lamp. Flashes the sent color for 1 second as confirmation. |
-| **Double Tap** | Turns off your lamp (if it's on) |
+| **Double Tap** | Turns off your lamp (if it's on). If Virtual Bonfire mode is active, extinguishes the fire for both lamps. |
 | **5+ Taps** | Resets WiFi settings (only works when lamp is off). Flashes red before restarting. |
 | **Hold 1.5s+** | Cycles through all colors (~6 seconds per full rotation). Lift your finger to pick — the lamp flashes your selection for 3 seconds, then saves it as your new default. |
 
