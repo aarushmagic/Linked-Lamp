@@ -76,7 +76,9 @@ async function flashESP32(config, onLog, onProgress) {
     const ESPLoader = esptoolMod.ESPLoader;
     const Transport = esptoolMod.Transport;
 
-    onLog("Fetching firmware binaries...");
+    const fwVersion = (typeof window !== "undefined" && window.LINKED_LAMP_VERSIONS && window.LINKED_LAMP_VERSIONS.stable) ? ` v${window.LINKED_LAMP_VERSIONS.stable}` : "";
+
+    onLog(`Fetching firmware${fwVersion} binaries...`);
     onProgress(5);
 
     const firmwareUrl = (config.hwType === "neopixel") ? BINARY_FILES.firmware_neopixel : BINARY_FILES.firmware_pcb;
@@ -122,7 +124,7 @@ async function flashESP32(config, onLog, onProgress) {
         onLog(`Connected! Chip: ${chipType || "ESP32"}`);
         onProgress(20);
 
-        onLog("Flashing firmware (no LittleFS — config sent via Serial after boot)...");
+        onLog(`Flashing firmware${fwVersion} (no LittleFS — config sent via Serial after boot)...`);
         onProgress(25);
 
         const fileArray = [
@@ -149,7 +151,7 @@ async function flashESP32(config, onLog, onProgress) {
         });
 
         onProgress(80);
-        onLog("Firmware flashed! Resetting ESP32...");
+        onLog(`Firmware${fwVersion} flashed successfully! Resetting ESP32...`);
         await loader.hardReset();
 
     } finally {

@@ -29,6 +29,7 @@
 #include <esp_ota_ops.h>
 #include <time.h>
 #include <Adafruit_NeoPixel.h>
+#include "version.h"
 
 // =============================================================================
 // Hardware Type Definition
@@ -291,7 +292,9 @@ void writeAmbientOutput(float rLin, float gLin, float bLin);
 void setup() {
   Serial.begin(115200);
   delay(100);
-  Serial.println("\n\n--- Linked Lamp Boot ---");
+  Serial.printf("\n========================================\n");
+  Serial.printf("  Linked Lamp Firmware v%s (%s)%s\n", FIRMWARE_VERSION_STR, HW_TYPE, FIRMWARE_IS_BETA ? " [BETA]" : "");
+  Serial.printf("========================================\n");
 
   // Read boot history from RTC memory to determine cold/soft boot
   if (rtcBootMarker != BOOT_MARKER_VALUE) {
@@ -787,6 +790,9 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       String testTrigger = url;
       String testConfig = ota_url;
       
+      int qMark = testTrigger.indexOf('?');
+      if (qMark != -1) testTrigger = testTrigger.substring(0, qMark);
+      
       
       if (testTrigger.startsWith("http://")) testTrigger.remove(0, 7);
       if (testTrigger.startsWith("https://")) testTrigger.remove(0, 8);
@@ -1089,6 +1095,9 @@ void publishSettingsViaMQTT() {
   doc["ambientColor"] = ambientColor;
   doc["lastTapTimestamp"] = lastTapTimestamp;
   if (owner_name.length() > 0) doc["ownerName"] = owner_name;
+  doc["fwVersion"]    = FIRMWARE_VERSION_STR;
+  doc["isBeta"]       = FIRMWARE_IS_BETA;
+  doc["hwType"]       = HW_TYPE;
 
   String payload;
   serializeJson(doc, payload);
@@ -2346,8 +2355,12 @@ void processSerialCommand(String cmd) {
       publishSettingsViaMQTT();
     }
 
+  } else if (cmd == "GET_VERSION") {
+    Serial.printf("[VERSION] %s (%s)%s\n", FIRMWARE_VERSION_STR, HW_TYPE, FIRMWARE_IS_BETA ? " [BETA]" : "");
+
   } else if (cmd == "HELP") {
     Serial.println("[CMD] Available commands:");
+    Serial.println("  GET_VERSION     - Print firmware version and target");
     Serial.println("  RESET_WIFI      - Clear WiFi credentials and reboot (opens config portal)");
     Serial.println("  SCAN_WIFI       - Scan for nearby WiFi networks");
     Serial.println("  SET_WIFI:s,p    - Set new WiFi credentials (SSID,password) and reboot");
@@ -2375,8 +2388,11 @@ void processSerialCommand(String cmd) {
 void performOTA(String url) {
   // Construct complete binary download path if target path is absent
   if (!url.endsWith(".bin")) {
+    bool wantBeta = (url.indexOf("beta") != -1);
+    int qIdx = url.indexOf('?');
+    if (qIdx != -1) url = url.substring(0, qIdx);
     if (!url.endsWith("/")) url += "/";
-    url += "flash/firmware-neo.bin"; 
+    url += wantBeta ? "flash/firmware-neo-beta.bin" : "flash/firmware-neo.bin"; 
   }
   
   Serial.println("Starting OTA from: " + url);

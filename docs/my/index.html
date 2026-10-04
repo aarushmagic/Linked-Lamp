@@ -32,6 +32,9 @@
     <!-- HTML5 QR Code Library -->
     <script src="https://unpkg.com/html5-qrcode"></script>
 
+    <!-- Firmware Version Manifest -->
+    <script src="../flash/version.js"></script>
+
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#121212">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -266,8 +269,9 @@
                     </div>
                 </div>
 
+
                 <!-- Firmware Update -->
-                <div class="settings-card">
+                <div class="settings-card" id="firmwareUpdateCard">
                     <button id="btnCheckUpdate" class="action-btn secondary-btn" onclick="triggerUpdate()">
                         <span class="material-icons-round">system_update</span> Check for Update
                     </button>
@@ -279,6 +283,9 @@
                         <span class="material-icons-round">swap_horiz</span> Switch Accounts
                     </button>
                 </div>
+
+                <!-- Firmware Version Footer Text (when up to date) -->
+                <p id="fwVersionFooterText" class="desc text-center" style="text-align: center; margin-top: 20px; margin-bottom: 10px; font-size: 0.82rem; opacity: 0.7; display: none;"></p>
 
                 <div style="height: 80px;"></div>
             </div>
@@ -310,6 +317,13 @@
                     <input type="text" id="inlineNewAccountUidInput" placeholder="Paste Unique ID here"
                         style="width: 100%; padding: 10px; border-radius: 8px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); color: white; font-family: monospace; font-size: 0.82rem; outline: none; margin-bottom: 10px; box-sizing: border-box;"
                         autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding: 2px 2px;">
+                        <span style="font-size: 0.82rem; color: var(--text-dim);">Beta Tester Program</span>
+                        <label class="toggle-switch" style="transform: scale(0.8); transform-origin: right center;">
+                            <input type="checkbox" id="inlineNewAccountBetaToggle">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
                     <div style="display: flex; gap: 10px;">
                         <button class="action-btn primary-btn" onclick="addInlineNewAccount()"
                             style="font-size: 0.85rem; padding: 9px; flex: 1;">
@@ -739,6 +753,18 @@
                 instructions or ask the person who set up the lamp group.
             </p>
 
+            <!-- Beta Tester Program Toggle in Setup Modal -->
+            <div class="beta-tester-toggle-row">
+                <div>
+                    <span class="beta-label">Beta Tester Program</span>
+                    <p class="beta-sub">Get early access to experimental firmware updates</p>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="betaTesterInitToggle" onchange="handleBetaTesterToggle(this.checked)">
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+
             <div
                 style="background: var(--bg-card); padding: 20px; border-radius: 16px; margin-bottom: 20px; border: 1px solid var(--border); box-shadow: 0 8px 24px rgba(0,0,0,0.2);">
                 <input type="text" id="uidInput" placeholder="Paste your Unique ID here"
@@ -831,6 +857,13 @@
                 <input type="text" id="newAccountUidInput" placeholder="Paste Unique ID here"
                     style="width: 100%; padding: 10px; border-radius: 8px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); color: white; font-family: monospace; font-size: 0.82rem; outline: none; margin-bottom: 10px; box-sizing: border-box;"
                     autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding: 2px 2px;">
+                    <span style="font-size: 0.82rem; color: var(--text-dim);">Beta Tester Program</span>
+                    <label class="toggle-switch" style="transform: scale(0.8); transform-origin: right center;">
+                        <input type="checkbox" id="newAccountBetaToggle">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
                 <div style="display: flex; gap: 10px;">
                     <button class="action-btn primary-btn" onclick="addNewAccount()"
                         style="font-size: 0.85rem; padding: 9px; flex: 1;">

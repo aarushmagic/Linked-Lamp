@@ -188,10 +188,20 @@ function decodeUID(uid) {
 // Initialization
 // ==========================================================================
 window.addEventListener("load", () => {
+    // Detect beta tester query param (?beta=true or ?beta=1)
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get("beta") === "true" || urlParams.get("beta") === "1") {
+        localStorage.setItem("ll_beta_tester", "true");
+    } else if (urlParams.get("beta") === "false" || urlParams.get("beta") === "0") {
+        localStorage.setItem("ll_beta_tester", "false");
+    }
+
     // Check if we should prompt for PWA install (mobile only, browser only)
     checkPWAInstallPrompt();
 
     if (!loadCredentials()) {
+        const initToggle = document.getElementById("betaTesterInitToggle");
+        if (initToggle) initToggle.checked = (localStorage.getItem("ll_beta_tester") === "true");
         document.getElementById("missingCredentialsModal").style.display = "flex"; // Use flex to center the content using modal's built in styling
         return;
     }
@@ -204,6 +214,7 @@ window.addEventListener("load", () => {
     initNightToggle();
     initTimezone();
     renderPresets();
+    updateFirmwareUI();
     connectMQTT();
 
     // Show/hide account switcher button (PWA only)
@@ -435,6 +446,12 @@ function connectWithUID() {
     const uid = encodeUID(decoded.s, decoded.u, decoded.p, decoded.id, decoded.d || "/");
     localStorage.setItem("ll_uid", uid);
 
+    // Save Beta Tester Program choice for this lamp
+    const initToggle = document.getElementById("betaTesterInitToggle");
+    const isBeta = initToggle ? initToggle.checked : false;
+    localStorage.setItem("ll_beta_tester", isBeta ? "true" : "false");
+    localStorage.setItem("ll_beta_tester_" + uid, isBeta ? "true" : "false");
+
     // Migrate to accounts
     migrateCurrentToAccounts();
 
@@ -534,6 +551,13 @@ function connectMQTT() {
                     }
                 }
 
+                if (incomingSettings.fwVersion) {
+                    localStorage.setItem("ll_fw_version_" + myDeviceId, incomingSettings.fwVersion);
+                } else {
+                    delete mySettings.fwVersion;
+                    localStorage.removeItem("ll_fw_version_" + myDeviceId);
+                }
+
                 if (changed) {
                     console.log("Applied remote settings from MQTT:", mySettings);
                     // Save to local storage
@@ -542,6 +566,8 @@ function connectMQTT() {
                     localStorage.setItem("ll_settings_" + myDeviceId, JSON.stringify(mySettings));
                     // Update UI elements visually
                     applySettingsToUI();
+                } else {
+                    updateFirmwareUI();
                 }
             } catch (e) {
                 console.error("Failed to parse incoming settings payload:", e);
@@ -1005,13 +1031,110 @@ function applySettingsToUI() {
     // Timezone
     const sel = document.getElementById("timezoneSelect");
     if (sel) sel.value = mySettings.timezone;
+
+    // Firmware Version & Beta Program UI
+    updateFirmwareUI();
 }
 
-function triggerUpdate() {
-    if (!confirm("Push a firmware update to your lamp? It will restart briefly.")) return;
+function handleBetaTesterToggle(isChecked) {
+    localStorage.setItem("ll_beta_tester", isChecked ? "true" : "false");
+    const activeUid = localStorage.getItem("ll_uid");
+    if (activeUid) {
+        localStorage.setItem("ll_beta_tester_" + activeUid, isChecked ? "true" : "false");
+    }
+    const initToggle = document.getElementById("betaTesterInitToggle");
+    if (initToggle) initToggle.checked = isChecked;
+    updateFirmwareUI();
+}
+
+function parseSemVer(v) {
+    if (!v) return { major: 0, minor: 0, patch: 0, isBeta: false, beta: null };
+    const clean = String(v).trim().replace(/^v/i, "");
+    const [base, betaPart] = clean.split("-");
+    const parts = (base || "").split(".").map(Number);
+    let betaNum = null;
+    if (betaPart && betaPart.startsWith("beta.")) {
+        betaNum = parseInt(betaPart.replace("beta.", ""), 10) || 0;
+    }
+    return {
+        major: parts[0] || 0,
+        minor: parts[1] || 0,
+        patch: parts[2] || 0,
+        isBeta: betaPart !== undefined,
+        beta: betaNum
+    };
+}
+
+function compareVersions(v1, v2) {
+    const a = parseSemVer(v1);
+    const b = parseSemVer(v2);
+
+    if (a.major !== b.major) return a.major > b.major ? 1 : -1;
+    if (a.minor !== b.minor) return a.minor > b.minor ? 1 : -1;
+    if (a.patch !== b.patch) return a.patch > b.patch ? 1 : -1;
+
+    // Same base (M.m.p): Stable > Beta
+    if (!a.isBeta && b.isBeta) return 1;  // 1.2.4 > 1.2.4-beta.5
+    if (a.isBeta && !b.isBeta) return -1; // 1.2.4-beta.5 < 1.2.4
+    if (a.isBeta && b.isBeta) {
+        if (a.beta !== b.beta) return a.beta > b.beta ? 1 : -1;
+    }
+    return 0;
+}
+
+function updateFirmwareUI() {
+    const versions = window.LINKED_LAMP_VERSIONS || { stable: "1.0.0", beta: null };
+    const activeUid = localStorage.getItem("ll_uid");
+    const isBetaTester = (activeUid && localStorage.getItem("ll_beta_tester_" + activeUid) !== null)
+        ? (localStorage.getItem("ll_beta_tester_" + activeUid) === "true")
+        : (localStorage.getItem("ll_beta_tester") === "true");
+
+    const initToggle = document.getElementById("betaTesterInitToggle");
+    if (initToggle) initToggle.checked = isBetaTester;
+
+    // Determine target version for this user
+    let targetVersion = versions.stable;
+    if (isBetaTester && versions.beta && compareVersions(versions.beta, versions.stable) > 0) {
+        targetVersion = versions.beta;
+    }
+
+    // Check if the lamp has reported a firmware version.
+    // If no firmware version is reported by the lamp (e.g. running older unversioned firmware),
+    // it is NOT up to date and must show the update button!
+    const reportedFw = mySettings.fwVersion || localStorage.getItem("ll_fw_version_" + myDeviceId);
+    const updateAvailable = !reportedFw || (compareVersions(targetVersion, reportedFw) > 0);
+
+    const updateCard = document.getElementById("firmwareUpdateCard");
+    const updateBtn = document.getElementById("btnCheckUpdate");
+    const fwFooterText = document.getElementById("fwVersionFooterText");
+
+    if (updateAvailable) {
+        if (updateCard) updateCard.style.display = "block";
+        if (updateBtn) {
+            updateBtn.innerHTML = `<span class="material-icons-round">system_update</span> Update to v${targetVersion}${targetVersion.includes("beta") ? " (Beta)" : ""}`;
+            updateBtn.onclick = () => triggerUpdate(targetVersion);
+        }
+        if (fwFooterText) fwFooterText.style.display = "none";
+    } else {
+        // Fully updated: Hide update button!
+        if (updateCard) updateCard.style.display = "none";
+        // Show light small text at the bottom of settings page
+        if (fwFooterText) {
+            fwFooterText.style.display = "block";
+            fwFooterText.textContent = `Firmware v${reportedFw} (Up to date)`;
+        }
+    }
+}
+
+function triggerUpdate(targetVersion) {
+    const versionLabel = targetVersion ? ` to v${targetVersion}` : "";
+    if (!confirm(`Push a firmware update${versionLabel} to your lamp? It will restart briefly.`)) return;
     if (mqttClient && mqttClient.connected) {
         // Send only the base URL to allow the lamp to decipher its correct firmware file (PCB vs NeoPixel)
-        const otaUrl = new URL("../", window.location.href).href;
+        let otaUrl = new URL("../", window.location.href).href;
+        if (targetVersion && targetVersion.includes("beta")) {
+            otaUrl += "?beta=1";
+        }
 
         mqttClient.publish(getTopic(myDeviceId, "color_trigger"), "OTA:" + otaUrl);
         alert("Update command sent! Your lamp will restart shortly. This could take upto 5 minutes. Please do not restart your device in the meantime even if it goes offline.");
@@ -1071,6 +1194,9 @@ function switchTab(tabId) {
         document.getElementById("navSend").classList.toggle("active", tabId === "partner");
         document.getElementById("navSettings").classList.toggle("active", tabId === "settings");
         document.getElementById("pageTitle").innerText = tabId === "partner" ? (bonfireState.active ? "Virtual Bonfire" : "My Group") : "My Settings";
+        if (tabId === "settings") {
+            updateFirmwareUI();
+        }
     }
 }
 
@@ -4184,6 +4310,13 @@ function addNewAccount() {
     accounts.push({ uid: uid, name: name, active: false });
     saveAccounts(accounts);
 
+    // Save beta opt-in for this new account
+    const betaToggle = document.getElementById("newAccountBetaToggle");
+    if (betaToggle) {
+        localStorage.setItem("ll_beta_tester_" + uid, betaToggle.checked ? "true" : "false");
+        betaToggle.checked = false;
+    }
+
     // Hide input, re-render list
     document.getElementById("addAccountSection").style.display = "none";
     renderAccountList();
@@ -4197,6 +4330,9 @@ function deleteAccount(index) {
     if (!confirm(`Remove ${target.name}'s Group?`)) return;
 
     const wasActive = target.active;
+    if (target && target.uid) {
+        localStorage.removeItem("ll_beta_tester_" + target.uid);
+    }
     accounts.splice(index, 1);
 
     // If deleted the active account, switch to the first remaining
@@ -4721,6 +4857,13 @@ function addInlineNewAccount() {
     accounts.push({ uid: uid, name: name, active: false });
     saveAccounts(accounts);
 
+    // Save beta opt-in for this new account
+    const betaToggle = document.getElementById("inlineNewAccountBetaToggle");
+    if (betaToggle) {
+        localStorage.setItem("ll_beta_tester_" + uid, betaToggle.checked ? "true" : "false");
+        betaToggle.checked = false;
+    }
+
     // Hide input, re-render list
     document.getElementById("inlineAddGroupSection").style.display = "none";
     renderGroupsPage();
@@ -4748,6 +4891,7 @@ function deleteGroup(uid) {
         delete backgroundMqttClients[uid];
     }
 
+    localStorage.removeItem("ll_beta_tester_" + uid);
     accounts.splice(idx, 1);
     saveAccounts(accounts);
 
@@ -4760,6 +4904,7 @@ function deleteGroup(uid) {
         localStorage.removeItem("ll_id");
         localStorage.removeItem("ll_uid");
         localStorage.removeItem("ll_delim");
+        localStorage.removeItem("ll_beta_tester");
 
         // Disconnect main MQTT client
         if (mqttClient) {

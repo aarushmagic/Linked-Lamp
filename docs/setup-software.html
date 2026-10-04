@@ -658,6 +658,12 @@
                 <span class="material-icons-round plug-icon">usb</span>
                 <h2>Flash <span id="flash_name1" style="color: var(--accent);">Lamp A</span></h2>
                 <p>Connect the first ESP32 to your computer via USB.</p>
+                <div class="fw-version-badge-container" style="display: flex; justify-content: center; margin: -5px 0 15px;">
+                    <span class="fw-version-badge" style="display: inline-flex; align-items: center; gap: 6px; background: rgba(107, 76, 255, 0.12); border: 1px solid rgba(107, 76, 255, 0.3); border-radius: 20px; padding: 4px 12px; font-size: 0.82rem; color: #a29bfe;">
+                        <span class="material-icons-round" style="font-size: 0.95rem; color: var(--accent);">memory</span>
+                        Firmware: <strong class="flasherFwVersionText">v1.0.0</strong>
+                    </span>
+                </div>
 
                 <!-- Owner name prompt (shown only when MQTT couldn't retrieve the name) -->
                 <div class="form-group" id="namePromptA" style="display: none; margin-bottom: 15px;">
@@ -736,6 +742,12 @@
                 <span class="material-icons-round plug-icon">usb</span>
                 <h2>Flash <span id="flash_name2" style="color: var(--accent);">Lamp B</span></h2>
                 <p>Disconnect Lamp A's ESP32 and connect the second ESP32 via USB.</p>
+                <div class="fw-version-badge-container" style="display: flex; justify-content: center; margin: -5px 0 15px;">
+                    <span class="fw-version-badge" style="display: inline-flex; align-items: center; gap: 6px; background: rgba(107, 76, 255, 0.12); border: 1px solid rgba(107, 76, 255, 0.3); border-radius: 20px; padding: 4px 12px; font-size: 0.82rem; color: #a29bfe;">
+                        <span class="material-icons-round" style="font-size: 0.95rem; color: var(--accent);">memory</span>
+                        Firmware: <strong class="flasherFwVersionText">v1.0.0</strong>
+                    </span>
+                </div>
 
                 <!-- Owner name prompt (shown only when MQTT couldn't retrieve the name) -->
                 <div class="form-group" id="namePromptB" style="display: none; margin-bottom: 15px;">
@@ -997,6 +1009,9 @@
     <!-- MQTT.js for name auto-detection on reflash -->
     <script src="https://unpkg.com/mqtt@5.3.5/dist/mqtt.min.js"></script>
 
+    <!-- Version Configuration -->
+    <script src="flash/version.js"></script>
+
     <!-- Flasher Module -->
     <script src="flash/flasher.js"></script>
 
@@ -1006,6 +1021,18 @@
         // =====================================================================
         const supportsWebSerial = "serial" in navigator;
         let currentStep = '1';
+
+        function updateFlasherVersionDisplay() {
+            const ver = (window.LINKED_LAMP_VERSIONS && window.LINKED_LAMP_VERSIONS.stable) ? window.LINKED_LAMP_VERSIONS.stable : "1.0.0";
+            document.querySelectorAll(".flasherFwVersionText").forEach(el => {
+                el.textContent = "v" + ver;
+            });
+        }
+        if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", updateFlasherVersionDisplay);
+        } else {
+            updateFlasherVersionDisplay();
+        }
 
         // Stored values for manual PDF download
         let storedUidA = '';

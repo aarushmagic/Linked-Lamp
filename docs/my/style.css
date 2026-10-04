@@ -565,6 +565,40 @@ input:checked+.toggle-slider::before {
     align-items: center;
 }
 
+/* --- Beta Tester Program --- */
+.beta-tester-toggle-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--bg-card);
+    padding: 14px 18px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    margin-bottom: 20px;
+    text-align: left;
+}
+
+.beta-label {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--text);
+}
+
+.beta-sub {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    margin-top: 2px;
+}
+
+.text-center {
+    text-align: center !important;
+}
+
+#fwVersionFooterText {
+    text-align: center;
+    width: 100%;
+}
+
 .expandable-section {
     margin-top: 1.25rem;
     padding-top: 1.25rem;
