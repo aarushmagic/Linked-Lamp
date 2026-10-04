@@ -28,7 +28,7 @@
 - **Nighttime Mode** — Schedule quiet hours with timezone-aware NTP-based timing; reduce brightness or keep the lamp fully off
 - **Web App** — Send signals, manage presets, adjust settings, and check for updates from your phone
 - **Preset Signals** — Quick-send "I Love You", "I Miss You", or custom messages
-- **Ambient Mode** — Optional low-power glow (10% of daytime brightness) in your chosen color when the lamp is inactive
+- **Ambient Mode** — Optional low-power glow (10% of daytime brightness) in your chosen color or animated effect when the lamp is inactive
 - **OTA Updates** — Firmware updates pushed wirelessly with automatic rollback protection (firmware is only marked valid after MQTT connects)
 - **Multi-Broker Support** — Works with EMQX, HiveMQ, Eclipse Mosquitto, and any TLS-capable MQTT broker
 - **Resilient Connectivity** — Auto-reconnects WiFi and MQTT; reboots after 5 minutes of WiFi failure; retries MQTT every 5 seconds with escalating recovery strategies

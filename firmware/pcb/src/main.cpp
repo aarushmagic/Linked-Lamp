@@ -13,7 +13,7 @@
  *   - Non-blocking MQTT communication via WebSockets
  *   - Capacitive touch state machine (single tap to send, double tap to turn off, hold to cycle colors)
  *   - Dual-core execution (main loop on Core 1, serial command listener on Core 0)
- *   - Ambient lighting and timezone-aware nighttime modes
+ *   - Ambient lighting (solid or animated) and timezone-aware nighttime modes
  *   - Over-the-Air (OTA) self-updates with rollback protection
  * 
  * License: GNU GPLv3
@@ -81,6 +81,33 @@ int    nightMaxBrightness    = 128;
 String userTimezone          = "EST5EDT"; // POSIX timezone format
 bool   ambientModeEnabled    = false;
 String ambientColor          = "#0000FF";
+
+// =============================================================================
+// Ambient Lighting Modes
+// =============================================================================
+enum AmbientEffect {
+  AMBIENT_SOLID,
+  AMBIENT_FIRE,
+  AMBIENT_BREATH,
+  AMBIENT_LAVA,
+  AMBIENT_RAIN,
+  AMBIENT_AURORA
+};
+AmbientEffect currentAmbientEffect = AMBIENT_SOLID;
+
+// Cached parsed solid color
+uint8_t ambSolidR = 0, ambSolidG = 0, ambSolidB = 255;
+
+// Last calculated ambient output (normalized linear, brightness applied, before gamma)
+// Used as the starting point for cross-fading when an active signal arrives
+float lastAmbOutR = 0.0f, lastAmbOutG = 0.0f, lastAmbOutB = 0.0f;
+
+// Volatile animation state (kept strictly in RAM, never committed to flash)
+unsigned long lastAmbientFrameMs = 0;
+float         breathPhase        = 0.0f;
+unsigned long nextRainFlareMs    = 0;
+unsigned long rainFlareStartMs   = 0;
+const unsigned long AMBIENT_FRAME_MS = 20; // ~50 fps update rate
 
 // =============================================================================
 // Application state and timing trackers
@@ -281,6 +308,9 @@ void startBonfire(uint64_t logEpoch, bool publishMqtt);
 void addBonfireLog(bool publishMqtt);
 void extinguishBonfire(bool publishMqtt, const char* reason);
 void renderBonfireFrame(uint64_t epochMs);
+void resolveAmbientEffect();
+void renderAmbientFrame();
+void writeAmbientOutput(float rLin, float gLin, float bLin);
 
 // =============================================================================
 // Setup
@@ -631,6 +661,7 @@ void loadState() {
     userTimezone          = doc["timezone"]         | "EST5EDT";
     ambientModeEnabled    = doc["ambientMode"]      | false;
     ambientColor          = doc["ambientColor"]     | "#0000FF";
+    resolveAmbientEffect();
     lastTapTimestamp      = doc["lastTapTimestamp"] | 0UL;
     if (doc["role"].is<const char*>()) role = doc["role"].as<String>();
     Serial.println("State loaded. Default color: " + defaultColor + ", Role: " + (role.length() > 0 ? role : "unset"));
@@ -858,18 +889,10 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
 
     if (!isLampOn) {
       if (ambientModeEnabled && !(nightModeEnabled && isNighttime())) {
-        String hexColor = ambientColor;
-        if (hexColor.startsWith("#")) hexColor.remove(0, 1);
-        long number = strtol(hexColor.c_str(), NULL, 16);
-        uint8_t ambR = (number >> 16) & 0xFF;
-        uint8_t ambG = (number >> 8)  & 0xFF;
-        uint8_t ambB =  number        & 0xFF;
-        float ambFactor = ((float)dayMaxBrightness / 255.0f) * AMBIENT_RATIO;
         float curMaxFactor = (float)max(1, currentMaxBrightness) / 255.0f;
-        float normScale = ambFactor / curMaxFactor;
-        currentR = (uint8_t)min(255.0f, (float)ambR * normScale + 0.5f);
-        currentG = (uint8_t)min(255.0f, (float)ambG * normScale + 0.5f);
-        currentB = (uint8_t)min(255.0f, (float)ambB * normScale + 0.5f);
+        currentR = (uint8_t)min(255.0f, lastAmbOutR / curMaxFactor * 255.0f + 0.5f);
+        currentG = (uint8_t)min(255.0f, lastAmbOutG / curMaxFactor * 255.0f + 0.5f);
+        currentB = (uint8_t)min(255.0f, lastAmbOutB / curMaxFactor * 255.0f + 0.5f);
       } else {
         currentR = 0;
         currentG = 0;
@@ -1030,6 +1053,7 @@ void parseSettings(String payload) {
   nightEndTime          = newNightEnd;
   ambientModeEnabled    = newAmbientMode;
   ambientColor          = newAmbientColor;
+  resolveAmbientEffect();
   lastTapTimestamp       = newLastTap;
 
   if (newTimezone != userTimezone || changed) {
@@ -1420,33 +1444,11 @@ void handleLEDs() {
 
   if (!isLampOn) {
     if (ambientModeEnabled && !(nightModeEnabled && isNighttime())) {
-      // Apply low-intensity ambient background color if enabled
-      String hexColor = ambientColor;
-      if (hexColor.startsWith("#")) hexColor.remove(0, 1);
-      long number = strtol(hexColor.c_str(), NULL, 16);
-      uint8_t ambR = (number >> 16) & 0xFF;
-      uint8_t ambG = (number >> 8)  & 0xFF;
-      uint8_t ambB =  number        & 0xFF;
-
-      float ambBrightnessFactor = ((float)dayMaxBrightness / 255.0f) * AMBIENT_RATIO;
-      float rLin = ((float)ambR / 255.0f) * ambBrightnessFactor;
-      float gLin = ((float)ambG / 255.0f) * ambBrightnessFactor;
-      float bLin = ((float)ambB / 255.0f) * ambBrightnessFactor;
-
-      uint32_t dR = applyGamma13(rLin);
-      uint32_t dG = applyGamma13(gLin);
-      uint32_t dB = applyGamma13(bLin);
-
-      // If ambient mode is active and any color channel is configured, ensure at least 1 count
-      // on the dominant channel(s) so extreme dimming never leaves the lamp completely dark
-      if (dR == 0 && dG == 0 && dB == 0 && (ambR > 0 || ambG > 0 || ambB > 0)) {
-        if (ambR >= ambG && ambR >= ambB && ambR > 0) dR = 1;
-        if (ambG >= ambR && ambG >= ambB && ambG > 0) dG = 1;
-        if (ambB >= ambR && ambB >= ambG && ambB > 0) dB = 1;
-      }
-
-      setRGBDuty(dR, dG, dB);
+      renderAmbientFrame();
     } else {
+      lastAmbOutR = 0.0f;
+      lastAmbOutG = 0.0f;
+      lastAmbOutB = 0.0f;
       setRGB(0, 0, 0);
     }
     return;
@@ -1788,6 +1790,13 @@ inline float fireNoise(float tSec, uint32_t seedOffset = 0) {
   return (n1 * 0.38f + n2 * 0.32f + n3 * 0.18f + n4 * 0.12f) * 2.0f - 1.0f;
 }
 
+// Campfire chromaticity formula shared by Virtual Bonfire and Fireplace ambient mode
+inline void fireChroma(float energy, float &rOut, float &gOut) {
+  float gRatio = 0.215f + 0.195f * powf(energy, 0.75f);
+  rOut = energy;
+  gOut = gRatio * energy;
+}
+
 void renderBonfireFrame(uint64_t epochMs) {
   float minutesSinceLog = 0.0f;
   if (lastBonfireLogEpoch > 0 && epochMs > lastBonfireLogEpoch) {
@@ -1851,21 +1860,192 @@ void renderBonfireFrame(uint64_t epochMs) {
   if (currentPerceived > 1.0f) currentPerceived = 1.0f;
   if (currentPerceived < 0.01f) currentPerceived = 0.01f;
 
-  // Authentic campfire orange chromatic formula (micro-nudged an ever so small amount towards yellow)
-  // Higher energy (100% flare) -> vibrant warm yellow-orange (G ratio ~0.41)
-  // Base energy (75%)          -> rich glowing campfire orange (G ratio ~0.372)
-  // Dying fire / embers        -> glowing ember red-orange (G ratio ~0.215..0.29)
-  float energy = currentPerceived;
-  float gRatio = 0.215f + 0.195f * powf(energy, 0.75f);
-
-  float rNorm = currentPerceived;
-  float gNorm = gRatio * currentPerceived;
+  float rNorm, gNorm;
+  fireChroma(currentPerceived, rNorm, gNorm);
 
   // Apply single-pass gamma correction directly to hardware duty cycle
   uint32_t dutyR = applyGamma13(rNorm);
   uint32_t dutyG = applyGamma13(gNorm);
   uint32_t dutyB = 0; // ZERO blue to completely eliminate any pinkish hue
   setRGBDuty(dutyR, dutyG, dutyB);
+}
+
+// Write gamma-corrected duty with hardware min floor
+void writeAmbientOutput(float rLin, float gLin, float bLin) {
+  uint32_t dR = applyGamma13(rLin);
+  uint32_t dG = applyGamma13(gLin);
+  uint32_t dB = applyGamma13(bLin);
+
+  // If any channel has intensity, ensure at least 1 count on the dominant channel(s)
+  // so extreme dimming never leaves the lamp completely dark
+  if (dR == 0 && dG == 0 && dB == 0 && (rLin > 0.0001f || gLin > 0.0001f || bLin > 0.0001f)) {
+    if (rLin >= gLin && rLin >= bLin && rLin > 0.0001f) dR = 1;
+    if (gLin >= rLin && gLin >= bLin && gLin > 0.0001f) dG = 1;
+    if (bLin >= rLin && bLin >= gLin && bLin > 0.0001f) dB = 1;
+  }
+
+  setRGBDuty(dR, dG, dB);
+}
+
+void resolveAmbientEffect() {
+  if (ambientColor == "FIRE") {
+    currentAmbientEffect = AMBIENT_FIRE;
+  } else if (ambientColor == "BREATH") {
+    currentAmbientEffect = AMBIENT_BREATH;
+  } else if (ambientColor == "LAVA") {
+    currentAmbientEffect = AMBIENT_LAVA;
+  } else if (ambientColor == "RAIN") {
+    currentAmbientEffect = AMBIENT_RAIN;
+  } else if (ambientColor == "AURORA") {
+    currentAmbientEffect = AMBIENT_AURORA;
+  } else if (ambientColor.startsWith("#") && ambientColor.length() == 7) {
+    long number = strtol(ambientColor.substring(1).c_str(), NULL, 16);
+    ambSolidR = (number >> 16) & 0xFF;
+    ambSolidG = (number >> 8)  & 0xFF;
+    ambSolidB =  number        & 0xFF;
+    currentAmbientEffect = AMBIENT_SOLID;
+  } else {
+    // Fallback: warm amber (#FFAA00)
+    ambSolidR = 255;
+    ambSolidG = 170;
+    ambSolidB = 0;
+    currentAmbientEffect = AMBIENT_SOLID;
+  }
+  nextRainFlareMs = 0;
+  rainFlareStartMs = 0;
+  breathPhase = 0.0f;
+}
+
+void renderAmbientFrame() {
+  unsigned long now = millis();
+  if (now - lastAmbientFrameMs < AMBIENT_FRAME_MS) return;
+  unsigned long dt = (lastAmbientFrameMs == 0) ? AMBIENT_FRAME_MS : (now - lastAmbientFrameMs);
+  lastAmbientFrameMs = now;
+
+  float A = ((float)dayMaxBrightness / 255.0f) * AMBIENT_RATIO;
+  float tSec = (float)(now % 86400000UL) / 1000.0f;
+  float r = 0.0f, g = 0.0f, b = 0.0f;
+
+  switch (currentAmbientEffect) {
+    case AMBIENT_SOLID: {
+      r = (float)ambSolidR / 255.0f;
+      g = (float)ambSolidG / 255.0f;
+      b = (float)ambSolidB / 255.0f;
+      break;
+    }
+    case AMBIENT_FIRE: {
+      float popNoise = smoothNoise(tSec * 0.65f + 211.37f);
+      float pop = 0.0f;
+      if (popNoise > 0.70f) {
+        float p = (popNoise - 0.70f) / 0.30f;
+        pop = p * p * 0.20f;
+      }
+      float energy = 0.75f + fireNoise(tSec, 200) * 0.22f + pop;
+      if (energy < 0.35f) energy = 0.35f;
+      if (energy > 1.00f) energy = 1.00f;
+      fireChroma(energy, r, g);
+      b = 0.0f;
+      break;
+    }
+    case AMBIENT_BREATH: {
+      float period = 10000.0f * (1.0f + 0.06f * (smoothNoise(tSec * 0.05f + 7.7f) * 2.0f - 1.0f));
+      breathPhase += (float)dt / period;
+      if (breathPhase >= 1.0f) breathPhase -= 1.0f;
+
+      float p = breathPhase;
+      float e = 0.0f;
+      if (p < 0.38f) {
+        e = 0.5f - 0.5f * cosf(3.14159265f * p / 0.38f);            // Inhale ~3.8s
+      } else if (p < 0.44f) {
+        e = 1.0f;                                                   // Soft crest ~0.6s
+      } else if (p < 0.92f) {
+        e = 0.5f + 0.5f * cosf(3.14159265f * (p - 0.44f) / 0.48f); // Exhale ~4.8s
+      } else {
+        e = 0.0f;                                                   // Rest ~0.8s
+      }
+
+      float level = 0.18f + 0.82f * e;
+      // Lavender at rest (#9D4EDD), warming toward blush (#C77DFF) at crest
+      r = (0.616f + (0.780f - 0.616f) * e) * level;
+      g = (0.306f + (0.490f - 0.306f) * e) * level;
+      b = (0.867f + (1.000f - 0.867f) * e) * level;
+      break;
+    }
+    case AMBIENT_LAVA: {
+      float p = (float)(now % 60000UL) / 60000.0f;
+      float k = 0.5f - 0.5f * cosf(2.0f * 3.14159265f * p);
+      float level = 0.92f + 0.08f * smoothNoise(tSec * 0.15f + 41.0f);
+      // Molten Coral (#FF4500) to Golden Amber (#FFAA00)
+      r = 1.0f * level;
+      g = (0.2706f + (0.6667f - 0.2706f) * k) * level;
+      b = 0.0f;
+      break;
+    }
+    case AMBIENT_RAIN: {
+      if (nextRainFlareMs == 0) {
+        nextRainFlareMs = now + (unsigned long)random(120000, 240001);
+      }
+      float env = 0.0f;
+      if (now >= nextRainFlareMs && rainFlareStartMs == 0) {
+        rainFlareStartMs = now;
+        nextRainFlareMs = now + (unsigned long)random(120000, 240001);
+      }
+      if (rainFlareStartMs > 0) {
+        unsigned long f = now - rainFlareStartMs;
+        if (f < 150) {
+          env = sinf(3.14159265f * (float)f / 150.0f);
+        } else if (f >= 220 && f < 400) {
+          env = 0.7f * sinf(3.14159265f * (float)(f - 220) / 180.0f);
+        } else if (f >= 400) {
+          rainFlareStartMs = 0;
+        }
+      }
+      float level = 0.55f + 0.45f * env;
+      // Slate Blue (#2B3A42 normalized to blue: 0.6515, 0.8788, 1.0) with soft white accents (0.92, 0.95, 1.0)
+      r = (0.6515f + (0.9200f - 0.6515f) * env) * level;
+      g = (0.8788f + (0.9500f - 0.8788f) * env) * level;
+      b = (1.0000f + (1.0000f - 1.0000f) * env) * level;
+      break;
+    }
+    case AMBIENT_AURORA: {
+      float hWave = 0.7f * sinf(2.0f * 3.14159265f * (float)(now % 45000UL) / 45000.0f) +
+                    0.3f * sinf(2.0f * 3.14159265f * (float)(now % 17300UL) / 17300.0f + 1.3f);
+      float h = 200.0f + 80.0f * hWave; // range 120 (emerald) to 280 (violet)
+      if (h < 120.0f) h = 120.0f;
+      if (h > 280.0f) h = 280.0f;
+
+      // Convert HSV (h, s=0.85, v=1.0) to RGB
+      float s = 0.85f;
+      float v = 1.0f;
+      float cVal = v * s;
+      float hPrime = h / 60.0f;
+      float xVal = cVal * (1.0f - fabsf(fmodf(hPrime, 2.0f) - 1.0f));
+      float mVal = v - cVal;
+      float rH = 0.0f, gH = 0.0f, bH = 0.0f;
+      if (hPrime >= 2.0f && hPrime < 3.0f) {
+        rH = 0.0f; gH = cVal; bH = xVal;
+      } else if (hPrime >= 3.0f && hPrime < 4.0f) {
+        rH = 0.0f; gH = xVal; bH = cVal;
+      } else if (hPrime >= 4.0f && hPrime <= 5.0f) {
+        rH = xVal; gH = 0.0f; bH = cVal;
+      }
+      float level = 0.85f + 0.15f * sinf(2.0f * 3.14159265f * (float)(now % 23000UL) / 23000.0f);
+      r = (rH + mVal) * level;
+      g = (gH + mVal) * level;
+      b = (bH + mVal) * level;
+      break;
+    }
+  }
+
+  float outR = r * A;
+  float outG = g * A;
+  float outB = b * A;
+
+  lastAmbOutR = outR;
+  lastAmbOutG = outG;
+  lastAmbOutB = outB;
+
+  writeAmbientOutput(outR, outG, outB);
 }
 
 // =============================================================================

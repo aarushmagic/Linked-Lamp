@@ -975,16 +975,12 @@ function applySettingsToUI() {
         nightSection.classList.toggle("hidden", !mySettings.nightMode);
     }
 
-    // Ambient Toggle & color circle
+    // Ambient Toggle & mode pill
     const ambToggle = document.getElementById("ambientModeToggle");
-    const ambCircle = document.getElementById("btnAmbientColorDisplay");
     if (ambToggle) {
         ambToggle.checked = mySettings.ambientMode;
     }
-    if (ambCircle) {
-        ambCircle.style.display = mySettings.ambientMode ? "block" : "none";
-        ambCircle.style.backgroundColor = mySettings.ambientColor;
-    }
+    updateAmbientPill();
 
     // Bonfire Toggle
     const bonfireToggle = document.getElementById("bonfireToggle");
@@ -1119,7 +1115,7 @@ function initColorPickers() {
         layout: [{ component: iro.ui.Wheel, options: {} }]
     });
 
-    // Ambient color picker is lazily initialized inside openAmbientColorModal()
+    // Ambient color picker is lazily initialized inside selectAmbientMode() / openAmbientSettingsModal()
 
     // Set initial preview
     document.getElementById("colorPreview").style.borderLeft = `8px solid ${mySettings.defaultColor}`;
@@ -1239,64 +1235,1663 @@ function formatSliderVal(val, suffix, isPercent) {
 }
 
 // ==========================================================================
-// Ambient Mode Toggle & Color Modal
+// Ambient Lighting Modes & Modal
 // ==========================================================================
-let ambientColorBeforeEdit = null; // Store color before opening modal for cancel
+const AMBIENT_MODES = {
+    SOLID: {
+        label: "Solid Color",
+        icon: "palette",
+        desc: "A constant glow in a color of your choice."
+    },
+    FIRE: {
+        label: "Fireplace",
+        icon: "local_fire_department",
+        desc: "Warm, flickering campfire glow."
+    },
+    BREATH: {
+        label: "Breathe",
+        icon: "air",
+        desc: "A soft lavender glow that slowly rises and falls."
+    },
+    LAVA: {
+        label: "Lava Lamp",
+        icon: "bubble_chart",
+        desc: "Drifts between coral and amber over about a minute."
+    },
+    RAIN: {
+        label: "Rain",
+        icon: "water_drop",
+        desc: "Dim slate blue with an occasional soft flicker."
+    },
+    AURORA: {
+        label: "Aurora",
+        icon: "waves",
+        desc: "Slowly shifts through greens, teals, and violets."
+    }
+};
+
+let ambientColorBeforeEdit = null;
+let selectedAmbientModeCode = "SOLID";
+
+function getAmbientModeCode(val) {
+    if (!val) return "SOLID";
+    const v = String(val).trim().toUpperCase();
+    if (v === "FIRE" || v === "BREATH" || v === "LAVA" || v === "RAIN" || v === "AURORA") {
+        return v;
+    }
+    return "SOLID";
+}
+
+function updateAmbientPill() {
+    const pill = document.getElementById("btnAmbientModePill");
+    const icon = document.getElementById("ambientPillIcon");
+
+    if (!pill) return;
+
+    if (!mySettings.ambientMode) {
+        pill.style.display = "none";
+        return;
+    }
+
+    pill.style.display = "inline-flex";
+    const modeCode = getAmbientModeCode(mySettings.ambientColor);
+    const modeInfo = AMBIENT_MODES[modeCode] || AMBIENT_MODES.SOLID;
+
+    pill.title = modeInfo.label;
+
+    if (modeCode === "SOLID") {
+        const hex = mySettings.ambientColor && mySettings.ambientColor.startsWith("#")
+            ? mySettings.ambientColor
+            : "#FFAA00";
+        pill.classList.remove("mode-animated");
+        pill.classList.add("mode-solid");
+        pill.style.backgroundColor = hex;
+        if (icon) {
+            icon.style.display = "none";
+            icon.textContent = "";
+        }
+    } else {
+        pill.classList.remove("mode-solid");
+        pill.classList.add("mode-animated");
+        pill.style.backgroundColor = "";
+        if (icon) {
+            icon.style.display = "inline-block";
+            icon.textContent = modeInfo.icon;
+        }
+    }
+}
 
 function initAmbientToggle() {
     const toggle = document.getElementById("ambientModeToggle");
-    const circle = document.getElementById("btnAmbientColorDisplay");
+    if (!toggle) return;
 
     toggle.checked = mySettings.ambientMode;
-    circle.style.display = mySettings.ambientMode ? "block" : "none";
-    circle.style.backgroundColor = mySettings.ambientColor;
+    updateAmbientPill();
 
     toggle.onchange = () => {
         mySettings.ambientMode = toggle.checked;
-        circle.style.display = toggle.checked ? "block" : "none";
+        updateAmbientPill();
         publishSettings();
     };
 }
 
-function openAmbientColorModal() {
-    ambientColorBeforeEdit = mySettings.ambientColor;
-    document.getElementById("ambientColorModal").style.display = "block";
+// ==========================================================================
+// High-Fidelity Borderless Canvas Simulation Engine for Ambient Lighting
+// ==========================================================================
+class AmbientCanvasRenderer {
+    constructor(canvasId) {
+        this.canvasId = canvasId;
+        this.canvas = document.getElementById(canvasId);
+        this.ctx = this.canvas ? this.canvas.getContext("2d") : null;
+        this.animId = null;
+        this.currentMode = null;
+        this.lastTime = 0;
+        this.elapsed = 0;
 
-    // Lazy-init (iro.js needs the container to be visible to render correctly)
-    if (!ambientColorPicker) {
-        ambientColorPicker = new iro.ColorPicker("#ambientColorPickerContainer", {
-            width: 220,
-            color: mySettings.ambientColor,
-            borderWidth: 1,
-            borderColor: "#fff",
-            layout: [
-                { component: iro.ui.Wheel, options: {} },
-                { component: iro.ui.Slider, options: { sliderType: "value" } }
-            ]
+        // Particle systems & states
+        this.fireParticles = [];
+        this.fireSparks = [];
+        this.raindrops = [];
+        this.ripples = [];
+        this.splashes = [];
+        this.lightningTime = 0;
+        this.auroraStars = [];
+        this.breatheMotes = [];
+        this.lavaBlobs = [];
+
+        this.initStaticElements();
+    }
+
+    initStaticElements() {
+        // Star canopy for Aurora
+        this.auroraStars = [];
+        for (let i = 0; i < 90; i++) {
+            this.auroraStars.push({
+                x: Math.random() * 800,
+                y: Math.random() * 300,
+                r: Math.random() * 1.6 + 0.6,
+                phase: Math.random() * Math.PI * 2,
+                speed: Math.random() * 2 + 1.2,
+                alpha: Math.random() * 0.7 + 0.3
+            });
+        }
+
+        // Stardust motes for Breathe
+        this.breatheMotes = [];
+        for (let i = 0; i < 35; i++) {
+            this.breatheMotes.push({
+                x: 400 + (Math.random() - 0.5) * 440,
+                y: 220 + (Math.random() - 0.5) * 320,
+                vx: (Math.random() - 0.5) * 0.45,
+                vy: (Math.random() - 0.5) * 0.45,
+                r: Math.random() * 1.8 + 0.8,
+                phase: Math.random() * Math.PI * 2,
+                alpha: Math.random() * 0.6 + 0.2
+            });
+        }
+
+        // Rain setup
+        this.initRain();
+
+        // Lava blobs
+        this.initLavaBlobs();
+    }
+
+    initRain() {
+        this.raindrops = [];
+        for (let i = 0; i < 150; i++) {
+            this.raindrops.push(this.createRaindrop(true));
+        }
+        this.ripples = [];
+        this.splashes = [];
+        // Natural thunderstorm pacing: first strike at ~4.5s so user sees it quickly, then 14-22s intervals
+        this.nextLightningTime = 4.5 + Math.random() * 2.0;
+        this.lightningActive = false;
+        this.lightningStartTime = 0;
+        this.lightningBolt = null;
+    }
+
+    createRaindrop(randomY = false) {
+        // Natural 3D depth layer: z from 0.25 (distant) to 1.0 (foreground)
+        const z = Math.random() * 0.75 + 0.25;
+        const speed = (18 + Math.random() * 14) * z;
+        const length = (22 + Math.random() * 26) * z;
+        const thickness = (0.8 + Math.random() * 1.4) * z;
+        const alpha = (0.2 + Math.random() * 0.7) * z;
+        return {
+            x: Math.random() * 960 - 80,
+            y: randomY ? Math.random() * 460 : -Math.random() * 60 - 20,
+            z: z,
+            vx: -Math.tan(14 * Math.PI / 180) * speed, // natural 14° wind slant
+            vy: speed,
+            length: length,
+            thickness: thickness,
+            alpha: alpha
+        };
+    }
+
+    createLightningBolt(startX, startY, endX, endY) {
+        const segments = [];
+        let curX = startX;
+        let curY = startY;
+        const steps = 14;
+        const dy = (endY - startY) / steps;
+
+        for (let i = 0; i < steps; i++) {
+            const nextY = curY + dy;
+            const deviation = (Math.random() - 0.5) * 48;
+            const nextX = curX + deviation + (endX - curX) * 0.12;
+            segments.push({ x1: curX, y1: curY, x2: nextX, y2: nextY, isMain: true });
+
+            // Forked branches
+            if (Math.random() < 0.38 && i > 2 && i < steps - 2) {
+                let branchX = nextX;
+                let branchY = nextY;
+                const branchSteps = 3 + Math.floor(Math.random() * 4);
+                const branchDir = Math.random() < 0.5 ? -1 : 1;
+                for (let b = 0; b < branchSteps; b++) {
+                    const bNextX = branchX + branchDir * (14 + Math.random() * 20);
+                    const bNextY = branchY + (10 + Math.random() * 16);
+                    segments.push({ x1: branchX, y1: branchY, x2: bNextX, y2: bNextY, isMain: false });
+                    branchX = bNextX;
+                    branchY = bNextY;
+                }
+            }
+
+            curX = nextX;
+            curY = nextY;
+        }
+        return segments;
+    }
+
+    initLavaBlobs() {
+        // Authentic retro lava lamp: 2-3 persistent droplets with genuine fluid physics & collision merging
+        this.lavaBlobs = [
+            {
+                id: 0,
+                curX: 400,
+                y: 280,
+                r: 24,
+                baseR: 24,
+                vy: -15, // buoyant rise
+                state: "RISING",
+                dwellTimer: 0,
+                dwellTotal: 3.5,
+                driftSpeed: 0.5,
+                phase: 0.2,
+                wobble: 0,
+                active: true,
+                mergedInto: -1,
+                mergedTimer: 0
+            },
+            {
+                id: 1,
+                curX: 400,
+                y: 165,
+                r: 20,
+                baseR: 20,
+                vy: 14, // cool sinking
+                state: "SINKING",
+                dwellTimer: 0,
+                dwellTotal: 3.8,
+                driftSpeed: 0.65,
+                phase: 3.1,
+                wobble: 0,
+                active: true,
+                mergedInto: -1,
+                mergedTimer: 0
+            },
+            {
+                id: 2,
+                curX: 400,
+                y: 350,
+                r: 16,
+                baseR: 16,
+                vy: -12,
+                state: "DWELL_BOTTOM",
+                dwellTimer: 2.2, // will erupt after 2.2s
+                dwellTotal: 3.6,
+                driftSpeed: 0.42,
+                phase: 1.6,
+                wobble: 0,
+                active: true,
+                mergedInto: -1,
+                mergedTimer: 0
+            }
+        ];
+        this.bottomRecoil = 0;
+        this.topRecoil = 0;
+    }
+
+    start(mode) {
+        this.stop();
+        if (!this.canvas) {
+            this.canvas = document.getElementById(this.canvasId);
+            if (this.canvas) this.ctx = this.canvas.getContext("2d");
+        }
+        if (!this.ctx) return;
+
+        this.currentMode = mode;
+        this.lastTime = performance.now();
+        this.elapsed = 0;
+        this.fireParticles = [];
+        this.fireSparks = [];
+
+        if (mode === "RAIN") this.initRain();
+        if (mode === "LAVA") this.initLavaBlobs();
+
+        const loop = (now) => {
+            const dt = Math.min((now - this.lastTime) / 1000, 0.08);
+            this.lastTime = now;
+            this.elapsed += dt;
+
+            this.render(dt);
+            this.animId = requestAnimationFrame(loop);
+        };
+        this.animId = requestAnimationFrame(loop);
+    }
+
+    stop() {
+        if (this.animId) {
+            cancelAnimationFrame(this.animId);
+            this.animId = null;
+        }
+        if (this.ctx) {
+            this.ctx.clearRect(0, 0, 800, 480);
+        }
+        this.currentMode = null;
+    }
+
+    render(dt) {
+        const ctx = this.ctx;
+        if (!ctx) return;
+
+        // Completely transparent clear - NO BOX!
+        ctx.clearRect(0, 0, 800, 480);
+
+        switch (this.currentMode) {
+            case "FIRE":
+                this.renderFireplace(ctx, dt);
+                break;
+            case "BREATH":
+                this.renderBreathe(ctx, dt);
+                break;
+            case "LAVA":
+                this.renderLavaLamp(ctx, dt);
+                break;
+            case "RAIN":
+                this.renderRain(ctx, dt);
+                break;
+            case "AURORA":
+                this.renderAurora(ctx, dt);
+                break;
+        }
+    }
+
+    // =========================================================================
+    // 1. Realistic Fireplace Simulation
+    // =========================================================================
+    renderFireplace(ctx, dt) {
+        ctx.save();
+
+        // 1. Background Warmth Radials (borderless natural ambient glow)
+        const flicker = Math.sin(this.elapsed * 4.5) * 0.04 + Math.sin(this.elapsed * 9.2) * 0.02;
+        const ambientAlpha = 0.22 + flicker;
+        const ambientGrad = ctx.createRadialGradient(400, 390, 20, 400, 390, 300);
+        ambientGrad.addColorStop(0, `rgba(255, 90, 0, ${ambientAlpha})`);
+        ambientGrad.addColorStop(0.5, `rgba(255, 45, 0, ${ambientAlpha * 0.5})`);
+        ambientGrad.addColorStop(1, "rgba(255, 30, 0, 0)");
+        ctx.fillStyle = ambientGrad;
+        ctx.beginPath();
+        ctx.arc(400, 390, 300, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 2. Realistic Charred Firewood Logs & Incandescent Coals
+        // Charcoal coals bed
+        const coalHeat = 0.75 + 0.25 * Math.sin(this.elapsed * 3.8);
+        const coalGrad = ctx.createRadialGradient(400, 410, 10, 400, 410, 140);
+        coalGrad.addColorStop(0, `rgba(255, 120, 0, ${coalHeat})`);
+        coalGrad.addColorStop(0.4, `rgba(255, 40, 0, ${coalHeat * 0.8})`);
+        coalGrad.addColorStop(0.8, "rgba(60, 12, 4, 0.9)");
+        coalGrad.addColorStop(1, "rgba(20, 4, 2, 0)");
+        ctx.fillStyle = coalGrad;
+        ctx.beginPath();
+        ctx.ellipse(400, 412, 130, 24, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Rear log
+        ctx.save();
+        ctx.translate(400, 385);
+        ctx.rotate(-0.04);
+        const rearLogGrad = ctx.createLinearGradient(-100, -12, 100, 12);
+        rearLogGrad.addColorStop(0, "#120603");
+        rearLogGrad.addColorStop(0.5, "#250d06");
+        rearLogGrad.addColorStop(1, "#120603");
+        ctx.fillStyle = rearLogGrad;
+        ctx.beginPath();
+        ctx.roundRect(-95, -12, 190, 24, 8);
+        ctx.fill();
+        ctx.restore();
+
+        // Front left log
+        ctx.save();
+        ctx.translate(345, 405);
+        ctx.rotate(0.18);
+        const leftLogGrad = ctx.createLinearGradient(-60, -14, 60, 14);
+        leftLogGrad.addColorStop(0, "#190804");
+        leftLogGrad.addColorStop(0.45, "#3b160b");
+        leftLogGrad.addColorStop(1, "#150603");
+        ctx.fillStyle = leftLogGrad;
+        ctx.beginPath();
+        ctx.roundRect(-60, -14, 120, 28, 8);
+        ctx.fill();
+        // Glowing ember fissures on log
+        ctx.strokeStyle = `rgba(255, 140, 0, ${0.6 + coalHeat * 0.35})`;
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(-35, 0); ctx.lineTo(25, -2);
+        ctx.stroke();
+        ctx.restore();
+
+        // Front right log
+        ctx.save();
+        ctx.translate(455, 405);
+        ctx.rotate(-0.18);
+        const rightLogGrad = ctx.createLinearGradient(-60, -14, 60, 14);
+        rightLogGrad.addColorStop(0, "#150603");
+        rightLogGrad.addColorStop(0.5, "#35140a");
+        rightLogGrad.addColorStop(1, "#190804");
+        ctx.fillStyle = rightLogGrad;
+        ctx.beginPath();
+        ctx.roundRect(-60, -14, 120, 28, 8);
+        ctx.fill();
+        // Ember crack
+        ctx.strokeStyle = `rgba(255, 120, 0, ${0.55 + coalHeat * 0.35})`;
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(-20, -2); ctx.lineTo(35, 1);
+        ctx.stroke();
+        ctx.restore();
+
+        // 3. Thermal Fluid Flame Particles (Buoyant Convection Physics)
+        // Spawn new buoyant flame particles
+        for (let i = 0; i < 5; i++) {
+            this.fireParticles.push({
+                x: 400 + (Math.random() - 0.5) * 85,
+                y: 400 + (Math.random() - 0.5) * 18,
+                vx: (Math.random() - 0.5) * 0.9,
+                vy: -Math.random() * 2.8 - 2.4,
+                size: Math.random() * 26 + 22,
+                maxLife: Math.random() * 0.65 + 0.45,
+                life: 0,
+                turbulence: Math.random() * 100
+            });
+        }
+
+        // Draw flames with additive blending for true white-hot luminescence
+        ctx.globalCompositeOperation = "screen";
+        for (let i = this.fireParticles.length - 1; i >= 0; i--) {
+            const p = this.fireParticles[i];
+            p.life += dt;
+            if (p.life >= p.maxLife) {
+                this.fireParticles.splice(i, 1);
+                continue;
+            }
+
+            p.vy -= 6.5 * dt; // upward thermal acceleration
+            p.x += Math.sin(p.turbulence + p.y * 0.035 + this.elapsed * 8) * 1.8 + p.vx;
+            p.y += p.vy;
+
+            const t = p.life / p.maxLife; // 0 (birth) to 1 (death)
+            const r = p.size * (1 - t * 0.72);
+            if (r <= 0.5) continue;
+
+            const fGrad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r);
+            if (t < 0.22) {
+                // White-yellow blazing core
+                fGrad.addColorStop(0, "rgba(255, 255, 240, 0.95)");
+                fGrad.addColorStop(0.35, "rgba(255, 210, 80, 0.85)");
+                fGrad.addColorStop(0.7, "rgba(255, 120, 0, 0.5)");
+                fGrad.addColorStop(1, "rgba(255, 40, 0, 0)");
+            } else if (t < 0.6) {
+                // Golden amber flame mantle
+                fGrad.addColorStop(0, "rgba(255, 220, 80, 0.88)");
+                fGrad.addColorStop(0.4, "rgba(255, 140, 0, 0.75)");
+                fGrad.addColorStop(0.8, "rgba(240, 50, 0, 0.4)");
+                fGrad.addColorStop(1, "rgba(200, 20, 0, 0)");
+            } else {
+                // Cooling scarlet crimson tips
+                const alpha = (1 - t) / 0.4;
+                fGrad.addColorStop(0, `rgba(255, 110, 0, ${alpha * 0.7})`);
+                fGrad.addColorStop(0.5, `rgba(220, 30, 0, ${alpha * 0.5})`);
+                fGrad.addColorStop(1, "rgba(100, 10, 0, 0)");
+            }
+
+            ctx.fillStyle = fGrad;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // 4. Ascending Sparks & Micro-Embers
+        if (Math.random() < 0.35 && this.fireSparks.length < 25) {
+            this.fireSparks.push({
+                x: 400 + (Math.random() - 0.5) * 80,
+                y: 390 + (Math.random() - 0.5) * 15,
+                vx: (Math.random() - 0.5) * 1.5,
+                vy: -Math.random() * 4.5 - 3.0,
+                r: Math.random() * 1.8 + 1.0,
+                maxLife: Math.random() * 1.2 + 0.8,
+                life: 0,
+                swirl: Math.random() * 50
+            });
+        }
+
+        for (let i = this.fireSparks.length - 1; i >= 0; i--) {
+            const spk = this.fireSparks[i];
+            spk.life += dt;
+            if (spk.life >= spk.maxLife) {
+                this.fireSparks.splice(i, 1);
+                continue;
+            }
+            spk.vy -= 1.8 * dt;
+            spk.x += Math.sin(spk.swirl + this.elapsed * 7) * 2.2 + spk.vx;
+            spk.y += spk.vy;
+
+            const alpha = 1 - spk.life / spk.maxLife;
+            ctx.fillStyle = `rgba(255, 235, 180, ${alpha})`;
+            ctx.shadowColor = "#ff7700";
+            ctx.shadowBlur = 6;
+            ctx.beginPath();
+            ctx.arc(spk.x, spk.y, spk.r, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+        }
+
+        ctx.restore();
+    }
+
+    // =========================================================================
+    // 2. Realistic, Bug-Free Breathe Simulation (Lavender Harmonic Pulse)
+    // =========================================================================
+    renderBreathe(ctx, dt) {
+        ctx.save();
+        const centerX = 400;
+        const centerY = 220;
+
+        // Smooth mathematical sinusoidal respiratory cycle
+        const cycle = (Math.sin(this.elapsed * 1.15) + 1) * 0.5;
+        const smoothCycle = cycle * cycle * (3 - 2 * cycle); // smoothstep ease-in-out
+
+        // 1. Concentric Harmonic Wavefronts
+        for (let i = 0; i < 3; i++) {
+            const progress = ((this.elapsed * 0.22 + i * 0.33) % 1);
+            const ringR = 55 + progress * 175;
+            const ringAlpha = Math.sin(progress * Math.PI) * (0.22 + smoothCycle * 0.32);
+            ctx.strokeStyle = `rgba(199, 125, 255, ${ringAlpha})`;
+            ctx.lineWidth = 1.6;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, ringR, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+
+        // 2. Volumetric Celestial Corona Glow
+        const coronaR = 120 + smoothCycle * 85;
+        const coronaGrad = ctx.createRadialGradient(centerX, centerY, 20, centerX, centerY, coronaR);
+        coronaGrad.addColorStop(0, `rgba(224, 170, 255, ${0.45 + smoothCycle * 0.35})`);
+        coronaGrad.addColorStop(0.35, `rgba(157, 78, 221, ${0.25 + smoothCycle * 0.22})`);
+        coronaGrad.addColorStop(0.7, `rgba(90, 24, 154, ${0.08 + smoothCycle * 0.12})`);
+        coronaGrad.addColorStop(1, "rgba(36, 0, 70, 0)");
+        ctx.fillStyle = coronaGrad;
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, coronaR, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 3. Subsurface Scattering Celestial Core Orb
+        const orbR = 46 + smoothCycle * 26;
+        const orbGrad = ctx.createRadialGradient(centerX - 16, centerY - 16, 4, centerX, centerY, orbR);
+        orbGrad.addColorStop(0, "#FFFFFF");
+        orbGrad.addColorStop(0.25, "#F3E8FF");
+        orbGrad.addColorStop(0.65, "#C77DFF");
+        orbGrad.addColorStop(0.9, "#7B2CBF");
+        orbGrad.addColorStop(1, "#3C096C");
+        ctx.fillStyle = orbGrad;
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, orbR, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Spherical glass sheen highlight
+        ctx.fillStyle = `rgba(255, 255, 255, ${0.45 + (1 - smoothCycle) * 0.3})`;
+        ctx.beginPath();
+        ctx.ellipse(centerX - 14, centerY - 14, orbR * 0.32, orbR * 0.17, -0.42, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 4. Floating Celestial Stardust Motes
+        for (const m of this.breatheMotes) {
+            m.x += m.vx;
+            m.y += m.vy;
+            if (m.x < 150) m.x = 650;
+            if (m.x > 650) m.x = 150;
+            if (m.y < 50) m.y = 390;
+            if (m.y > 390) m.y = 50;
+
+            const moteAlpha = (0.25 + 0.55 * Math.sin(m.phase + this.elapsed * 2.2)) * (0.6 + smoothCycle * 0.4);
+            ctx.fillStyle = `rgba(224, 170, 255, ${Math.max(0, moteAlpha)})`;
+            ctx.beginPath();
+            ctx.arc(m.x, m.y, m.r, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        ctx.restore();
+    }
+
+    // =========================================================================
+    // Helper: Viscous Liquid Surface Tension Bridge (Metaball Neck)
+    // =========================================================================
+    // Helper: Viscous Liquid Surface Tension Bridge (Metaball Meniscus Neck)
+    // =========================================================================
+    drawViscousBridge(ctx, x1, y1, r1, x2, y2, r2) {
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+        const dist = Math.hypot(dx, dy);
+        const maxDist = (r1 + r2) * 1.55;
+        if (dist <= 0 || dist >= maxDist || dist <= Math.abs(r1 - r2) * 0.75) return;
+
+        const angle = Math.atan2(dy, dx);
+        const tension = Math.pow(Math.max(0, 1 - dist / maxDist), 1.15);
+        const spread = (Math.PI * 0.44) * tension;
+
+        const a1 = angle + spread;
+        const a2 = angle - spread;
+        const a3 = angle + Math.PI - spread;
+        const a4 = angle + Math.PI + spread;
+
+        const p1x = x1 + Math.cos(a1) * r1;
+        const p1y = y1 + Math.sin(a1) * r1;
+        const p2x = x2 + Math.cos(a3) * r2;
+        const p2y = y2 + Math.sin(a3) * r2;
+        const p3x = x2 + Math.cos(a4) * r2;
+        const p3y = y2 + Math.sin(a4) * r2;
+        const p4x = x1 + Math.cos(a2) * r1;
+        const p4y = y1 + Math.sin(a2) * r1;
+
+        const midX = (x1 + x2) * 0.5;
+        const midY = (y1 + y2) * 0.5;
+        const normX = -dy / dist;
+        const normY = dx / dist;
+        const pinch = dist * 0.26 * (1 - tension * 0.38);
+
+        // Fluid meniscus gradient - seamlessly blends into the molten crimson/orange wax
+        const bridgeGrad = ctx.createLinearGradient(x1, y1, x2, y2);
+        bridgeGrad.addColorStop(0, "#D01200");
+        bridgeGrad.addColorStop(0.35, "#FF5000");
+        bridgeGrad.addColorStop(0.65, "#FF5000");
+        bridgeGrad.addColorStop(1, "#D01200");
+
+        ctx.fillStyle = bridgeGrad;
+        ctx.beginPath();
+        ctx.moveTo(p1x, p1y);
+        ctx.quadraticCurveTo(midX + normX * pinch, midY + normY * pinch, p2x, p2y);
+        ctx.lineTo(p3x, p3y);
+        ctx.quadraticCurveTo(midX - normX * pinch, midY - normY * pinch, p4x, p4y);
+        ctx.closePath();
+        ctx.fill();
+    }
+
+    renderDroplet(ctx, blob) {
+        if (!blob.active) return;
+        const isRising = (blob.state === "RISING" || blob.state === "SEPARATING_BOTTOM");
+        const isSinking = (blob.state === "SINKING" || blob.state === "SEPARATING_TOP");
+
+        let stretchY = 1.0;
+        let stretchX = 1.0;
+        if (blob.state === "SEPARATING_BOTTOM") {
+            stretchY = 1.28;
+            stretchX = 0.82;
+        } else if (blob.state === "SEPARATING_TOP") {
+            stretchY = 1.28;
+            stretchX = 0.82;
+        } else if (isRising) {
+            stretchY = 1.12;
+            stretchX = 0.92;
+        } else if (isSinking) {
+            stretchY = 0.92;
+            stretchX = 1.08;
+        }
+
+        // Viscoelastic wobble relaxation
+        if (blob.wobble > 0.01) {
+            const wobbleWave = Math.sin(this.elapsed * 12) * blob.wobble * 0.18;
+            stretchY += wobbleWave;
+            stretchX -= wobbleWave;
+        }
+
+        const rx = blob.r * stretchX;
+        const ry = blob.r * stretchY;
+
+        // Rich molten wax body gradient (Constant across entire lamp, never shifts color!)
+        const waxGrad = ctx.createRadialGradient(
+            blob.curX - rx * 0.25, blob.y - ry * 0.28, Math.max(1, rx * 0.08),
+            blob.curX, blob.y, Math.max(rx, ry) * 1.05
+        );
+        waxGrad.addColorStop(0, "#FFBA00");    // molten incandescent golden core
+        waxGrad.addColorStop(0.32, "#FF5000"); // fiery lava orange
+        waxGrad.addColorStop(0.72, "#D01200"); // rich molten crimson body
+        waxGrad.addColorStop(0.94, "#800200"); // deep ruby boundary rim
+        waxGrad.addColorStop(1, "#500000");    // soft ambient edge falloff
+
+        ctx.fillStyle = waxGrad;
+        ctx.beginPath();
+        ctx.ellipse(blob.curX, blob.y, rx, ry, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 3D Spherical Specular Glass / Wax Sheen Highlight
+        const specGrad = ctx.createRadialGradient(
+            blob.curX - rx * 0.32, blob.y - ry * 0.32, 1,
+            blob.curX - rx * 0.32, blob.y - ry * 0.32, rx * 0.45
+        );
+        specGrad.addColorStop(0, "rgba(255, 255, 255, 0.44)");
+        specGrad.addColorStop(1, "rgba(255, 255, 255, 0)");
+        ctx.fillStyle = specGrad;
+        ctx.beginPath();
+        ctx.ellipse(blob.curX - rx * 0.32, blob.y - ry * 0.32, rx * 0.36, ry * 0.28, -0.25, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    checkPoolRelease(parentBlob, poolType) {
+        // If parent blob absorbed another, release it in this pool with independence
+        for (const child of this.lavaBlobs) {
+            if (!child.active && child.mergedInto === parentBlob.id) {
+                child.active = true;
+                child.mergedInto = -1;
+                child.r = child.baseR;
+                parentBlob.r = parentBlob.baseR;
+                if (poolType === "TOP") {
+                    child.state = "DWELL_TOP";
+                    child.dwellTimer = 2.0;
+                    child.y = 100;
+                } else {
+                    child.state = "DWELL_BOTTOM";
+                    child.dwellTimer = 2.0;
+                    child.y = 352;
+                }
+            }
+        }
+    }
+
+    // =========================================================================
+    // 3. Authentic Retro Rocket Lava Lamp (Graceful Separation & Collision Merging)
+    // =========================================================================
+    renderLavaLamp(ctx, dt) {
+        ctx.save();
+        const cx = 400;
+
+        // Subtle ambient backglow in the room
+        const bgGlow = ctx.createRadialGradient(cx, 240, 10, cx, 240, 220);
+        bgGlow.addColorStop(0, "rgba(255, 75, 0, 0.22)");
+        bgGlow.addColorStop(0.55, "rgba(255, 35, 0, 0.07)");
+        bgGlow.addColorStop(1, "rgba(255, 20, 0, 0)");
+        ctx.fillStyle = bgGlow;
+        ctx.beginPath();
+        ctx.arc(cx, 240, 220, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Helper path function for the contoured glass vessel interior
+        const traceGlassProfile = () => {
+            ctx.beginPath();
+            ctx.moveTo(cx - 38, 88);
+            ctx.bezierCurveTo(cx - 40, 135, cx - 48, 195, cx - 58, 255);
+            ctx.bezierCurveTo(cx - 67, 305, cx - 68, 345, cx - 64, 368);
+            ctx.lineTo(cx + 64, 368);
+            ctx.bezierCurveTo(cx + 68, 345, cx + 67, 305, cx + 58, 255);
+            ctx.bezierCurveTo(cx + 48, 195, cx + 40, 135, cx + 38, 88);
+            ctx.closePath();
+        };
+
+        // 1. Clip EVERYTHING inside the glass vessel to guarantee zero bleed outside
+        ctx.save();
+        traceGlassProfile();
+        ctx.clip();
+
+        // Liquid Suspension Medium (Deep jewel-tone royal amethyst to warm ruby)
+        const liquidGrad = ctx.createLinearGradient(0, 88, 0, 368);
+        liquidGrad.addColorStop(0, "#16021c");
+        liquidGrad.addColorStop(0.45, "#380528");
+        liquidGrad.addColorStop(0.85, "#580830");
+        liquidGrad.addColorStop(1, "#300318");
+        ctx.fillStyle = liquidGrad;
+        ctx.fill();
+
+        // Heating Coil Radiant Bulb Glow at base
+        const bulbGlow = ctx.createRadialGradient(cx, 368, 5, cx, 368, 95);
+        bulbGlow.addColorStop(0, "rgba(255, 200, 70, 0.95)");
+        bulbGlow.addColorStop(0.35, "rgba(255, 110, 10, 0.65)");
+        bulbGlow.addColorStop(0.7, "rgba(255, 40, 0, 0.2)");
+        bulbGlow.addColorStop(1, "rgba(255, 20, 0, 0)");
+        ctx.fillStyle = bulbGlow;
+        ctx.fill();
+
+        // Coiled metallic spring loops at bottom of bottle
+        ctx.strokeStyle = "rgba(255, 215, 140, 0.75)";
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        for (let s = -48; s <= 48; s += 8) {
+            ctx.arc(cx + s, 362 + Math.sin((s + this.elapsed * 2) * 0.4) * 2.2, 3.8, 0, Math.PI * 2);
+        }
+        ctx.stroke();
+
+        // 2. Physics & Fluid Lifecycle Simulation
+        // Decay reservoir recoils
+        this.bottomRecoil = Math.max(0, this.bottomRecoil - dt * 2.2);
+        this.topRecoil = Math.max(0, this.topRecoil - dt * 2.2);
+
+        // Update each droplet's physics & state machine
+        for (const blob of this.lavaBlobs) {
+            blob.wobble = Math.max(0, blob.wobble - dt * 1.2);
+
+            // Centered convection drift (strictly within cx ± 5px)
+            const maxDrift = (blob.y < 140) ? 3.8 : 5.0;
+            blob.curX = cx + Math.sin(blob.phase + this.elapsed * blob.driftSpeed) * maxDrift;
+
+            if (blob.state === "DWELL_BOTTOM") {
+                blob.y = 352 + Math.sin(this.elapsed * 1.6 + blob.phase) * 1.5;
+                blob.dwellTimer -= dt;
+                if (blob.dwellTimer <= 0) {
+                    blob.state = "SEPARATING_BOTTOM";
+                    blob.vy = -12;
+                }
+            } else if (blob.state === "SEPARATING_BOTTOM") {
+                blob.y += blob.vy * dt;
+                // Graceful pinch-off at threshold
+                if (blob.y <= 308) {
+                    blob.state = "RISING";
+                    blob.vy = -16 - Math.random() * 3;
+                    blob.wobble = 0.8;
+                    this.bottomRecoil = 1.0;
+                }
+            } else if (blob.state === "RISING") {
+                blob.y += blob.vy * dt;
+                // Arrival at top pool
+                if (blob.y <= 135) {
+                    blob.state = "MERGING_TOP";
+                    blob.vy = -8;
+                }
+            } else if (blob.state === "MERGING_TOP") {
+                blob.y += blob.vy * dt;
+                if (blob.y <= 104) {
+                    blob.y = 104;
+                    blob.state = "DWELL_TOP";
+                    blob.dwellTimer = blob.dwellTotal;
+                    this.topRecoil = 1.0;
+                    this.checkPoolRelease(blob, "TOP");
+                }
+            } else if (blob.state === "DWELL_TOP") {
+                blob.y = 102 + Math.sin(this.elapsed * 1.4 + blob.phase) * 1.5;
+                blob.dwellTimer -= dt;
+                if (blob.dwellTimer <= 0) {
+                    blob.state = "SEPARATING_TOP";
+                    blob.vy = 12;
+                }
+            } else if (blob.state === "SEPARATING_TOP") {
+                blob.y += blob.vy * dt;
+                // Graceful pinch-off at threshold
+                if (blob.y >= 148) {
+                    blob.state = "SINKING";
+                    blob.vy = 15 + Math.random() * 3;
+                    blob.wobble = 0.8;
+                    this.topRecoil = 1.0;
+                }
+            } else if (blob.state === "SINKING") {
+                blob.y += blob.vy * dt;
+                // Arrival at bottom pool
+                if (blob.y >= 315) {
+                    blob.state = "MERGING_BOTTOM";
+                    blob.vy = 8;
+                }
+            } else if (blob.state === "MERGING_BOTTOM") {
+                blob.y += blob.vy * dt;
+                if (blob.y >= 348) {
+                    blob.y = 348;
+                    blob.state = "DWELL_BOTTOM";
+                    blob.dwellTimer = blob.dwellTotal;
+                    this.bottomRecoil = 1.0;
+                    this.checkPoolRelease(blob, "BOTTOM");
+                }
+            }
+        }
+
+        // Check for collisions between active free droplets floating in the chamber
+        for (let i = 0; i < this.lavaBlobs.length; i++) {
+            for (let j = i + 1; j < this.lavaBlobs.length; j++) {
+                const b1 = this.lavaBlobs[i];
+                const b2 = this.lavaBlobs[j];
+                if (!b1.active || !b2.active) continue;
+                if ((b1.state !== "RISING" && b1.state !== "SINKING") ||
+                    (b2.state !== "RISING" && b2.state !== "SINKING")) continue;
+
+                const dist = Math.hypot(b1.curX - b2.curX, b1.y - b2.y);
+                if (dist < (b1.r + b2.r) * 0.95) {
+                    // Droplets collide! Merge smaller into larger
+                    const parent = (b1.r >= b2.r) ? b1 : b2;
+                    const child = (b1.r >= b2.r) ? b2 : b1;
+
+                    child.active = false;
+                    child.mergedInto = parent.id;
+                    // Combined volume: R = cbrt(r1^3 + r2^3)
+                    parent.r = Math.min(30, Math.cbrt(Math.pow(parent.r, 3) + Math.pow(child.r, 3)));
+                    parent.wobble = 1.0;
+                    parent.mergedTimer = 6.0;
+                    // Momentum transfer
+                    parent.vy = (parent.vy * 0.6) + (child.vy * 0.4);
+                    if (Math.abs(parent.vy) < 6) parent.vy = parent.state === "RISING" ? -12 : 12;
+                }
+            }
+        }
+
+        // If a merged blob stays in column, cleave back into two droplets
+        for (const parent of this.lavaBlobs) {
+            if (parent.active && parent.r > parent.baseR * 1.1) {
+                parent.mergedTimer -= dt;
+                if (parent.mergedTimer <= 0 && (parent.state === "RISING" || parent.state === "SINKING")) {
+                    for (const child of this.lavaBlobs) {
+                        if (!child.active && child.mergedInto === parent.id) {
+                            child.active = true;
+                            child.mergedInto = -1;
+                            child.r = child.baseR;
+                            parent.r = parent.baseR;
+                            child.curX = parent.curX;
+                            child.y = parent.y + (parent.state === "RISING" ? 18 : -18);
+                            child.state = parent.state === "RISING" ? "SINKING" : "RISING";
+                            child.vy = parent.state === "RISING" ? 14 : -14;
+                            parent.wobble = 0.9;
+                            child.wobble = 0.9;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. Render Top Cooling Wax Pool (Meniscus reservoir with dynamic recoil)
+        const topRecoilOffset = Math.sin(this.elapsed * 8) * this.topRecoil * 3.5;
+        const topPoolH = 16 + Math.sin(this.elapsed * 1.2) * 2.0 + topRecoilOffset;
+        const topWaxGrad = ctx.createLinearGradient(0, 88, 0, 88 + topPoolH);
+        topWaxGrad.addColorStop(0, "#600000");
+        topWaxGrad.addColorStop(0.3, "#B01000");
+        topWaxGrad.addColorStop(0.75, "#FF5000");
+        topWaxGrad.addColorStop(1, "#FF9E00");
+        ctx.fillStyle = topWaxGrad;
+        ctx.beginPath();
+        ctx.moveTo(cx - 38, 88);
+        ctx.bezierCurveTo(cx - 28, 88 + topPoolH * 1.2, cx + 28, 88 + topPoolH * 1.2, cx + 38, 88);
+        ctx.closePath();
+        ctx.fill();
+
+        // 4. Render Bottom Heated Molten Reservoir (Molten dome over coil with dynamic recoil)
+        const botRecoilOffset = Math.sin(this.elapsed * 8) * this.bottomRecoil * 4.0;
+        const baseMoundH = 30 + Math.sin(this.elapsed * 1.4) * 2.5 + botRecoilOffset;
+        const baseWaxGrad = ctx.createRadialGradient(
+            cx, 368, 6,
+            cx, 368 - baseMoundH * 0.4, baseMoundH * 1.4
+        );
+        baseWaxGrad.addColorStop(0, "#FFC020");   // bright molten gold directly above coil
+        baseWaxGrad.addColorStop(0.35, "#FF5000"); // fiery orange
+        baseWaxGrad.addColorStop(0.75, "#D01200"); // molten crimson
+        baseWaxGrad.addColorStop(1, "#750000");   // deep ruby
+        ctx.fillStyle = baseWaxGrad;
+        ctx.beginPath();
+        ctx.moveTo(cx - 64, 368);
+        ctx.bezierCurveTo(cx - 48, 368 - baseMoundH * 1.3, cx + 48, 368 - baseMoundH * 1.3, cx + 64, 368);
+        ctx.closePath();
+        ctx.fill();
+
+        // 5. Draw Viscous Meniscus Bridges (Metaball Merging and Detaching)
+        // A. Viscous neck to bottom pool (graceful separation when rising, smooth merging when sinking)
+        for (const blob of this.lavaBlobs) {
+            if (blob.active && (blob.state === "SEPARATING_BOTTOM" || blob.state === "MERGING_BOTTOM" || blob.y > 275)) {
+                this.drawViscousBridge(ctx, blob.curX, blob.y, blob.r, cx, 368 - baseMoundH * 0.5, 48);
+            }
+        }
+
+        // B. Viscous neck to top pool (smooth merging on arrival, graceful separation on departure)
+        for (const blob of this.lavaBlobs) {
+            if (blob.active && (blob.state === "SEPARATING_TOP" || blob.state === "MERGING_TOP" || blob.y < 165)) {
+                this.drawViscousBridge(ctx, blob.curX, blob.y, blob.r, cx, 88 + topPoolH * 0.5, 34);
+            }
+        }
+
+        // C. Viscous neck when droplets pass or are in close proximity in the column
+        for (let i = 0; i < this.lavaBlobs.length; i++) {
+            for (let j = i + 1; j < this.lavaBlobs.length; j++) {
+                const b1 = this.lavaBlobs[i];
+                const b2 = this.lavaBlobs[j];
+                if (b1.active && b2.active) {
+                    this.drawViscousBridge(ctx, b1.curX, b1.y, b1.r, b2.curX, b2.y, b2.r);
+                }
+            }
+        }
+
+        // 6. Render Individual Droplets with constant wax gradient & 3D specular sheen
+        for (const blob of this.lavaBlobs) {
+            this.renderDroplet(ctx, blob);
+        }
+
+        ctx.restore(); // remove clip
+
+        // 3. Glass Highlights & Outer Vessel Reflections
+        traceGlassProfile();
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.28)";
+        ctx.lineWidth = 1.6;
+        ctx.stroke();
+
+        // Primary curved specular glass highlight on left flank
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(cx - 34, 105);
+        ctx.bezierCurveTo(cx - 36, 160, cx - 44, 240, cx - 56, 335);
+        ctx.bezierCurveTo(cx - 58, 350, cx - 57, 360, cx - 52, 365);
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.48)";
+        ctx.lineWidth = 3.4;
+        ctx.lineCap = "round";
+        ctx.stroke();
+
+        // Secondary subtle specular highlight on right flank
+        ctx.beginPath();
+        ctx.moveTo(cx + 34, 115);
+        ctx.bezierCurveTo(cx + 36, 170, cx + 46, 250, cx + 58, 345);
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.2)";
+        ctx.lineWidth = 1.6;
+        ctx.lineCap = "round";
+        ctx.stroke();
+        ctx.restore();
+
+        // 4. Vintage Brushed Aluminum Top Cap & Flared Pedestal Base
+        // Top Cap (Classic pointed cone)
+        const capGrad = ctx.createLinearGradient(cx - 40, 0, cx + 40, 0);
+        capGrad.addColorStop(0, "#282933");
+        capGrad.addColorStop(0.28, "#5E6175");
+        capGrad.addColorStop(0.5, "#9EA3BD");
+        capGrad.addColorStop(0.72, "#4B4D5E");
+        capGrad.addColorStop(1, "#21222A");
+        ctx.fillStyle = capGrad;
+        ctx.beginPath();
+        ctx.moveTo(cx - 14, 44);
+        ctx.bezierCurveTo(cx - 4, 38, cx + 4, 38, cx + 14, 44);
+        ctx.lineTo(cx + 39, 88);
+        ctx.lineTo(cx - 39, 88);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.25)";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // Bottom Pedestal Base (Classic trumpet flare)
+        const baseGrad = ctx.createLinearGradient(cx - 90, 0, cx + 90, 0);
+        baseGrad.addColorStop(0, "#202129");
+        baseGrad.addColorStop(0.26, "#525567");
+        baseGrad.addColorStop(0.5, "#9297B0");
+        baseGrad.addColorStop(0.74, "#424453");
+        baseGrad.addColorStop(1, "#181920");
+        ctx.fillStyle = baseGrad;
+        ctx.beginPath();
+        ctx.moveTo(cx - 66, 368);
+        ctx.lineTo(cx + 66, 368);
+        ctx.bezierCurveTo(cx + 64, 388, cx + 58, 396, cx + 64, 412);
+        ctx.bezierCurveTo(cx + 74, 432, cx + 86, 442, cx + 90, 446);
+        ctx.lineTo(cx - 90, 446);
+        ctx.bezierCurveTo(cx - 86, 442, cx - 74, 432, cx - 64, 412);
+        ctx.bezierCurveTo(cx - 58, 396, cx - 64, 388, cx - 66, 368);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.22)";
+        ctx.stroke();
+
+        // Pedestal base ventilation louvers
+        ctx.fillStyle = "#0d0e14";
+        for (let s = -32; s <= 32; s += 16) {
+            ctx.fillRect(cx + s - 5, 420, 10, 3.5);
+        }
+
+        // Tabletop ambient glow puddle
+        const tableGlow = ctx.createRadialGradient(cx, 448, 10, cx, 448, 140);
+        tableGlow.addColorStop(0, "rgba(255, 100, 20, 0.32)");
+        tableGlow.addColorStop(0.6, "rgba(255, 60, 0, 0.1)");
+        tableGlow.addColorStop(1, "rgba(255, 30, 0, 0)");
+        ctx.fillStyle = tableGlow;
+        ctx.fillRect(cx - 150, 446, 300, 28);
+
+        ctx.restore();
+    }
+
+    // =========================================================================
+    // 4. Realistic Thunderstorm Rain Simulation (Branched Lightning & Pacing)
+    // =========================================================================
+    renderRain(ctx, dt) {
+        ctx.save();
+
+        // 1. Thunderstorm Lightning Engine (Authentic 14-22s intervals, multi-pulse physics)
+        if (this.elapsed >= this.nextLightningTime && !this.lightningActive) {
+            this.lightningActive = true;
+            this.lightningStartTime = this.elapsed;
+            // Next strike naturally spaced by 14-22 seconds
+            this.nextLightningTime = this.elapsed + 14.0 + Math.random() * 8.0;
+            const boltStartX = 220 + Math.random() * 360;
+            const boltEndX = boltStartX + (Math.random() - 0.5) * 140;
+            this.lightningBolt = this.createLightningBolt(boltStartX, 15, boltEndX, 415);
+        }
+
+        let flash = 0;
+        if (this.lightningActive) {
+            const timeSince = this.elapsed - this.lightningStartTime;
+            if (timeSince < 0.44) {
+                if (timeSince < 0.05) {
+                    // Stepped leader (initial ionizing flash)
+                    flash = (timeSince / 0.05) * 0.32;
+                } else if (timeSince < 0.09) {
+                    // Inter-stroke dark pause
+                    flash = 0.06;
+                } else if (timeSince < 0.21) {
+                    // Primary return stroke (instantaneous blinding discharge)
+                    const t = (timeSince - 0.09) / 0.12;
+                    flash = 0.95 * Math.exp(-t * 2.8);
+                } else if (timeSince < 0.28) {
+                    // Secondary return stroke (re-strike)
+                    const t = (timeSince - 0.21) / 0.07;
+                    flash = 0.58 * Math.sin(t * Math.PI);
+                } else {
+                    // Cloud diffusion & rumble roll-off
+                    const t = (timeSince - 0.28) / 0.16;
+                    flash = 0.22 * (1 - t) * (1 - t);
+                }
+            } else {
+                this.lightningActive = false;
+                this.lightningBolt = null;
+            }
+        }
+
+        // Draw lightning sky flash, storm clouds, and branched bolt
+        if (flash > 0) {
+            // Ambient sky illumination
+            ctx.fillStyle = `rgba(215, 238, 255, ${flash * 0.36})`;
+            ctx.fillRect(0, 0, 800, 480);
+
+            // Backlit thundercloud silhouettes at top
+            ctx.save();
+            const cloudGrad = ctx.createLinearGradient(0, 0, 0, 110);
+            cloudGrad.addColorStop(0, `rgba(180, 210, 240, ${flash * 0.55})`);
+            cloudGrad.addColorStop(0.7, `rgba(120, 150, 180, ${flash * 0.3})`);
+            cloudGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+            ctx.fillStyle = cloudGrad;
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(800, 0);
+            ctx.lineTo(800, 50);
+            ctx.bezierCurveTo(720, 85, 620, 45, 520, 75);
+            ctx.bezierCurveTo(420, 105, 320, 60, 220, 80);
+            ctx.bezierCurveTo(120, 100, 50, 65, 0, 75);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+
+            // Branched forked lightning bolt (during active return strokes)
+            if (this.lightningBolt && flash > 0.22) {
+                ctx.save();
+                // Atmospheric electric cyan glow
+                ctx.strokeStyle = `rgba(140, 215, 255, ${flash * 0.45})`;
+                ctx.lineWidth = 14;
+                ctx.lineCap = "round";
+                ctx.lineJoin = "bevel";
+                ctx.beginPath();
+                for (const seg of this.lightningBolt) {
+                    ctx.moveTo(seg.x1, seg.y1);
+                    ctx.lineTo(seg.x2, seg.y2);
+                }
+                ctx.stroke();
+
+                // Luminous ionization channel
+                ctx.strokeStyle = `rgba(210, 245, 255, ${flash * 0.85})`;
+                ctx.lineWidth = 4.5;
+                ctx.stroke();
+
+                // Blinding white filament core
+                ctx.strokeStyle = `rgba(255, 255, 255, ${flash})`;
+                ctx.lineWidth = 1.8;
+                ctx.stroke();
+                ctx.restore();
+            }
+        }
+
+        // 2. Natural Randomized Raindrops
+        for (const drop of this.raindrops) {
+            drop.x += drop.vx * dt * 60;
+            drop.y += drop.vy * dt * 60;
+
+            // When raindrop hits the ground/water horizon
+            if (drop.y >= 430) {
+                // Impact water ripple
+                if (this.ripples.length < 35 && Math.random() < 0.6) {
+                    this.ripples.push({
+                        x: drop.x,
+                        y: 430 + (1 - drop.z) * 20,
+                        r: 2,
+                        maxR: (16 + Math.random() * 16) * drop.z,
+                        alpha: 0.75 * drop.z
+                    });
+                }
+
+                // Upward micro-splashes
+                if (this.splashes.length < 50 && drop.z > 0.5) {
+                    for (let s = 0; s < 2; s++) {
+                        this.splashes.push({
+                            x: drop.x,
+                            y: 430,
+                            vx: (Math.random() - 0.5) * 2.8,
+                            vy: -Math.random() * 3.2 - 1.2,
+                            r: Math.random() * 1.2 + 0.6,
+                            life: 0.25,
+                            alpha: drop.alpha
+                        });
+                    }
+                }
+
+                // Reset drop to top with randomized position
+                drop.x = Math.random() * 960 - 80;
+                drop.y = -Math.random() * 50 - 10;
+            }
+
+            // Draw raindrop motion streak
+            const tailX = drop.x - drop.vx * (drop.length / drop.vy);
+            const tailY = drop.y - drop.length;
+
+            const streakGrad = ctx.createLinearGradient(tailX, tailY, drop.x, drop.y);
+            const boost = flash > 0 ? 0.35 : 0;
+            streakGrad.addColorStop(0, "rgba(200, 230, 255, 0)");
+            streakGrad.addColorStop(0.7, `rgba(215, 238, 255, ${(drop.alpha + boost) * 0.45})`);
+            streakGrad.addColorStop(1, `rgba(255, 255, 255, ${Math.min(1, drop.alpha + boost)})`);
+
+            ctx.strokeStyle = streakGrad;
+            ctx.lineWidth = drop.thickness;
+            ctx.lineCap = "round";
+            ctx.beginPath();
+            ctx.moveTo(tailX, tailY);
+            ctx.lineTo(drop.x, drop.y);
+            ctx.stroke();
+        }
+
+        // 3. Ground Water Horizon Sheen
+        const horizonGrad = ctx.createLinearGradient(0, 425, 0, 480);
+        horizonGrad.addColorStop(0, flash > 0 ? `rgba(180, 220, 250, ${0.4 + flash * 0.4})` : "rgba(36, 52, 66, 0.4)");
+        horizonGrad.addColorStop(1, "rgba(16, 24, 32, 0.7)");
+        ctx.fillStyle = horizonGrad;
+        ctx.fillRect(0, 425, 800, 55);
+
+        ctx.strokeStyle = flash > 0 ? "rgba(230, 245, 255, 0.8)" : "rgba(186, 230, 253, 0.35)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(0, 426);
+        ctx.lineTo(800, 426);
+        ctx.stroke();
+
+        // 4. Expanding Water Surface Ripples
+        for (let i = this.ripples.length - 1; i >= 0; i--) {
+            const rip = this.ripples[i];
+            rip.r += 32 * dt;
+            rip.alpha -= 1.6 * dt;
+
+            if (rip.alpha <= 0 || rip.r >= rip.maxR) {
+                this.ripples.splice(i, 1);
+                continue;
+            }
+
+            const ripAlpha = Math.max(0, rip.alpha);
+            ctx.strokeStyle = `rgba(186, 230, 253, ${flash > 0 ? Math.min(1, ripAlpha * 1.6) : ripAlpha})`;
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.ellipse(rip.x, rip.y, rip.r, rip.r * 0.32, 0, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+
+        // 5. Upward Bouncing Micro-Splashes
+        for (let i = this.splashes.length - 1; i >= 0; i--) {
+            const sp = this.splashes[i];
+            sp.x += sp.vx * dt * 60;
+            sp.y += sp.vy * dt * 60;
+            sp.vy += 14 * dt;
+            sp.life -= dt;
+
+            if (sp.life <= 0 || sp.y > 440) {
+                this.splashes.splice(i, 1);
+                continue;
+            }
+
+            ctx.fillStyle = `rgba(224, 242, 254, ${sp.alpha * (sp.life / 0.25)})`;
+            ctx.beginPath();
+            ctx.arc(sp.x, sp.y, sp.r, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        ctx.restore();
+    }
+
+    // =========================================================================
+    // 5. Realistic Aurora Borealis Simulation (Silky Undulating Curtains & Fjord)
+    // =========================================================================
+    renderAurora(ctx, dt) {
+        ctx.save();
+
+        // 1. Arctic Night Starry Canopy & Cosmic Dust
+        const dustGrad = ctx.createLinearGradient(0, 0, 800, 240);
+        dustGrad.addColorStop(0, "rgba(40, 20, 70, 0.15)");
+        dustGrad.addColorStop(0.5, "rgba(10, 50, 70, 0.18)");
+        dustGrad.addColorStop(1, "rgba(30, 15, 60, 0.1)");
+        ctx.fillStyle = dustGrad;
+        ctx.fillRect(0, 0, 800, 260);
+
+        for (const s of this.auroraStars) {
+            const twinkle = 0.4 + 0.6 * Math.sin(s.phase + this.elapsed * s.speed);
+            ctx.fillStyle = `rgba(255, 255, 255, ${s.alpha * twinkle})`;
+            ctx.beginPath();
+            ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // 2. Continuous Silky Northern Lights Curtains (Additive Screen Blending)
+        ctx.globalCompositeOperation = "screen";
+
+        // Curtain 1: Vibrant Emerald Green (Atomic oxygen 557.7nm emission)
+        this.drawContinuousAuroraCurtain(ctx, {
+            baseY: 205,
+            height: 135,
+            k1: 0.006,
+            k2: 0.014,
+            k3: 0.003,
+            s1: 0.55,
+            s2: -0.35,
+            s3: 0.2,
+            a1: 38,
+            a2: 18,
+            a3: 24,
+            alpha: 0.8,
+            colorR: 0,
+            colorG: 255,
+            colorB: 136
         });
-    } else {
-        ambientColorPicker.color.hexString = mySettings.ambientColor;
+
+        // Curtain 2: Electric Cyan-Teal Mid-Layer
+        this.drawContinuousAuroraCurtain(ctx, {
+            baseY: 185,
+            height: 120,
+            k1: 0.008,
+            k2: 0.017,
+            k3: 0.004,
+            s1: -0.45,
+            s2: 0.38,
+            s3: -0.25,
+            a1: 32,
+            a2: 16,
+            a3: 20,
+            alpha: 0.7,
+            colorR: 0,
+            colorG: 235,
+            colorB: 255
+        });
+
+        // Curtain 3: Royal Violet & Magenta High-Altitude Corona
+        this.drawContinuousAuroraCurtain(ctx, {
+            baseY: 165,
+            height: 110,
+            k1: 0.005,
+            k2: 0.011,
+            k3: 0.002,
+            s1: 0.3,
+            s2: -0.25,
+            s3: 0.15,
+            a1: 44,
+            a2: 20,
+            a3: 28,
+            alpha: 0.6,
+            colorR: 168,
+            colorG: 70,
+            colorB: 255
+        });
+
+        ctx.globalCompositeOperation = "source-over";
+
+        // 3. Arctic Mountain Horizon Silhouette
+        ctx.fillStyle = "#06070d";
+        ctx.beginPath();
+        ctx.moveTo(0, 480);
+        ctx.lineTo(0, 418);
+        ctx.lineTo(55, 392);
+        ctx.lineTo(125, 412);
+        ctx.lineTo(205, 382);
+        ctx.lineTo(285, 408);
+        ctx.lineTo(385, 376);
+        ctx.lineTo(475, 410);
+        ctx.lineTo(575, 372);
+        ctx.lineTo(665, 402);
+        ctx.lineTo(735, 382);
+        ctx.lineTo(800, 412);
+        ctx.lineTo(800, 480);
+        ctx.closePath();
+        ctx.fill();
+
+        // Craggy mountain snow ridges catching soft auroral glow
+        ctx.strokeStyle = "rgba(0, 255, 136, 0.15)";
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(180, 405);
+        ctx.lineTo(205, 382);
+        ctx.lineTo(225, 400);
+        ctx.moveTo(360, 402);
+        ctx.lineTo(385, 376);
+        ctx.lineTo(410, 398);
+        ctx.moveTo(550, 396);
+        ctx.lineTo(575, 372);
+        ctx.lineTo(600, 395);
+        ctx.stroke();
+
+        // 4. Calm Fjord Water Reflection with Undulating Ripples
+        const waterGlow = ctx.createLinearGradient(0, 420, 0, 480);
+        waterGlow.addColorStop(0, "rgba(0, 255, 136, 0.24)");
+        waterGlow.addColorStop(0.4, "rgba(0, 229, 255, 0.18)");
+        waterGlow.addColorStop(0.8, "rgba(124, 77, 255, 0.12)");
+        waterGlow.addColorStop(1, "rgba(4, 6, 12, 0.85)");
+        ctx.fillStyle = waterGlow;
+        ctx.fillRect(0, 420, 800, 60);
+
+        // Water horizontal ripple shimmer
+        ctx.lineWidth = 1;
+        for (let wy = 426; wy < 475; wy += 5) {
+            const waveOffset = Math.sin(wy * 0.28 + this.elapsed * 2.5) * 8;
+            const ripAlpha = (0.15 + 0.12 * Math.sin(wy * 0.4 + this.elapsed * 3)) * (1 - (wy - 420) / 60);
+            ctx.strokeStyle = `rgba(180, 255, 230, ${Math.max(0, ripAlpha)})`;
+            ctx.beginPath();
+            ctx.moveTo(50 + waveOffset, wy);
+            ctx.lineTo(750 + waveOffset, wy);
+            ctx.stroke();
+        }
+
+        ctx.restore();
+    }
+
+    drawContinuousAuroraCurtain(ctx, opt) {
+        const step = 3;
+        for (let x = -20; x <= 820; x += step) {
+            const waveY = opt.baseY + 
+                Math.sin(x * opt.k1 + this.elapsed * opt.s1) * opt.a1 +
+                Math.sin(x * opt.k2 + this.elapsed * opt.s2) * opt.a2 +
+                Math.cos(x * opt.k3 + this.elapsed * opt.s3) * opt.a3;
+
+            // Optical line-of-sight fold amplification
+            const slope = (Math.sin((x + 6) * opt.k1 + this.elapsed * opt.s1) * opt.a1 - 
+                           Math.sin((x - 6) * opt.k1 + this.elapsed * opt.s1) * opt.a1) / 12;
+            const foldFactor = 1.0 + 1.35 * Math.min(1.2, slope * slope * 2.8);
+
+            // Shimmering vertical ray striations
+            const ray = 0.68 + 0.32 * Math.sin(x * 0.075 + this.elapsed * 1.8) * Math.cos(x * 0.035 - this.elapsed * 0.85);
+            const colAlpha = opt.alpha * foldFactor * ray;
+            const curtainH = opt.height * (0.82 + 0.18 * Math.sin(x * 0.025 + this.elapsed * 0.65));
+
+            const rayGrad = ctx.createLinearGradient(x, waveY + 8, x, waveY - curtainH);
+            rayGrad.addColorStop(0, `rgba(${opt.colorR}, ${opt.colorG}, ${opt.colorB}, 0)`);
+            rayGrad.addColorStop(0.12, `rgba(${opt.colorR}, ${opt.colorG}, ${opt.colorB}, ${Math.min(1, colAlpha * 0.95)})`);
+            rayGrad.addColorStop(0.48, `rgba(${opt.colorR}, ${opt.colorG}, ${opt.colorB}, ${colAlpha * 0.55})`);
+            rayGrad.addColorStop(0.82, `rgba(180, 100, 255, ${colAlpha * 0.35})`);
+            rayGrad.addColorStop(1, "rgba(160, 60, 255, 0)");
+
+            ctx.fillStyle = rayGrad;
+            // 4.2px width with 3px step ensures continuous, silky smooth curtain coverage without any bar lines
+            ctx.fillRect(x, waveY - curtainH, 4.2, curtainH + 8);
+        }
     }
 }
 
-function closeAmbientColorModal() {
-    // Cancel — revert to pre-edit color
+let ambientCanvasEngine = null;
+
+function getAmbientCanvasEngine() {
+    if (!ambientCanvasEngine) {
+        ambientCanvasEngine = new AmbientCanvasRenderer("ambientCanvas");
+    }
+    return ambientCanvasEngine;
+}
+
+let lavaSvgAnimId = null;
+let lavaSvgStartTime = 0;
+
+function startLavaSvgAnimation() {
+    stopLavaSvgAnimation();
+    const svg = document.getElementById("ambientLavaSvg");
+    if (!svg) return;
+    svg.style.display = "block";
+
+    // Replicate Luke Smetham's TimelineMax lava lamp logic with yoyo, repeatDelay, timeScale(2), and seek(120)
+    // 5 blobs moving along y: 260 with organic random durations
+    const blobConfigs = [
+        { id: "blob0", duration: 16.0, delay: 1.2, offset: 5.0 },
+        { id: "blob1", duration: 22.0, delay: 1.8, offset: 16.0 },
+        { id: "blob2", duration: 30.0, delay: 1.0, offset: 27.5 },
+        { id: "blob3", duration: 19.0, delay: 1.5, offset: 10.0 },
+        { id: "blob4", duration: 34.0, delay: 1.0, offset: 21.0 }
+    ];
+
+    const elements = blobConfigs.map(c => ({
+        el: document.getElementById(c.id),
+        duration: c.duration,
+        delay: c.delay,
+        offset: c.offset,
+        period: 2 * (c.duration + c.delay),
+        range: 260
+    }));
+
+    lavaSvgStartTime = performance.now();
+
+    const loop = (now) => {
+        // Luke Smetham's timeScale(2) for realistic molten tempo
+        const speed = 1.85;
+        const elapsed = ((now - lavaSvgStartTime) / 1000) * speed + 120;
+
+        // Smooth sinusoidal easing for organic wax buoyancy acceleration and deceleration
+        const ease = (p) => 0.5 - 0.5 * Math.cos(p * Math.PI);
+
+        for (const b of elements) {
+            if (!b.el) continue;
+            const t = (elapsed + b.offset) % b.period;
+            let y = 0;
+
+            if (t < b.duration) {
+                // Smoothly floating down and detaching from top
+                y = b.range * ease(t / b.duration);
+            } else if (t < b.duration + b.delay) {
+                // Dwell and merge at warm base pool
+                y = b.range;
+            } else if (t < 2 * b.duration + b.delay) {
+                // Smoothly rising up toward the cool cap (yoyo)
+                const prog = (t - (b.duration + b.delay)) / b.duration;
+                y = b.range * (1 - ease(prog));
+            } else {
+                // Dwell and cool at top cap
+                y = 0;
+            }
+
+            b.el.setAttribute("transform", `translate(0, ${y.toFixed(2)})`);
+        }
+
+        lavaSvgAnimId = requestAnimationFrame(loop);
+    };
+
+    lavaSvgAnimId = requestAnimationFrame(loop);
+}
+
+function stopLavaSvgAnimation() {
+    if (lavaSvgAnimId) {
+        cancelAnimationFrame(lavaSvgAnimId);
+        lavaSvgAnimId = null;
+    }
+    const svg = document.getElementById("ambientLavaSvg");
+    if (svg) svg.style.display = "none";
+}
+
+function selectAmbientMode(code) {
+    selectedAmbientModeCode = code;
+
+    // Update active tile in grid
+    const tiles = document.querySelectorAll(".ambient-mode-tile");
+    tiles.forEach(tile => {
+        const isCurrent = tile.id.toLowerCase().includes(code.toLowerCase()) || 
+                          (code === "SOLID" && tile.id === "ambientTileSolid");
+        tile.classList.toggle("active", isCurrent);
+    });
+
+    const pickerContainer = document.getElementById("ambientColorPickerContainer");
+    const descContainer = document.getElementById("ambientModeDescContainer");
+    const descText = document.getElementById("ambientModeDesc");
+    const canvas = document.getElementById("ambientCanvas");
+    const engine = getAmbientCanvasEngine();
+
+    if (code === "SOLID") {
+        if (engine) engine.stop();
+        stopLavaSvgAnimation();
+        if (descContainer) descContainer.style.display = "none";
+        if (pickerContainer) pickerContainer.style.display = "flex";
+
+        // Retrieve last saved solid color or fallback
+        const lastSolid = localStorage.getItem("ll_ambient_solid_" + myDeviceId) ||
+                          (mySettings.ambientColor && mySettings.ambientColor.startsWith("#") ? mySettings.ambientColor : "#FFAA00");
+
+        if (!ambientColorPicker) {
+            ambientColorPicker = new iro.ColorPicker("#ambientIroWheelMount", {
+                width: 220,
+                color: lastSolid,
+                borderWidth: 1,
+                borderColor: "#fff",
+                layout: [
+                    { component: iro.ui.Wheel, options: {} },
+                    { component: iro.ui.Slider, options: { sliderType: "value" } }
+                ]
+            });
+        } else {
+            ambientColorPicker.color.hexString = lastSolid;
+        }
+    } else {
+        if (pickerContainer) pickerContainer.style.display = "none";
+        if (descContainer) descContainer.style.display = "flex";
+        if (descText && AMBIENT_MODES[code]) {
+            descText.textContent = AMBIENT_MODES[code].desc;
+        }
+
+        if (code === "LAVA") {
+            if (engine) engine.stop();
+            if (canvas) canvas.style.display = "none";
+            startLavaSvgAnimation();
+        } else {
+            stopLavaSvgAnimation();
+            if (canvas) canvas.style.display = "block";
+            if (engine) engine.start(code);
+        }
+    }
+}
+
+function openAmbientSettingsModal() {
+    ambientColorBeforeEdit = mySettings.ambientColor;
+    const modal = document.getElementById("ambientSettingsModal");
+    if (modal) modal.style.display = "block";
+
+    const currentCode = getAmbientModeCode(mySettings.ambientColor);
+    selectAmbientMode(currentCode);
+}
+
+function closeAmbientSettingsModal() {
     if (ambientColorBeforeEdit !== null) {
         mySettings.ambientColor = ambientColorBeforeEdit;
     }
-    document.getElementById("ambientColorModal").style.display = "none";
+    const engine = getAmbientCanvasEngine();
+    if (engine) engine.stop();
+    stopLavaSvgAnimation();
+
+    const modal = document.getElementById("ambientSettingsModal");
+    if (modal) modal.style.display = "none";
 }
 
-function saveAmbientColor() {
-    mySettings.ambientColor = ambientColorPicker.color.hexString;
-    ambientColorBeforeEdit = null; // Clear so close doesn't revert
+function saveAmbientSettings() {
+    if (selectedAmbientModeCode === "SOLID") {
+        const chosenHex = ambientColorPicker ? ambientColorPicker.color.hexString.toUpperCase() : "#FFAA00";
+        mySettings.ambientColor = chosenHex;
+        localStorage.setItem("ll_ambient_solid_" + myDeviceId, chosenHex);
+    } else {
+        mySettings.ambientColor = selectedAmbientModeCode;
+    }
 
-    // Update the color circle
-    const circle = document.getElementById("btnAmbientColorDisplay");
-    if (circle) circle.style.backgroundColor = mySettings.ambientColor;
-
+    ambientColorBeforeEdit = null;
+    updateAmbientPill();
     publishSettings();
-    document.getElementById("ambientColorModal").style.display = "none";
+
+    const engine = getAmbientCanvasEngine();
+    if (engine) engine.stop();
+    stopLavaSvgAnimation();
+
+    const modal = document.getElementById("ambientSettingsModal");
+    if (modal) modal.style.display = "none";
 }
 
 // ==========================================================================
@@ -3001,7 +4596,6 @@ function renderGroupsPage() {
                         ${settings.ambientMode ? `
                         <span class="group-setting-item active" style="color: var(--accent);" title="Ambient Mode On">
                             <span class="material-icons-round">wb_twilight</span>
-                            <span class="ambient-color-dot" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: ${settings.ambientColor || '#0000FF'}; margin: 0 2px; border: 1px solid rgba(255,255,255,0.2);"></span>
                             <span>On</span>
                         </span>
                         ` : ''}
@@ -3451,7 +5045,6 @@ function updateGroupTileDetails(uid, settings) {
             html += `
                 <span class="group-setting-item active" style="color: var(--accent);" title="Ambient Mode On">
                     <span class="material-icons-round">wb_twilight</span>
-                    <span class="ambient-color-dot" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: ${settings.ambientColor || '#0000FF'}; margin: 0 2px; border: 1px solid rgba(255,255,255,0.2);"></span>
                     <span>On</span>
                 </span>
             `;

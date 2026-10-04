@@ -47,7 +47,8 @@
         <!-- Header -->
         <header class="app-header">
             <h1 id="pageTitle"><a href="../index.html" style="color:inherit; text-decoration:none;">Linked Lamp</a></h1>
-            <div class="status-indicator" id="statusIndicator" onclick="toggleStatusPopup(event)" style="cursor:pointer; position:relative;">
+            <div class="status-indicator" id="statusIndicator" onclick="toggleStatusPopup(event)"
+                style="cursor:pointer; position:relative;">
                 <span id="connectionDot" class="dot connecting"></span>
                 <span id="connectionText">Connecting...</span>
                 <div id="statusPopup" class="status-popup" style="display:none;"></div>
@@ -75,7 +76,8 @@
                         </div>
                     </div>
                     <div style="text-align: center; margin-top: 25px; padding-bottom: 80px;">
-                        <p id="lastTapDisplay" style="font-size: 0.8rem; font-style: italic; color: rgba(255,255,255,0.5);">
+                        <p id="lastTapDisplay"
+                            style="font-size: 0.8rem; font-style: italic; color: rgba(255,255,255,0.5);">
                             Last Tap Received: Unknown</p>
                     </div>
                 </div>
@@ -104,11 +106,13 @@
                         </p>
                     </div>
                     <div class="bonfire-actions-row">
-                        <button id="btnAddLogBtn" class="action-btn primary-btn bonfire-action-btn" onclick="handleAddLogFromUI()">
+                        <button id="btnAddLogBtn" class="action-btn primary-btn bonfire-action-btn"
+                            onclick="handleAddLogFromUI()">
                             <span class="material-icons-round">local_fire_department</span>
                             <span>Add Log</span>
                         </button>
-                        <button id="btnExtinguishBtn" class="action-btn secondary-btn bonfire-action-btn" onclick="handleExtinguishFromUI()">
+                        <button id="btnExtinguishBtn" class="action-btn secondary-btn bonfire-action-btn"
+                            onclick="handleExtinguishFromUI()">
                             <span class="material-icons-round">water_drop</span>
                             <span>Put Out Fire</span>
                         </button>
@@ -151,12 +155,13 @@
                     <div class="night-mode-header">
                         <div>
                             <h3>Ambient Mode</h3>
-                            <p class="desc">Glow gently (10% brightness) when inactive.</p>
+                            <p class="desc">Glow gently when inactive.</p>
                         </div>
                         <div style="display: flex; align-items: center; gap: 12px;">
-                            <div id="btnAmbientColorDisplay"
-                                style="width: 24px; height: 24px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.2); cursor: pointer; display: none;"
-                                onclick="openAmbientColorModal()"></div>
+                            <button id="btnAmbientModePill" class="ambient-mode-pill" style="display: none;"
+                                onclick="openAmbientSettingsModal()" title="Ambient lighting settings">
+                                <span class="material-icons-round ambient-pill-icon" id="ambientPillIcon"></span>
+                            </button>
                             <label class="toggle-switch">
                                 <input type="checkbox" id="ambientModeToggle">
                                 <span class="toggle-slider"></span>
@@ -252,7 +257,7 @@
                     <div class="night-mode-header">
                         <div>
                             <h3>Virtual Bonfire</h3>
-                            <p class="desc">Co-presence glow. Light a shared fire for the evening.</p>
+                            <p class="desc">Light a shared fire for the evening.</p>
                         </div>
                         <label class="toggle-switch">
                             <input type="checkbox" id="bonfireToggle" onchange="handleBonfireToggle(this)">
@@ -298,20 +303,25 @@
                 </div>
 
                 <!-- Inline Add Group Form (shown below list in Edit Mode) -->
-                <div id="inlineAddGroupSection" style="display: none; margin-top: 15px; background: rgba(255,255,255,0.04); padding: 15px; border-radius: 12px; border: 1px solid var(--border);">
-                    <p class="desc" style="margin-bottom: 10px; font-size: 0.82rem;">Enter the Unique ID for the new account:</p>
+                <div id="inlineAddGroupSection"
+                    style="display: none; margin-top: 15px; background: rgba(255,255,255,0.04); padding: 15px; border-radius: 12px; border: 1px solid var(--border);">
+                    <p class="desc" style="margin-bottom: 10px; font-size: 0.82rem;">Enter the Unique ID for the new
+                        account:</p>
                     <input type="text" id="inlineNewAccountUidInput" placeholder="Paste Unique ID here"
                         style="width: 100%; padding: 10px; border-radius: 8px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); color: white; font-family: monospace; font-size: 0.82rem; outline: none; margin-bottom: 10px; box-sizing: border-box;"
                         autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
                     <div style="display: flex; gap: 10px;">
-                        <button class="action-btn primary-btn" onclick="addInlineNewAccount()" style="font-size: 0.85rem; padding: 9px; flex: 1;">
+                        <button class="action-btn primary-btn" onclick="addInlineNewAccount()"
+                            style="font-size: 0.85rem; padding: 9px; flex: 1;">
                             <span class="material-icons-round" style="font-size: 16px;">add_circle</span> Add
                         </button>
-                        <button class="action-btn secondary-btn" onclick="openQRScanner('inlineAddAccount')" style="font-size: 0.85rem; padding: 9px; flex: 1; background: rgba(255,255,255,0.05); border: 1px solid var(--border);">
+                        <button class="action-btn secondary-btn" onclick="openQRScanner('inlineAddAccount')"
+                            style="font-size: 0.85rem; padding: 9px; flex: 1; background: rgba(255,255,255,0.05); border: 1px solid var(--border);">
                             <span class="material-icons-round" style="font-size: 16px;">qr_code_scanner</span> Scan QR
                         </button>
                     </div>
-                    <p id="inlineNewAccountError" style="color: #ff4757; font-size: 0.78rem; margin-top: 8px; display: none;"></p>
+                    <p id="inlineNewAccountError"
+                        style="color: #ff4757; font-size: 0.78rem; margin-top: 8px; display: none;"></p>
                 </div>
 
             </div>
@@ -381,27 +391,281 @@
         </div>
     </div>
 
-    <!-- ============ Ambient Color Picker Modal ============ -->
-    <div id="ambientColorModal" class="modal">
+    <!-- ============ Ambient Settings Modal ============ -->
+    <div id="ambientSettingsModal" class="modal">
         <div class="modal-content fullscreen-modal">
             <div class="modal-header">
-                <button class="icon-btn" onclick="closeAmbientColorModal()">
+                <button class="icon-btn" onclick="closeAmbientSettingsModal()">
                     <span class="material-icons-round">arrow_back</span>
                 </button>
-                <h2>Ambient Color</h2>
+                <h2>Ambient Lighting</h2>
                 <div style="flex:1"></div>
             </div>
 
-            <div class="modal-body"
-                style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
-                <p class="desc mb-3 text-center">Keep your lamp glowing gently when inactive.</p>
-                <div class="color-wheel-wrapper mt-3" id="ambientColorPickerContainer"></div>
+            <div class="modal-body" style="display: flex; flex-direction: column; align-items: center;">
+                <!-- Mode Selection Grid -->
+                <div class="ambient-mode-grid" id="ambientModeGrid">
+                    <button type="button" class="ambient-mode-tile active" id="ambientTileSolid"
+                        onclick="selectAmbientMode('SOLID')">
+                        <span class="material-icons-round">palette</span>
+                        <span>Solid Color</span>
+                    </button>
+                    <button type="button" class="ambient-mode-tile" id="ambientTileFire"
+                        onclick="selectAmbientMode('FIRE')">
+                        <span class="material-icons-round" style="color: #ff7700;">local_fire_department</span>
+                        <span>Fireplace</span>
+                    </button>
+                    <button type="button" class="ambient-mode-tile" id="ambientTileBreath"
+                        onclick="selectAmbientMode('BREATH')">
+                        <span class="material-icons-round" style="color: #c77dff;">air</span>
+                        <span>Breathe</span>
+                    </button>
+                    <button type="button" class="ambient-mode-tile" id="ambientTileLava"
+                        onclick="selectAmbientMode('LAVA')">
+                        <span class="material-icons-round" style="color: #ff5722;">bubble_chart</span>
+                        <span>Lava Lamp</span>
+                    </button>
+                    <button type="button" class="ambient-mode-tile" id="ambientTileRain"
+                        onclick="selectAmbientMode('RAIN')">
+                        <span class="material-icons-round" style="color: #38bdf8;">water_drop</span>
+                        <span>Rain</span>
+                    </button>
+                    <button type="button" class="ambient-mode-tile" id="ambientTileAurora"
+                        onclick="selectAmbientMode('AURORA')">
+                        <span class="material-icons-round" style="color: #00e676;">waves</span>
+                        <span>Aurora</span>
+                    </button>
+                </div>
+
+                <!-- Conditional Color Wheel (shown only for Solid Color, NO extra animation) -->
+                <div class="color-wheel-wrapper mt-3" id="ambientColorPickerContainer" style="display: none;">
+                    <div id="ambientIroWheelMount"></div>
+                </div>
+
+                <!-- Borderless Realistic Stage (shown for animated modes, NOT in a box) -->
+                <div id="ambientModeDescContainer" class="ambient-mode-desc-container mt-2" style="display: none;">
+                    <canvas id="ambientCanvas" class="ambient-canvas" width="800" height="480"></canvas>
+                    <svg version="1.1" id="ambientLavaSvg" class="ambient-lava-svg" xmlns="http://www.w3.org/2000/svg"
+                        xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="195 95 194 390" style="display: none;">
+                        <defs>
+                            <!-- Gooey liquid surface tension filter -->
+                            <filter id="goo" x="-20%" y="-20%" width="140%" height="140%">
+                                <feGaussianBlur in="SourceGraphic" stdDeviation="7.5" result="blur" />
+                                <feColorMatrix in="blur" mode="matrix"
+                                    values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -9.5" result="cm" />
+                            </filter>
+
+                            <!-- Room ambient warm backlight glow -->
+                            <radialGradient id="bgGlow" cx="292" cy="285" r="160" gradientUnits="userSpaceOnUse">
+                                <stop offset="0%" style="stop-color: rgba(255, 85, 0, 0.28);" />
+                                <stop offset="50%" style="stop-color: rgba(220, 45, 0, 0.10);" />
+                                <stop offset="100%" style="stop-color: rgba(0, 0, 0, 0);" />
+                            </radialGradient>
+
+                            <!-- Tabletop reflection glow -->
+                            <radialGradient id="tableGlow" cx="292" cy="474" rx="110" ry="16"
+                                gradientUnits="userSpaceOnUse">
+                                <stop offset="0%" style="stop-color: rgba(255, 95, 0, 0.35);" />
+                                <stop offset="60%" style="stop-color: rgba(200, 40, 0, 0.12);" />
+                                <stop offset="100%" style="stop-color: rgba(0, 0, 0, 0);" />
+                            </radialGradient>
+
+                            <!-- Suspension Liquid Gradient (Deep royal amethyst to warm crimson) -->
+                            <linearGradient id="liquidGrad" x1="292" y1="174" x2="292" y2="380"
+                                gradientUnits="userSpaceOnUse">
+                                <stop offset="0%" style="stop-color: #17021c;" />
+                                <stop offset="45%" style="stop-color: #320422;" />
+                                <stop offset="85%" style="stop-color: #4a0624;" />
+                                <stop offset="100%" style="stop-color: #2b0214;" />
+                            </linearGradient>
+
+                            <!-- Radiant bulb glow at base -->
+                            <radialGradient id="bulbGlow" cx="292" cy="382" r="50" gradientUnits="userSpaceOnUse">
+                                <stop offset="0%" style="stop-color: rgba(255, 215, 80, 0.95);" />
+                                <stop offset="35%" style="stop-color: rgba(255, 120, 20, 0.65);" />
+                                <stop offset="70%" style="stop-color: rgba(230, 40, 0, 0.2);" />
+                                <stop offset="100%" style="stop-color: rgba(200, 20, 0, 0);" />
+                            </radialGradient>
+
+                            <!-- Precise Inner Glass Mask (strictly insets by 1.5px so NO wax bleeds onto or past walls) -->
+                            <clipPath id="glassMask">
+                                <path id="glassShape"
+                                    d="M263,174 Q292,177 321,174 L352,358 Q355,374 347,378 Q292,382 237,378 Q229,374 232,358 Z" />
+                            </clipPath>
+
+                            <!-- Premium Spun Aluminum Top Cap Gradient -->
+                            <linearGradient id="lampTopGrad" x1="258" y1="140" x2="326" y2="140"
+                                gradientUnits="userSpaceOnUse">
+                                <stop offset="0%" style="stop-color:#1c1d24" />
+                                <stop offset="22%" style="stop-color:#484b5c" />
+                                <stop offset="46%" style="stop-color:#9da2c2" />
+                                <stop offset="70%" style="stop-color:#4e5163" />
+                                <stop offset="100%" style="stop-color:#181920" />
+                            </linearGradient>
+
+                            <!-- Metallic Bevel Ring Gradient -->
+                            <linearGradient id="metalRingGrad" x1="220" y1="0" x2="365" y2="0"
+                                gradientUnits="userSpaceOnUse">
+                                <stop offset="0%" style="stop-color:#16171d" />
+                                <stop offset="24%" style="stop-color:#5a5d72" />
+                                <stop offset="50%" style="stop-color:#b5badb" />
+                                <stop offset="76%" style="stop-color:#444757" />
+                                <stop offset="100%" style="stop-color:#14151a" />
+                            </linearGradient>
+
+                            <!-- Premium Spun Aluminum Flared Trumpet Base Gradient -->
+                            <linearGradient id="lampBotGrad" x1="212" y1="425" x2="372" y2="425"
+                                gradientUnits="userSpaceOnUse">
+                                <stop offset="0%" style="stop-color:#15161c" />
+                                <stop offset="20%" style="stop-color:#3f4252" />
+                                <stop offset="46%" style="stop-color:#9da2c2" />
+                                <stop offset="72%" style="stop-color:#444757" />
+                                <stop offset="100%" style="stop-color:#131418" />
+                            </linearGradient>
+
+                            <!-- UNIFIED MOLTEN LAVA WAX PALETTE (Identical rich glowing amber/crimson across all droplets) -->
+                            <radialGradient id="blob0_2_" cx="292" cy="171.5" r="56.5" gradientUnits="userSpaceOnUse">
+                                <stop offset="0.01" style="stop-color:#FFBE00" />
+                                <stop offset="0.25" style="stop-color:#FF5500" />
+                                <stop offset="0.60" style="stop-color:#D01200" />
+                                <stop offset="0.88" style="stop-color:#820200" />
+                                <stop offset="1" style="stop-color:#500000" />
+                            </radialGradient>
+                            <radialGradient id="blob1_2_" cx="297" cy="167.5" r="37.2" gradientUnits="userSpaceOnUse">
+                                <stop offset="0.01" style="stop-color:#FFBE00" />
+                                <stop offset="0.25" style="stop-color:#FF5500" />
+                                <stop offset="0.60" style="stop-color:#D01200" />
+                                <stop offset="0.88" style="stop-color:#820200" />
+                                <stop offset="1" style="stop-color:#500000" />
+                            </radialGradient>
+                            <radialGradient id="blob2_2_" cx="294" cy="157" r="23" gradientUnits="userSpaceOnUse">
+                                <stop offset="0.01" style="stop-color:#FFBE00" />
+                                <stop offset="0.25" style="stop-color:#FF5500" />
+                                <stop offset="0.60" style="stop-color:#D01200" />
+                                <stop offset="0.88" style="stop-color:#820200" />
+                                <stop offset="1" style="stop-color:#500000" />
+                            </radialGradient>
+                            <radialGradient id="botBlob_2_" cx="284.5" cy="421.5" r="53.5"
+                                gradientTransform="matrix(-2.802637e-002 -0.9996 5.9976 -0.1682 -2235.533 776.7669)"
+                                gradientUnits="userSpaceOnUse">
+                                <stop offset="0.01" style="stop-color:#FFD230" />
+                                <stop offset="0.22" style="stop-color:#FF5500" />
+                                <stop offset="0.60" style="stop-color:#D01200" />
+                                <stop offset="0.88" style="stop-color:#820200" />
+                                <stop offset="1" style="stop-color:#500000" />
+                            </radialGradient>
+                            <radialGradient id="blob3_2_" cx="291.9" cy="167.5" r="41" gradientUnits="userSpaceOnUse">
+                                <stop offset="0.01" style="stop-color:#FFBE00" />
+                                <stop offset="0.25" style="stop-color:#FF5500" />
+                                <stop offset="0.60" style="stop-color:#D01200" />
+                                <stop offset="0.88" style="stop-color:#820200" />
+                                <stop offset="1" style="stop-color:#500000" />
+                            </radialGradient>
+                            <radialGradient id="blob4_2_" cx="306.5" cy="155" r="14.1" gradientUnits="userSpaceOnUse">
+                                <stop offset="0.01" style="stop-color:#FFBE00" />
+                                <stop offset="0.25" style="stop-color:#FF5500" />
+                                <stop offset="0.60" style="stop-color:#D01200" />
+                                <stop offset="0.88" style="stop-color:#820200" />
+                                <stop offset="1" style="stop-color:#500000" />
+                            </radialGradient>
+                        </defs>
+
+                        <!-- Room Backlight Glow -->
+                        <ellipse cx="292" cy="285" rx="95" ry="150" fill="url(#bgGlow)" />
+
+                        <!-- Tabletop Puddle Glow -->
+                        <ellipse cx="292" cy="474" rx="100" ry="14" fill="url(#tableGlow)" />
+
+                        <!-- 1. Strictly Clipped Fluid Chamber (Guarantees zero blur bleed outside glass) -->
+                        <g clip-path="url(#glassMask)">
+                            <!-- Liquid suspension medium -->
+                            <rect x="200" y="170" width="185" height="215" fill="url(#liquidGrad)" />
+
+                            <!-- Intense radiant bulb glow at heating base -->
+                            <circle cx="292" cy="380" r="42" fill="url(#bulbGlow)" />
+
+                            <!-- Heating coil metallic spiral wire at bottom of bottle -->
+                            <path
+                                d="M236,375 Q245,370 254,375 Q263,380 272,375 Q281,370 290,375 Q299,380 308,375 Q317,370 326,375 Q335,380 344,375 Q348,372 350,375"
+                                fill="none" stroke="rgba(255, 215, 135, 0.75)" stroke-width="2.4"
+                                stroke-linecap="round" />
+
+                            <!-- Gooey Lava Droplets System (Thresholded by SVG goo filter) -->
+                            <g filter="url(#goo)">
+                                <path id="blob0" fill="url(#blob0_2_)"
+                                    d="M326.2,149.5c-5,19.2-21.4,29.2-37.8,26.6c-16.5-2.9-33.4-12.9-37.1-26.6 c-3.8-13.6,12.5-32.1,37.8-34.9C314.4,111.8,331.3,130.4,326.2,149.5z" />
+                                <path id="blob1" fill="url(#blob1_2_)"
+                                    d="M320.5,146.4c-4.4,10.1-16.4,20.2-26.8,25.3c-10.4,5.2-22.4-2.9-26.8-15.2 c-4.4-11.6,7.6-20.4,26.8-25.3C312.9,126.3,324.9,135.6,320.5,146.4z" />
+                                <path id="blob2" fill="url(#blob2_2_)"
+                                    d="M278,147.7c2.7-7.1,9.4-15.7,15.4-16.4c5.9-0.4,12.6,8.5,15.4,16.9 c2.7,8.4-4.2,14.9-15.4,14.2C282.2,161.5,275.3,154.8,278,147.7z" />
+                                <path id="botBlob" fill="url(#botBlob_2_)"
+                                    d="M354,381.2c6.8,3.4,5.4,7.4-5.6,10.4c-10.7,3.1-31.1,5.1-54.4,8.4 c-23.3,3.3-43.7,0.8-54.4-2.4c-11-3.4-12.4-7.6-5.6-13.8c6.8-7,18.9-14.6,29.6-17.4c11-3.3,20.6-1.8,30.4-1.4 c9.8,0.4,19.4,5.1,30.4,8.3C335.1,376.8,347.2,378.6,354,381.2z" />
+                                <path id="blob3" fill="url(#blob3_2_)"
+                                    d="M312.7,147.3c-2.1,16.4-15.3,27.2-23.2,25.3c-8.1-1.8-12.6-13-14.8-24.9 c-1.9-11.8,2.7-22.7,14.8-25.3C301.5,119.6,314.7,130.8,312.7,147.3z" />
+                                <path id="blob4" fill="url(#blob4_2_)"
+                                    d="M317.8,147.4c-1,8.2-9.8,10.3-13.8,9.3c-4-0.9-6.5-3-7.6-8.9c-1-5.9,2.3-8.5,8.4-9.8 C310.8,136.6,318.8,139.1,317.8,147.4z" />
+                            </g>
+                        </g>
+
+                        <!-- 2. Outer Contoured Glass Vessel Walls & Specular Reflections -->
+                        <path
+                            d="M262,174 Q292,177 322,174 L353,358 Q356,374 348,378 Q292,382 236,378 Q228,374 231,358 Z"
+                            fill="none" stroke="rgba(255, 255, 255, 0.28)" stroke-width="2.0" />
+
+                        <!-- Primary curved specular reflection on left flank -->
+                        <path d="M265,178 L235,354 c-1,7 0,15 2,18" fill="none" stroke="rgba(255,255,255,0.46)"
+                            stroke-width="3.2" stroke-linecap="round" />
+
+                        <!-- Secondary subtle specular reflection on right flank -->
+                        <path d="M319,178 L349,354 c1,7 0,15 -2,18" fill="none" stroke="rgba(255,255,255,0.22)"
+                            stroke-width="1.6" stroke-linecap="round" />
+
+                        <!-- 3. Vintage Pointed Rocket Cone Cap -->
+                        <!-- Sleek aerodynamic pointed bullet cap -->
+                        <path d="M285,112 Q292,105 299,112 L326,170 Q292,174 258,170 Z" fill="url(#lampTopGrad)"
+                            stroke="rgba(255,255,255,0.25)" stroke-width="0.8" />
+                        <!-- Cap bottom bevel ring -->
+                        <path d="M257,169 L256,175 Q292,178 328,175 L327,169 Q292,172 257,169 Z"
+                            fill="url(#metalRingGrad)" stroke="rgba(255,255,255,0.3)" stroke-width="0.8" />
+                        <!-- Cap specular gleam highlight -->
+                        <path d="M284,115 L268,168" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="1.8"
+                            stroke-linecap="round" />
+
+                        <!-- 4. Vintage Flared Trumpet Pedestal Base -->
+                        <!-- Pedestal body with elegant flared waist -->
+                        <path
+                            d="M228,378 Q292,383 356,378 L352,396 Q346,416 338,428 Q346,448 368,464 L368,470 Q292,474 216,470 L216,464 Q238,448 246,428 Q238,416 232,396 Z"
+                            fill="url(#lampBotGrad)" stroke="rgba(255,255,255,0.22)" stroke-width="0.8" />
+                        <!-- Base top collar ring -->
+                        <path d="M227,377 L226,382 Q292,386 358,382 L357,377 Q292,382 227,377 Z"
+                            fill="url(#metalRingGrad)" stroke="rgba(255,255,255,0.25)" stroke-width="0.8" />
+                        <!-- Base bottom footing rim -->
+                        <path d="M214,468 L212,473 Q292,478 372,473 L370,468 Q292,472 214,468 Z"
+                            fill="url(#metalRingGrad)" stroke="rgba(255,255,255,0.3)" stroke-width="0.8" />
+                        <!-- Base specular gleam highlight -->
+                        <path d="M239,392 Q253,425 240,466" fill="none" stroke="rgba(255,255,255,0.35)"
+                            stroke-width="2.2" stroke-linecap="round" />
+
+                        <!-- Ventilation Louvers with warm incandescent underglow -->
+                        <g>
+                            <!-- Amber backlight peeking through slots -->
+                            <rect x="273" y="423.5" width="38" height="2" rx="1" fill="#ff7700" opacity="0.6" />
+                            <rect x="269" y="430.5" width="46" height="2" rx="1" fill="#ff7700" opacity="0.6" />
+                            <rect x="265" y="437.5" width="54" height="2" rx="1" fill="#ff7700" opacity="0.6" />
+                            <!-- Louver dark recessed vents -->
+                            <rect x="272" y="422" width="40" height="2.5" rx="1.2" fill="#0d0e14" />
+                            <rect x="268" y="429" width="48" height="2.5" rx="1.2" fill="#0d0e14" />
+                            <rect x="264" y="436" width="56" height="2.5" rx="1.2" fill="#0d0e14" />
+                        </g>
+                    </svg>
+                    <p id="ambientModeDesc" class="desc text-center mt-2"></p>
+                </div>
             </div>
 
             <div class="preset-modal-actions mt-3" style="flex-direction: row; gap: 10px;">
                 <button class="action-btn secondary-btn" style="flex: 1;"
-                    onclick="closeAmbientColorModal()">Cancel</button>
-                <button class="action-btn primary-btn" style="flex: 1;" onclick="saveAmbientColor()">Save</button>
+                    onclick="closeAmbientSettingsModal()">Cancel</button>
+                <button class="action-btn primary-btn" style="flex: 1;" onclick="saveAmbientSettings()">Save</button>
             </div>
         </div>
     </div>
@@ -460,25 +724,28 @@
     </div>
 
     <!-- ============ Missing Credentials / UID Input Modal ============ -->
-    <div id="missingCredentialsModal" class="modal" style="background: var(--bg); flex-direction: column; justify-content: center; align-items: center; padding: 2rem;">
+    <div id="missingCredentialsModal" class="modal"
+        style="background: var(--bg); flex-direction: column; justify-content: center; align-items: center; padding: 2rem;">
         <div class="uid-input-modal" style="text-align: center; max-width: 400px; width: 100%;">
-            <div style="width: 80px; height: 80px; border-radius: 20px; background: rgba(107, 76, 255, 0.12); border: 1px solid rgba(107, 76, 255, 0.25); display: flex; align-items: center; justify-content: center; margin: 0 auto 24px;">
+            <div
+                style="width: 80px; height: 80px; border-radius: 20px; background: rgba(107, 76, 255, 0.12); border: 1px solid rgba(107, 76, 255, 0.25); display: flex; align-items: center; justify-content: center; margin: 0 auto 24px;">
                 <span class="material-icons-round" style="font-size: 3.5rem; color: var(--accent);">link</span>
             </div>
-            
+
             <h2 style="font-size: 1.8rem; margin-bottom: 12px; font-weight: 700;">Connect Your Lamp</h2>
-            
+
             <p class="desc" style="margin-bottom: 30px; line-height: 1.6; font-size: 0.95rem;">
                 Enter your <strong>Unique ID</strong> to link this device. You can find it in the setup
                 instructions or ask the person who set up the lamp group.
             </p>
 
-            <div style="background: var(--bg-card); padding: 20px; border-radius: 16px; margin-bottom: 20px; border: 1px solid var(--border); box-shadow: 0 8px 24px rgba(0,0,0,0.2);">
+            <div
+                style="background: var(--bg-card); padding: 20px; border-radius: 16px; margin-bottom: 20px; border: 1px solid var(--border); box-shadow: 0 8px 24px rgba(0,0,0,0.2);">
                 <input type="text" id="uidInput" placeholder="Paste your Unique ID here"
                     style="width: 100%; padding: 14px 16px; margin-bottom: 16px; border-radius: 10px; background: rgba(0,0,0,0.4); border: 1px solid var(--border); color: white; font-family: monospace; font-size: 0.9rem; outline: none; box-sizing: border-box; transition: border-color 0.2s;"
                     autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
                     onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
-                
+
                 <div style="display: flex; gap: 10px;">
                     <button class="action-btn primary-btn" onclick="connectWithUID()"
                         style="font-size: 1rem; padding: 14px; flex: 1;">
@@ -489,11 +756,14 @@
                         <span class="material-icons-round" style="font-size: 20px;">qr_code_scanner</span> Scan QR
                     </button>
                 </div>
-                
-                <p id="uidInputError" style="color: var(--danger); font-size: 0.85rem; margin-top: 12px; display: none; font-weight: 500;"></p>
+
+                <p id="uidInputError"
+                    style="color: var(--danger); font-size: 0.85rem; margin-top: 12px; display: none; font-weight: 500;">
+                </p>
             </div>
 
-            <p class="desc" style="margin-bottom: 24px; line-height: 1.5; font-size: 0.8rem; color: rgba(255,255,255,0.4);">
+            <p class="desc"
+                style="margin-bottom: 24px; line-height: 1.5; font-size: 0.8rem; color: rgba(255,255,255,0.4);">
                 You can also paste your full lamp URL here if you have that instead. Both formats will work.
             </p>
 
@@ -513,7 +783,8 @@
             </div>
             <h2>Get the App</h2>
             <p class="desc" style="margin-bottom: 20px; line-height: 1.5; text-align: center;">
-                Install Linked Lamp on your home screen for a better experience — instant access, fullscreen mode, and multi-account support.
+                Install Linked Lamp on your home screen for a better experience — instant access, fullscreen mode, and
+                multi-account support.
             </p>
 
             <div id="pwaInstallInstructions" class="pwa-instructions">
@@ -526,7 +797,8 @@
             </button>
 
             <div class="pwa-dismiss-link" style="margin-top: 24px;">
-                <a href="javascript:void(0)" onclick="dismissPWAPrompt()" style="color: var(--text-dim); font-size: 0.82rem; text-decoration: none;">
+                <a href="javascript:void(0)" onclick="dismissPWAPrompt()"
+                    style="color: var(--text-dim); font-size: 0.82rem; text-decoration: none;">
                     Continue in Browser
                 </a>
             </div>
@@ -547,20 +819,25 @@
                 <!-- JS renders account items here -->
             </div>
 
-            <button class="action-btn secondary-btn" onclick="showAddAccountInput()" style="margin-top: 12px; font-size: 0.9rem;">
+            <button class="action-btn secondary-btn" onclick="showAddAccountInput()"
+                style="margin-top: 12px; font-size: 0.9rem;">
                 <span class="material-icons-round" style="font-size: 18px;">add</span> Add Account
             </button>
 
-            <div id="addAccountSection" style="display: none; margin-top: 15px; background: rgba(255,255,255,0.04); padding: 15px; border-radius: 12px; border: 1px solid var(--border);">
-                <p class="desc" style="margin-bottom: 10px; font-size: 0.82rem;">Enter the Unique ID for the new account:</p>
+            <div id="addAccountSection"
+                style="display: none; margin-top: 15px; background: rgba(255,255,255,0.04); padding: 15px; border-radius: 12px; border: 1px solid var(--border);">
+                <p class="desc" style="margin-bottom: 10px; font-size: 0.82rem;">Enter the Unique ID for the new
+                    account:</p>
                 <input type="text" id="newAccountUidInput" placeholder="Paste Unique ID here"
                     style="width: 100%; padding: 10px; border-radius: 8px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); color: white; font-family: monospace; font-size: 0.82rem; outline: none; margin-bottom: 10px; box-sizing: border-box;"
                     autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
                 <div style="display: flex; gap: 10px;">
-                    <button class="action-btn primary-btn" onclick="addNewAccount()" style="font-size: 0.85rem; padding: 9px; flex: 1;">
+                    <button class="action-btn primary-btn" onclick="addNewAccount()"
+                        style="font-size: 0.85rem; padding: 9px; flex: 1;">
                         <span class="material-icons-round" style="font-size: 16px;">add_circle</span> Add
                     </button>
-                    <button class="action-btn secondary-btn" onclick="openQRScanner('addAccount')" style="font-size: 0.85rem; padding: 9px; flex: 1; background: rgba(255,255,255,0.05); border: 1px solid var(--border);">
+                    <button class="action-btn secondary-btn" onclick="openQRScanner('addAccount')"
+                        style="font-size: 0.85rem; padding: 9px; flex: 1; background: rgba(255,255,255,0.05); border: 1px solid var(--border);">
                         <span class="material-icons-round" style="font-size: 16px;">qr_code_scanner</span> Scan QR
                     </button>
                 </div>
@@ -570,27 +847,38 @@
     </div>
 
     <!-- ============ QR Scanner Modal ============ -->
-    <div id="qrScannerModal" class="modal" style="background: rgba(0,0,0,0.9); flex-direction: column; justify-content: center; align-items: center; padding: 1rem;">
-        <div class="modal-content" style="max-width: 500px; width: 100%; padding: 20px; text-align: center; background: transparent; border: none; display: flex; flex-direction: column; align-items: center;">
+    <div id="qrScannerModal" class="modal"
+        style="background: rgba(0,0,0,0.9); flex-direction: column; justify-content: center; align-items: center; padding: 1rem;">
+        <div class="modal-content"
+            style="max-width: 500px; width: 100%; padding: 20px; text-align: center; background: transparent; border: none; display: flex; flex-direction: column; align-items: center;">
             <h2 style="margin-bottom: 20px; color: white;">Scan QR Code</h2>
-            
+
             <div style="position: relative; width: 100%; max-width: 400px; margin: 0 auto;">
-                <div id="qr-reader" style="width: 100%; border-radius: 12px; overflow: hidden; border: 1px solid var(--border); background: black;"></div>
-                
+                <div id="qr-reader"
+                    style="width: 100%; border-radius: 12px; overflow: hidden; border: 1px solid var(--border); background: black;">
+                </div>
+
                 <!-- Switch Camera Button Overlay -->
-                <button id="switchCameraBtn" class="icon-btn" onclick="switchCamera()" style="position: absolute; top: 15px; right: 15px; background: rgba(0, 0, 0, 0.6); color: white; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 50%; width: 40px; height: 40px; display: none; align-items: center; justify-content: center; z-index: 10; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.8)'" onmouseout="this.style.background='rgba(0,0,0,0.6)'">
+                <button id="switchCameraBtn" class="icon-btn" onclick="switchCamera()"
+                    style="position: absolute; top: 15px; right: 15px; background: rgba(0, 0, 0, 0.6); color: white; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 50%; width: 40px; height: 40px; display: none; align-items: center; justify-content: center; z-index: 10; cursor: pointer; transition: background 0.2s;"
+                    onmouseover="this.style.background='rgba(0,0,0,0.8)'"
+                    onmouseout="this.style.background='rgba(0,0,0,0.6)'">
                     <span class="material-icons-round" style="font-size: 20px;">switch_camera</span>
                 </button>
             </div>
-            
+
             <!-- Zoom Slider Control -->
-            <div id="zoomContainer" style="margin-top: 15px; display: none; align-items: center; gap: 10px; justify-content: center; width: 100%; max-width: 400px; background: rgba(255,255,255,0.05); padding: 10px 15px; border-radius: 10px; border: 1px solid var(--border);">
-                <span class="material-icons-round" style="color: rgba(255,255,255,0.5); font-size: 20px;">zoom_out</span>
-                <input type="range" id="zoomSlider" min="1" max="3.5" step="0.1" value="1" style="flex: 1; accent-color: var(--accent); cursor: pointer; height: 6px; border-radius: 3px; outline: none; background: rgba(255,255,255,0.1);">
+            <div id="zoomContainer"
+                style="margin-top: 15px; display: none; align-items: center; gap: 10px; justify-content: center; width: 100%; max-width: 400px; background: rgba(255,255,255,0.05); padding: 10px 15px; border-radius: 10px; border: 1px solid var(--border);">
+                <span class="material-icons-round"
+                    style="color: rgba(255,255,255,0.5); font-size: 20px;">zoom_out</span>
+                <input type="range" id="zoomSlider" min="1" max="3.5" step="0.1" value="1"
+                    style="flex: 1; accent-color: var(--accent); cursor: pointer; height: 6px; border-radius: 3px; outline: none; background: rgba(255,255,255,0.1);">
                 <span class="material-icons-round" style="color: rgba(255,255,255,0.5); font-size: 20px;">zoom_in</span>
             </div>
 
-            <button class="action-btn secondary-btn" onclick="closeQRScanner()" style="margin-top: 20px; font-size: 1rem; width: 100%; max-width: 400px;">
+            <button class="action-btn secondary-btn" onclick="closeQRScanner()"
+                style="margin-top: 20px; font-size: 1rem; width: 100%; max-width: 400px;">
                 Cancel
             </button>
         </div>
