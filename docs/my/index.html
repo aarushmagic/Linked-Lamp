@@ -753,24 +753,20 @@
                 instructions or ask the person who set up the lamp group.
             </p>
 
-            <!-- Beta Tester Program Toggle in Setup Modal -->
-            <div class="beta-tester-toggle-row">
-                <div>
-                    <span class="beta-label">Beta Tester Program</span>
-                    <p class="beta-sub">Get early access to experimental firmware updates</p>
-                </div>
-                <label class="toggle-switch">
-                    <input type="checkbox" id="betaTesterInitToggle" onchange="handleBetaTesterToggle(this.checked)">
-                    <span class="toggle-slider"></span>
-                </label>
-            </div>
-
             <div
                 style="background: var(--bg-card); padding: 20px; border-radius: 16px; margin-bottom: 20px; border: 1px solid var(--border); box-shadow: 0 8px 24px rgba(0,0,0,0.2);">
                 <input type="text" id="uidInput" placeholder="Paste your Unique ID here"
-                    style="width: 100%; padding: 14px 16px; margin-bottom: 16px; border-radius: 10px; background: rgba(0,0,0,0.4); border: 1px solid var(--border); color: white; font-family: monospace; font-size: 0.9rem; outline: none; box-sizing: border-box; transition: border-color 0.2s;"
+                    style="width: 100%; padding: 14px 16px; margin-bottom: 12px; border-radius: 10px; background: rgba(0,0,0,0.4); border: 1px solid var(--border); color: white; font-family: monospace; font-size: 0.9rem; outline: none; box-sizing: border-box; transition: border-color 0.2s;"
                     autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
                     onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding: 2px 2px;">
+                    <span style="font-size: 0.82rem; color: var(--text-dim);">Beta Tester Program</span>
+                    <label class="toggle-switch" style="transform: scale(0.8); transform-origin: right center;">
+                        <input type="checkbox" id="betaTesterInitToggle" onchange="handleBetaTesterToggle(this.checked)">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
 
                 <div style="display: flex; gap: 10px;">
                     <button class="action-btn primary-btn" onclick="connectWithUID()"

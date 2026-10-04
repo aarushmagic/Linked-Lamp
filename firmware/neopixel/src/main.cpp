@@ -66,6 +66,7 @@ volatile bool pauseCore1 = false;
 
 // Epoch timestamp of the last tap
 unsigned long lastTapTimestamp = 0;
+bool isFirmwareUpdated = false;
 
 // =============================================================================
 // Web-synced settings persisted in LittleFS
@@ -638,9 +639,19 @@ void loadState() {
     resolveAmbientEffect();
     lastTapTimestamp      = doc["lastTapTimestamp"] | 0UL;
     if (doc["role"].is<const char*>()) role = doc["role"].as<String>();
+
+    String savedFw = doc["fwVersion"] | "";
+    if (savedFw != FIRMWARE_VERSION_STR) {
+      isFirmwareUpdated = true;
+      Serial.println("Recently updated firmware detected! Old: '" + savedFw + "' -> New: '" + FIRMWARE_VERSION_STR + "'");
+    }
     Serial.println("State loaded. Default color: " + defaultColor + ", Role: " + (role.length() > 0 ? role : "unset"));
   }
   f.close();
+
+  if (isFirmwareUpdated) {
+    saveState();
+  }
 }
 
 void saveState() {
@@ -658,6 +669,7 @@ void saveState() {
   doc["ambientColor"] = ambientColor;
   doc["lastTapTimestamp"] = lastTapTimestamp;
   doc["role"]         = role;
+  doc["fwVersion"]    = FIRMWARE_VERSION_STR;
 
   File f = LittleFS.open("/state.json", "w");
   if (f) {
@@ -729,6 +741,12 @@ void handleMqttReconnect() {
     // Commit firmware write in NVS
     esp_ota_mark_app_valid_cancel_rollback();
     Serial.println("Firmware marked as valid (rollback cancelled).");
+
+    if (isFirmwareUpdated) {
+      Serial.println("Recently updated lamp: pushing updated settings to MQTT...");
+      publishSettingsViaMQTT();
+      isFirmwareUpdated = false;
+    }
 
   } else {
     mqttFailCount++;
@@ -1072,6 +1090,15 @@ void parseSettings(String payload) {
     Serial.println("Settings updated from web interface (saved to flash).");
   } else {
     Serial.println("Settings received (no changes, skipping flash write).");
+  }
+
+  // If the broker's retained settings has an outdated firmware version or missing version info,
+  // re-publish settings so MQTT retained state immediately reflects the running firmware.
+  String brokerFw = doc["fwVersion"] | "";
+  bool brokerBeta = doc["isBeta"] | false;
+  if (brokerFw != FIRMWARE_VERSION_STR || brokerBeta != FIRMWARE_IS_BETA) {
+    Serial.printf("Broker retained settings had outdated firmware (broker: '%s', running: '%s'). Re-publishing settings...\n", brokerFw.c_str(), FIRMWARE_VERSION_STR);
+    publishSettingsViaMQTT();
   }
 }
 

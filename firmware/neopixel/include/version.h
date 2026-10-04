@@ -4,6 +4,6 @@
 #define FIRMWARE_VERSION_MAJOR 1
 #define FIRMWARE_VERSION_MINOR 0
 #define FIRMWARE_VERSION_PATCH 1
-#define FIRMWARE_VERSION_STR   "1.0.1-beta.1"
-#define FIRMWARE_IS_BETA       true
-#define FIRMWARE_BETA_NUM      1
+#define FIRMWARE_VERSION_STR   "1.0.1"
+#define FIRMWARE_IS_BETA       false
+#define FIRMWARE_BETA_NUM      0
