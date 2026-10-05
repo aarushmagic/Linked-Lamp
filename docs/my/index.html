@@ -73,9 +73,22 @@
                     </div>
 
                     <div class="presets-section">
-                        <h3>Quick Signals</h3>
+                        <div class="signals-header-row">
+                            <h3 id="signalsSectionTitle">Quick Signals</h3>
+                            <div class="pill-segmented-toggle" id="signalsModeToggle" role="tablist" aria-label="Signal view selection">
+                                <button type="button" class="pill-toggle-btn active" id="btnPillSignals" onclick="setDashboardSignalsMode('signals')" role="tab" aria-selected="true" title="Quick Signals" aria-label="Quick Signals">
+                                    <span class="material-icons-round">bolt</span>
+                                </button>
+                                <button type="button" class="pill-toggle-btn" id="btnPillConnections" onclick="setDashboardSignalsMode('connections')" role="tab" aria-selected="false" title="Connections" aria-label="Connections">
+                                    <span class="material-icons-round">link</span>
+                                </button>
+                            </div>
+                        </div>
                         <div class="presets-grid" id="presetsGrid">
                             <!-- JS generated -->
+                        </div>
+                        <div class="presets-grid" id="connectionsGrid" style="display: none;">
+                            <!-- JS generated hardcoded connections -->
                         </div>
                     </div>
                     <div style="text-align: center; margin-top: 25px; padding-bottom: 80px;">
@@ -252,20 +265,6 @@
                         </div>
                         <input type="range" id="nightBrightness" min="0" max="255" value="76" class="custom-slider">
                         <p class="desc mt-1">Set to 0% to keep lamp off at night.</p>
-                    </div>
-                </div>
-
-                <!-- Virtual Bonfire Mode Settings -->
-                <div class="settings-card" id="bonfireSettingsCard">
-                    <div class="night-mode-header">
-                        <div>
-                            <h3>Virtual Bonfire</h3>
-                            <p class="desc">Light a shared fire for the evening.</p>
-                        </div>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="bonfireToggle" onchange="handleBonfireToggle(this)">
-                            <span class="toggle-slider"></span>
-                        </label>
                     </div>
                 </div>
 

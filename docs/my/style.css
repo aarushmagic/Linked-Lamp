@@ -346,9 +346,91 @@ body {
     margin-top: 0.5rem;
 }
 
-.presets-section h3 {
-    margin-bottom: 0.75rem;
+.signals-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.25rem;
+    margin-bottom: 0.85rem;
+    gap: 8px;
+}
+
+.signals-header-row h3 {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--text);
+    white-space: nowrap;
+    line-height: 1.3;
+    transition: color 0.2s ease;
+}
+
+.pill-segmented-toggle {
+    display: inline-flex;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 9999px;
+    padding: 2px;
+    gap: 2px;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    user-select: none;
+    flex-shrink: 0;
+}
+
+.pill-toggle-btn {
+    border: none;
+    outline: none;
+    background: transparent;
+    color: var(--text-dim);
+    padding: 3px 8px;
+    border-radius: 9999px;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+    height: 24px;
+    min-width: 28px;
+    box-sizing: border-box;
+}
+
+.pill-toggle-btn .material-icons-round {
     font-size: 1.05rem;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.pill-toggle-btn:hover:not(.active) {
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.pill-toggle-btn.active {
+    background: var(--accent);
+    color: #ffffff;
+    box-shadow: 0 2px 8px var(--accent-glow);
+}
+
+.connection-btn {
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.connection-icon {
+    font-size: 1.3rem;
+    color: var(--preset-color, #ff5722);
+    margin-left: auto;
+    flex-shrink: 0;
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.connection-btn:hover .connection-icon {
+    transform: scale(1.15);
 }
 
 .presets-grid {

@@ -214,6 +214,8 @@ window.addEventListener("load", () => {
     initNightToggle();
     initTimezone();
     renderPresets();
+    renderConnections();
+    setDashboardSignalsMode('signals');
     updateFirmwareUI();
     connectMQTT();
 
@@ -1194,6 +1196,9 @@ function switchTab(tabId) {
         document.getElementById("navSend").classList.toggle("active", tabId === "partner");
         document.getElementById("navSettings").classList.toggle("active", tabId === "settings");
         document.getElementById("pageTitle").innerText = tabId === "partner" ? (bonfireState.active ? "Virtual Bonfire" : "My Group") : "My Settings";
+        if (tabId === "partner") {
+            setDashboardSignalsMode('signals');
+        }
         if (tabId === "settings") {
             updateFirmwareUI();
         }
@@ -3392,6 +3397,99 @@ function initTimezone() {
 }
 
 // ==========================================================================
+// Dashboard View Toggle & Connections Management
+// ==========================================================================
+const HARDCODED_CONNECTIONS = [
+    {
+        id: "bonfire",
+        name: "Virtual Bonfire",
+        color: "#ff5722",
+        icon: "local_fire_department",
+        action: () => triggerBonfireConnection()
+    }
+];
+
+let currentDashboardSignalsMode = 'signals';
+
+function setDashboardSignalsMode(mode) {
+    currentDashboardSignalsMode = mode;
+    const presetsGrid = document.getElementById("presetsGrid");
+    const connectionsGrid = document.getElementById("connectionsGrid");
+    const pillBtnSignals = document.getElementById("btnPillSignals");
+    const pillBtnConnections = document.getElementById("btnPillConnections");
+    const sectionTitle = document.getElementById("signalsSectionTitle");
+
+    if (mode === 'connections') {
+        if (presetsGrid) presetsGrid.style.display = "none";
+        if (connectionsGrid) {
+            connectionsGrid.style.display = "grid";
+            renderConnections();
+        }
+        if (pillBtnSignals) {
+            pillBtnSignals.classList.remove("active");
+            pillBtnSignals.setAttribute("aria-selected", "false");
+        }
+        if (pillBtnConnections) {
+            pillBtnConnections.classList.add("active");
+            pillBtnConnections.setAttribute("aria-selected", "true");
+        }
+        if (sectionTitle) {
+            sectionTitle.innerText = "Connections";
+        }
+    } else {
+        if (connectionsGrid) connectionsGrid.style.display = "none";
+        if (presetsGrid) presetsGrid.style.display = "grid";
+        if (pillBtnSignals) {
+            pillBtnSignals.classList.add("active");
+            pillBtnSignals.setAttribute("aria-selected", "true");
+        }
+        if (pillBtnConnections) {
+            pillBtnConnections.classList.remove("active");
+            pillBtnConnections.setAttribute("aria-selected", "false");
+        }
+        if (sectionTitle) {
+            sectionTitle.innerText = "Quick Signals";
+        }
+    }
+}
+
+function renderConnections() {
+    const grid = document.getElementById("connectionsGrid");
+    if (!grid) return;
+    grid.innerHTML = "";
+
+    HARDCODED_CONNECTIONS.forEach(conn => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "preset-btn connection-btn";
+        btn.style.setProperty("--preset-color", conn.color);
+        btn.dataset.id = conn.id;
+
+        const nameSpan = document.createElement("span");
+        nameSpan.className = "preset-name";
+        nameSpan.innerText = conn.name;
+        btn.appendChild(nameSpan);
+
+        if (conn.icon) {
+            const iconSpan = document.createElement("span");
+            iconSpan.className = "material-icons-round connection-icon";
+            iconSpan.innerText = conn.icon;
+            btn.appendChild(iconSpan);
+        }
+
+        btn.onclick = () => {
+            btn.style.transform = "scale(0.93)";
+            setTimeout(() => { btn.style.transform = ""; }, 200);
+            if (typeof conn.action === 'function') {
+                conn.action();
+            }
+        };
+
+        grid.appendChild(btn);
+    });
+}
+
+// ==========================================================================
 // Preset Management
 // ==========================================================================
 function renderPresets() {
@@ -4235,6 +4333,8 @@ function switchToAccount(index) {
     connectMQTT();
     applySettingsToUI();
     renderPresets();
+    renderConnections();
+    setDashboardSignalsMode('signals');
 
     // Update page title
     document.getElementById("pageTitle").innerText = "My Group";
@@ -5607,95 +5707,103 @@ function isLampInNightMode(settings) {
     }
 }
 
+let isIgnitingBonfire = false;
+
 /**
- * Handler when the Virtual Bonfire toggle switch is clicked in Settings.
- * Runs pre-flight checks and initiates Zippo lighter or water bucket animation.
+ * Triggers the Virtual Bonfire action from the Connections view.
+ */
+function triggerBonfireConnection() {
+    if (bonfireState.active) {
+        setBonfireModeUI(true);
+        return;
+    }
+    startBonfireIgnition();
+}
+
+/**
+ * Runs pre-flight checks and starts ignition sequence for Virtual Bonfire.
+ */
+function startBonfireIgnition() {
+    if (isIgnitingBonfire) return;
+
+    if (!mqttClient || !mqttClient.connected) {
+        showToast("Cannot light bonfire: MQTT is not connected.", "error");
+        return;
+    }
+
+    // Pre-flight check 1: Both lamps must be online
+    if (myLampOnline !== true) {
+        showToast("Cannot light bonfire: Your lamp is currently offline.", "error");
+        return;
+    }
+    if (partnerLampOnline !== true) {
+        const pName = partnerName || "Partner";
+        showToast(`Cannot light bonfire: ${pName}'s lamp is currently offline.`, "error");
+        return;
+    }
+
+    // Pre-flight check 2: Neither lamp can be in night mode
+    if (isLampInNightMode(mySettings)) {
+        showToast("Cannot light bonfire: Your lamp is currently in Night Mode.", "error");
+        return;
+    }
+    const partnerSet = getPartnerSettings();
+    if (partnerSet && isLampInNightMode(partnerSet)) {
+        const pName = partnerName || "Partner";
+        showToast(`Cannot light bonfire: ${pName}'s lamp is currently in Night Mode.`, "error");
+        return;
+    }
+
+    isIgnitingBonfire = true;
+    let signalSent = false;
+    const sendIgnitionSignal = () => {
+        if (signalSent) return;
+        signalSent = true;
+        const nowSec = Math.floor(Date.now() / 1000);
+        const payload = `ON:${nowSec}`;
+
+        // Retained topic publish so lamps and reconnecting clients restore state
+        mqttClient.publish(getTopic(myDeviceId, "bonfire"), payload, { retain: true, qos: 1 });
+        mqttClient.publish(getTopic(partnerDeviceId, "bonfire"), payload, { retain: true, qos: 1 });
+
+        // Direct triggers for zero-latency execution
+        mqttClient.publish(getTopic(myDeviceId, "color_trigger"), "BONFIRE:START");
+        mqttClient.publish(getTopic(partnerDeviceId, "color_trigger"), "BONFIRE:START");
+
+        bonfireState.active = true;
+        bonfireState.lastLogEpoch = nowSec * 1000;
+    };
+
+    // All checks passed! Play Zippo lighter animation
+    playZippoLighterAnimation({
+        onIgnite: () => {
+            sendIgnitionSignal();
+        },
+        onComplete: () => {
+            isIgnitingBonfire = false;
+            sendIgnitionSignal();
+            activateBonfire(bonfireState.lastLogEpoch || Date.now(), true);
+            switchTab("partner");
+        }
+    });
+}
+
+/**
+ * Handler for legacy/programmatic bonfire toggle calls.
  */
 function handleBonfireToggle(checkbox) {
     if (!checkbox) return;
-
     if (checkbox.checked) {
-        // User wants to light the fire
-        if (!mqttClient || !mqttClient.connected) {
-            checkbox.checked = false;
-            showToast("Cannot light bonfire: MQTT is not connected.", "error");
-            return;
-        }
-
-        // Pre-flight check 1: Both lamps must be online
-        if (myLampOnline !== true) {
-            checkbox.checked = false;
-            showToast("Cannot light bonfire: Your lamp is currently offline.", "error");
-            return;
-        }
-        if (partnerLampOnline !== true) {
-            checkbox.checked = false;
-            const pName = partnerName || "Partner";
-            showToast(`Cannot light bonfire: ${pName}'s lamp is currently offline.`, "error");
-            return;
-        }
-
-        // Pre-flight check 2: Neither lamp can be in night mode
-        if (isLampInNightMode(mySettings)) {
-            checkbox.checked = false;
-            showToast("Cannot light bonfire: Your lamp is currently in Night Mode.", "error");
-            return;
-        }
-        const partnerSet = getPartnerSettings();
-        if (partnerSet && isLampInNightMode(partnerSet)) {
-            checkbox.checked = false;
-            const pName = partnerName || "Partner";
-            showToast(`Cannot light bonfire: ${pName}'s lamp is currently in Night Mode.`, "error");
-            return;
-        }
-
-        // Keep toggle visually off until ignition completes
         checkbox.checked = false;
-
-        let signalSent = false;
-        const sendIgnitionSignal = () => {
-            if (signalSent) return;
-            signalSent = true;
-            const nowSec = Math.floor(Date.now() / 1000);
-            const payload = `ON:${nowSec}`;
-
-            // Retained topic publish so lamps and reconnecting clients restore state
-            mqttClient.publish(getTopic(myDeviceId, "bonfire"), payload, { retain: true, qos: 1 });
-            mqttClient.publish(getTopic(partnerDeviceId, "bonfire"), payload, { retain: true, qos: 1 });
-
-            // Direct triggers for zero-latency execution
-            mqttClient.publish(getTopic(myDeviceId, "color_trigger"), "BONFIRE:START");
-            mqttClient.publish(getTopic(partnerDeviceId, "color_trigger"), "BONFIRE:START");
-
-            bonfireState.active = true;
-            bonfireState.lastLogEpoch = nowSec * 1000;
-        };
-
-        // All checks passed! Play Zippo lighter animation
-        playZippoLighterAnimation({
-            onIgnite: () => {
-                // Send the bonfire signal the exact moment the fire is actually lit!
-                sendIgnitionSignal();
-            },
-            onComplete: () => {
-                sendIgnitionSignal();
-                activateBonfire(bonfireState.lastLogEpoch || Date.now(), true);
-                switchTab("partner");
-            }
-        });
+        startBonfireIgnition();
     } else {
-        // User toggled it off: extinguish the fire
-        checkbox.checked = true; // Keep visually checked while water animation runs
+        checkbox.checked = true;
         handleExtinguishFromUI();
     }
 }
 
 function handleLightBonfireClick() {
-    const toggle = document.getElementById("bonfireToggle");
-    if (toggle) {
-        toggle.checked = true;
-        handleBonfireToggle(toggle);
-    }
+    triggerBonfireConnection();
 }
 
 /**
@@ -6105,6 +6213,7 @@ function deactivateBonfire() {
     stopBonfireCountdown();
     stopBonfireCanvas();
     setBonfireModeUI(false);
+    setDashboardSignalsMode('signals');
 }
 
 /**
