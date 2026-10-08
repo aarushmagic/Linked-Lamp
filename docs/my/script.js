@@ -614,7 +614,7 @@ function connectMQTT() {
                     console.log("Partner name updated from MQTT settings:", partnerName);
                     // Update UI elements that show the partner's name
                     const sub = document.getElementById("signalSubtitle");
-                    if (sub) sub.innerText = "Tap to turn on " + partnerName + "'s lamp";
+                    if (sub && !isSubtitleBusy()) sub.innerText = "Tap to turn on " + partnerName + "'s lamp";
                     updateStatusUI();
 
                     // Also update the account name in the switcher list
@@ -868,22 +868,44 @@ function sendSignal(hexColorOrPreset) {
 
     // Start read receipt tracking
     startReadReceiptTracking();
+
+    const activeUid = localStorage.getItem("ll_uid");
+    if (activeUid && backgroundMqttClients[activeUid]) {
+        startGroupReadReceiptTracking(activeUid);
+    }
 }
 
 // ==========================================================================
 // Read Receipt (Delivery Confirmation)
 // ==========================================================================
+function isSubtitleBusy() {
+    const sub = document.getElementById("signalSubtitle");
+    if (!sub) return false;
+    return pendingReadReceipt ||
+        Boolean(signalStatusTimer) ||
+        Boolean(readReceiptTimeout) ||
+        sub.classList.contains("receipt-pending") ||
+        sub.classList.contains("receipt-confirmed");
+}
+
 function showSignalStatus() {
     const sub = document.getElementById("signalSubtitle");
 
     // Clear any existing timers
-    if (signalStatusTimer) clearTimeout(signalStatusTimer);
-    if (readReceiptTimeout) clearTimeout(readReceiptTimeout);
+    if (signalStatusTimer) {
+        clearTimeout(signalStatusTimer);
+        signalStatusTimer = null;
+    }
+    if (readReceiptTimeout) {
+        clearTimeout(readReceiptTimeout);
+        readReceiptTimeout = null;
+    }
 
-    // Show "Signal Sent!" immediately
-    sub.innerText = "Signal Sending...";
-    sub.classList.remove("receipt-confirmed");
-    sub.classList.add("receipt-pending");
+    if (sub) {
+        sub.innerText = "Tap Sending...";
+        sub.classList.remove("receipt-confirmed");
+        sub.classList.add("receipt-pending");
+    }
 }
 
 function startReadReceiptTracking() {
@@ -891,7 +913,9 @@ function startReadReceiptTracking() {
     showSignalStatus();
 
     // Timeout: if no confirmation within 5 seconds, reset to default text
+    if (readReceiptTimeout) clearTimeout(readReceiptTimeout);
     readReceiptTimeout = setTimeout(() => {
+        readReceiptTimeout = null;
         if (pendingReadReceipt) {
             pendingReadReceipt = false;
             resetSignalSubtitle();
@@ -901,24 +925,47 @@ function startReadReceiptTracking() {
 
 function confirmReadReceipt() {
     pendingReadReceipt = false;
-    if (readReceiptTimeout) clearTimeout(readReceiptTimeout);
+    if (readReceiptTimeout) {
+        clearTimeout(readReceiptTimeout);
+        readReceiptTimeout = null;
+    }
 
     const sub = document.getElementById("signalSubtitle");
-    sub.innerText = "Signal Sent!";
-    sub.classList.remove("receipt-pending");
-    sub.classList.add("receipt-confirmed");
+    if (sub) {
+        sub.innerText = "Tap Sent!";
+        sub.classList.remove("receipt-pending");
+        sub.classList.add("receipt-confirmed");
+    }
 
+    if (signalStatusTimer) clearTimeout(signalStatusTimer);
     // Reset to default after 4 seconds
     signalStatusTimer = setTimeout(() => {
-        sub.classList.remove("receipt-confirmed");
+        signalStatusTimer = null;
         resetSignalSubtitle();
     }, 4000);
+
+    const activeUid = localStorage.getItem("ll_uid");
+    if (activeUid && backgroundMqttClients[activeUid]) {
+        confirmGroupReadReceipt(activeUid);
+    }
 }
 
 function resetSignalSubtitle() {
+    if (signalStatusTimer) {
+        clearTimeout(signalStatusTimer);
+        signalStatusTimer = null;
+    }
+    if (readReceiptTimeout) {
+        clearTimeout(readReceiptTimeout);
+        readReceiptTimeout = null;
+    }
+    pendingReadReceipt = false;
+
     const sub = document.getElementById("signalSubtitle");
-    sub.classList.remove("receipt-pending", "receipt-confirmed");
-    sub.innerText = "Tap to turn on " + partnerName + "'s lamp";
+    if (sub) {
+        sub.classList.remove("receipt-pending", "receipt-confirmed");
+        sub.innerText = "Tap to turn on " + partnerName + "'s lamp";
+    }
 }
 
 function publishSettings() {
@@ -4338,7 +4385,7 @@ function switchToAccount(index) {
 
     // Update page title
     document.getElementById("pageTitle").innerText = "My Group";
-    document.getElementById("signalSubtitle").innerText = "Tap to turn on " + partnerName + "'s lamp";
+    resetSignalSubtitle();
 
     closeAccountSwitcher();
     renderAccountList();
@@ -5360,14 +5407,23 @@ function startGroupReadReceiptTracking(uid) {
 
     state.pendingReadReceipt = true;
 
+    if (state.sentStatusTimeout) {
+        clearTimeout(state.sentStatusTimeout);
+        state.sentStatusTimeout = null;
+    }
+    if (state.readReceiptTimeout) {
+        clearTimeout(state.readReceiptTimeout);
+        state.readReceiptTimeout = null;
+    }
+
     const label = document.querySelector(`#lastTap-${uid}`);
     if (label) {
         label.innerText = "Tap Sending...";
         label.className = "group-last-tap sending";
     }
 
-    if (state.readReceiptTimeout) clearTimeout(state.readReceiptTimeout);
     state.readReceiptTimeout = setTimeout(() => {
+        state.readReceiptTimeout = null;
         if (state.pendingReadReceipt) {
             state.pendingReadReceipt = false;
             resetGroupLastTapLabel(uid);
@@ -5380,7 +5436,14 @@ function confirmGroupReadReceipt(uid) {
     if (!state) return;
 
     state.pendingReadReceipt = false;
-    if (state.readReceiptTimeout) clearTimeout(state.readReceiptTimeout);
+    if (state.readReceiptTimeout) {
+        clearTimeout(state.readReceiptTimeout);
+        state.readReceiptTimeout = null;
+    }
+    if (state.sentStatusTimeout) {
+        clearTimeout(state.sentStatusTimeout);
+        state.sentStatusTimeout = null;
+    }
 
     const label = document.querySelector(`#lastTap-${uid}`);
     if (label) {
@@ -5388,12 +5451,26 @@ function confirmGroupReadReceipt(uid) {
         label.className = "group-last-tap sent";
     }
 
-    setTimeout(() => {
+    state.sentStatusTimeout = setTimeout(() => {
+        state.sentStatusTimeout = null;
         resetGroupLastTapLabel(uid);
     }, 4000);
 }
 
 function resetGroupLastTapLabel(uid) {
+    const state = backgroundMqttClients[uid];
+    if (state) {
+        if (state.sentStatusTimeout) {
+            clearTimeout(state.sentStatusTimeout);
+            state.sentStatusTimeout = null;
+        }
+        if (state.readReceiptTimeout) {
+            clearTimeout(state.readReceiptTimeout);
+            state.readReceiptTimeout = null;
+        }
+        state.pendingReadReceipt = false;
+    }
+
     const label = document.querySelector(`#lastTap-${uid}`);
     if (!label) return;
 
@@ -5629,7 +5706,9 @@ function updateGroupTileName(uid, name) {
         localStorage.setItem("ll_name", name);
         partnerName = name;
         const sub = document.getElementById("signalSubtitle");
-        if (sub) sub.innerText = "Tap to turn on " + name + "'s lamp";
+        if (sub && !isSubtitleBusy()) {
+            sub.innerText = "Tap to turn on " + name + "'s lamp";
+        }
     }
 }
 

@@ -327,10 +327,14 @@ body {
 }
 
 .subtitle.receipt-pending {
+    color: var(--accent);
+    font-weight: 500;
     animation: subtlePulse 2s ease-in-out infinite;
 }
 
 .subtitle.receipt-confirmed {
+    color: var(--success);
+    font-weight: 500;
     animation: none;
 }
 
@@ -1271,6 +1275,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     outline: none;
     text-align: left;
     -moz-appearance: textfield;
+    appearance: textfield;
 }
 
 .duration-input-wrap input::-webkit-outer-spin-button,
