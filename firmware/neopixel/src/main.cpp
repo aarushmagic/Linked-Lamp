@@ -55,7 +55,7 @@ int    mqtt_port      = 8883;
 String mqtt_user      = "";
 String mqtt_pass      = "";
 String mqtt_delimiter = "/";
-String ota_url        = "";  // Base URL for OTA firmware check
+String ota_url        = "https://www.linkedlamp.com";  // Base URL for authorized OTA firmware check
 String owner_name     = "";  // Device owner name
 
 // Device role for status mapping
@@ -269,6 +269,7 @@ void setRGB(uint8_t r, uint8_t g, uint8_t b);
 void setRGBFloat(float rLin, float gLin, float bLin);
 void setRGBRaw(uint8_t r, uint8_t g, uint8_t b);
 uint8_t applyGammaNeo(float linearIntensity);
+bool isAuthorizedOTAUrl(const String& urlStr);
 void performOTA(String url);
 float hexToHue(String hexColor);
 bool isNighttime();
@@ -559,7 +560,8 @@ void loadConfig() {
         mqtt_user      = doc["mqtt_user"]   | "";
         mqtt_pass      = doc["mqtt_pass"]   | "";
         mqtt_delimiter = doc["delimeter"]   | "/";
-        ota_url        = doc["ota_url"]     | "";
+        ota_url        = doc["ota_url"]     | "https://www.linkedlamp.com";
+        if (ota_url.length() == 0) ota_url = "https://www.linkedlamp.com";
         owner_name     = doc["owner_name"]  | "";
         if (mqtt_server.length() > 0) {
           configValid = true;
@@ -593,7 +595,8 @@ void loadConfig() {
               mqtt_user      = doc["mqtt_user"]   | "";
               mqtt_pass      = doc["mqtt_pass"]   | "";
               mqtt_delimiter = doc["delimeter"]   | "/";
-              ota_url        = doc["ota_url"]     | "";
+              ota_url        = doc["ota_url"]     | "https://www.linkedlamp.com";
+              if (ota_url.length() == 0) ota_url = "https://www.linkedlamp.com";
               owner_name     = doc["owner_name"]  | "";
 
               // Persist config to local storage
@@ -802,31 +805,12 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     // Handle OTA firmware update commands
     if (msg.startsWith("OTA:")) {
       String url = msg.substring(4);
+      url.trim();
       Serial.println("OTA triggered via color_trigger! URL: " + url);
       
-      // Verify trigger URL targets config-approved endpoints
-      String testTrigger = url;
-      String testConfig = ota_url;
-      
-      int qMark = testTrigger.indexOf('?');
-      if (qMark != -1) testTrigger = testTrigger.substring(0, qMark);
-      
-      
-      if (testTrigger.startsWith("http://")) testTrigger.remove(0, 7);
-      if (testTrigger.startsWith("https://")) testTrigger.remove(0, 8);
-      if (testConfig.startsWith("http://")) testConfig.remove(0, 7);
-      if (testConfig.startsWith("https://")) testConfig.remove(0, 8);
-      
-      
-      if (testTrigger.startsWith("www.")) testTrigger.remove(0, 4);
-      if (testConfig.startsWith("www.")) testConfig.remove(0, 4);
-      
-      
-      if (testTrigger.endsWith("/")) testTrigger.remove(testTrigger.length() - 1);
-      if (testConfig.endsWith("/")) testConfig.remove(testConfig.length() - 1);
-
-      if (ota_url.length() == 0 || !(testTrigger == testConfig || testTrigger.startsWith(testConfig + "/"))) {
-        Serial.println("OTA Blocked: Trigger URL does not match configured ota_url (" + ota_url + ")");
+      // Ensure the URL targets an authorized source over HTTPS
+      if (!isAuthorizedOTAUrl(url)) {
+        Serial.println("OTA Blocked: Trigger URL failed authorization check (" + url + ")");
         return;
       }
 
@@ -2410,6 +2394,101 @@ void processSerialCommand(String cmd) {
 }
 
 // =============================================================================
+// Security: Verify that the OTA endpoint is authorized and strictly HTTPS
+// =============================================================================
+bool isAuthorizedOTAUrl(const String& urlStr) {
+  if (urlStr.length() == 0) return false;
+
+  // 1. Strictly enforce HTTPS protocol (no cleartext HTTP permitted)
+  if (!urlStr.startsWith("https://")) {
+    Serial.println("OTA Security: Only secure HTTPS endpoints are permitted.");
+    return false;
+  }
+
+  // 2. Reject URLs with embedded credentials (@) to prevent host confusion
+  if (urlStr.indexOf('@') != -1) {
+    Serial.println("OTA Security: URLs containing credentials (@) are rejected.");
+    return false;
+  }
+
+  // 3. Reject path traversal sequences
+  if (urlStr.indexOf("/../") != -1 || urlStr.indexOf("/..") != -1 || urlStr.indexOf('\\') != -1) {
+    Serial.println("OTA Security: Path traversal or invalid slashes detected.");
+    return false;
+  }
+
+  // 4. Extract host authority (everything between https:// and the next '/', ':', or '?')
+  const int hostStart = 8; // length of "https://"
+  int hostEnd = urlStr.length();
+
+  for (int i = hostStart; i < (int)urlStr.length(); i++) {
+    char c = urlStr.charAt(i);
+    if (c == '/' || c == ':' || c == '?') {
+      hostEnd = i;
+      break;
+    }
+  }
+
+  if (hostEnd <= hostStart) {
+    Serial.println("OTA Security: Empty host in URL.");
+    return false;
+  }
+
+  String host = urlStr.substring(hostStart, hostEnd);
+  host.toLowerCase();
+  if (host.startsWith("www.")) host.remove(0, 4);
+
+  // If a port is explicitly specified, reject non-standard HTTPS ports
+  if (hostEnd < (int)urlStr.length() && urlStr.charAt(hostEnd) == ':') {
+    int portStart = hostEnd + 1;
+    int portEnd = urlStr.length();
+    for (int i = portStart; i < (int)urlStr.length(); i++) {
+      char c = urlStr.charAt(i);
+      if (c == '/' || c == '?') {
+        portEnd = i;
+        break;
+      }
+    }
+    String portStr = urlStr.substring(portStart, portEnd);
+    if (portStr != "443") {
+      Serial.println("OTA Security: Non-standard HTTPS port (" + portStr + ") rejected.");
+      return false;
+    }
+  }
+
+  // 5. Official authorized host
+  const String officialHost = "linkedlamp.com";
+
+  // 6. Extract configured authorized host from config.json (if set)
+  String configuredHost = ota_url;
+  if (configuredHost.length() > 0) {
+    int qm = configuredHost.indexOf('?');
+    if (qm != -1) configuredHost = configuredHost.substring(0, qm);
+    if (configuredHost.startsWith("https://")) configuredHost.remove(0, 8);
+    else if (configuredHost.startsWith("http://")) configuredHost.remove(0, 7);
+    int slashIdx = configuredHost.indexOf('/');
+    if (slashIdx != -1) configuredHost = configuredHost.substring(0, slashIdx);
+    int colonIdx = configuredHost.indexOf(':');
+    if (colonIdx != -1) configuredHost = configuredHost.substring(0, colonIdx);
+    configuredHost.toLowerCase();
+    if (configuredHost.startsWith("www.")) configuredHost.remove(0, 4);
+  }
+
+  // 7. Check if host matches official host or configured host
+  bool isAuthorized = (host == officialHost);
+  if (!isAuthorized && configuredHost.length() > 0 && host == configuredHost) {
+    isAuthorized = true;
+  }
+
+  if (!isAuthorized) {
+    Serial.println("OTA Security: Host '" + host + "' is not an authorized OTA source.");
+    return false;
+  }
+
+  return true;
+}
+
+// =============================================================================
 // OTA Update (blocking by necessity — flash access)
 // =============================================================================
 void performOTA(String url) {
@@ -2424,8 +2503,10 @@ void performOTA(String url) {
   
   Serial.println("Starting OTA from: " + url);
 
-  if (!url.startsWith("http://") && !url.startsWith("https://")) {
-    url = "https://" + url;
+  // Validate the final URL before attempting any network connection
+  if (!isAuthorizedOTAUrl(url)) {
+    Serial.println("OTA Aborted: Target URL is not authorized (" + url + ")");
+    return;
   }
 
   const int MAX_RETRIES = 3;
@@ -2440,15 +2521,13 @@ void performOTA(String url) {
     }
 
     WiFiClientSecure secureClient;
-    secureClient.setInsecure();
-    WiFiClient insecureClient;
+    secureClient.setInsecure(); // Permits connection to authorized HTTPS domains without full CA root bundle
     HTTPClient http;
     http.useHTTP10(true); // Override HTTP interface to force raw HTTP/1.0 streams (bypasses chunked encoding)
-    http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+    http.setFollowRedirects(HTTPC_DISABLE_FOLLOW_REDIRECTS); // Manual redirect handling to enforce authorized destination validation
     http.setTimeout(15000);
 
-    bool isHttps = url.startsWith("https");
-    bool beginOk = isHttps ? http.begin(secureClient, url) : http.begin(insecureClient, url);
+    bool beginOk = http.begin(secureClient, url);
 
     if (!beginOk) {
       Serial.println("Error: Cannot connect to OTA URL.");
@@ -2457,12 +2536,16 @@ void performOTA(String url) {
     }
 
     int httpCode = http.GET();
+    // Security: Handle redirects manually to verify destination is authorized
     if (httpCode == HTTP_CODE_MOVED_PERMANENTLY || httpCode == HTTP_CODE_FOUND || httpCode == 307 || httpCode == 308) {
       String newUrl = http.getLocation();
       Serial.println("Redirected to: " + newUrl);
       http.end();
+      if (!isAuthorizedOTAUrl(newUrl)) {
+        Serial.println("OTA Aborted: Redirect destination is not authorized (" + newUrl + ")");
+        return;
+      }
       url = newUrl;
-      // Prevent redirect loops during network renegotiations
       continue;
     }
 
@@ -2475,6 +2558,13 @@ void performOTA(String url) {
 
     int totalSize = http.getSize();
     size_t updateSize = (totalSize > 0) ? totalSize : UPDATE_SIZE_UNKNOWN;
+
+    // Minimum size check: Valid ESP32 firmware binary is at least 100 KB
+    if (totalSize > 0 && totalSize < 102400) {
+      Serial.printf("OTA Aborted: Firmware file size suspiciously small (%d bytes). Minimum 100KB required.\n", totalSize);
+      http.end();
+      return;
+    }
 
     if (totalSize <= 0) {
       Serial.println("Using UPDATE_SIZE_UNKNOWN for chunked transfer.");
@@ -2503,6 +2593,18 @@ void performOTA(String url) {
       size_t available = stream->available();
       if (available) {
         int bytesRead = stream->readBytes(buff, min(available, sizeof(buff)));
+
+        // Security check: Verify ESP32 image magic byte (0xE9) on the very first chunk
+        if (written == 0) {
+          const uint8_t ESP_IMAGE_MAGIC = 0xE9;
+          if (bytesRead < 4 || buff[0] != ESP_IMAGE_MAGIC) {
+            Serial.printf("OTA Aborted: Invalid firmware header magic byte (0x%02X != 0x%02X). Not an ESP32 binary.\n",
+                          buff[0], ESP_IMAGE_MAGIC);
+            downloadOk = false;
+            break;
+          }
+        }
+
         size_t bytesWritten = Update.write(buff, bytesRead);
         if (bytesWritten != (size_t)bytesRead) {
           downloadOk = false;
@@ -2512,7 +2614,6 @@ void performOTA(String url) {
         written += bytesWritten;
         lastDataTime = millis();
 
-        
         if (written % 102400 < 1024) {
           Serial.printf("  OTA progress: %d bytes written...\n", written);
         }

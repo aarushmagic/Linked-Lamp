@@ -779,6 +779,16 @@ function toggleStatusPopup(e) {
     }, 10);
 }
 
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 function updateStatusPopupContent() {
     const popup = document.getElementById("statusPopup");
     if (!popup) return;
@@ -797,10 +807,11 @@ function updateStatusPopupContent() {
         let rowHtml = `<div class="status-lamp-row"`;
 
         if (!l.online && l.mine) {
-            rowHtml += ` onclick="promptRemoveLamp('${l.id}', '${l.name}')" style="cursor: pointer;" title="Click to remove offline lamp"`;
+            const safeNameAttr = escapeHtml(l.name).replace(/'/g, "\\'");
+            rowHtml += ` onclick="promptRemoveLamp('${l.id}', '${safeNameAttr}')" style="cursor: pointer;" title="Click to remove offline lamp"`;
         }
 
-        rowHtml += `><span class="status-lamp-dot ${dotClass}"></span><span class="status-lamp-name">${l.name}</span></div>`;
+        rowHtml += `><span class="status-lamp-dot ${dotClass}"></span><span class="status-lamp-name">${escapeHtml(l.name)}</span></div>`;
         html += rowHtml;
     });
     html += '</div>';
@@ -1179,10 +1190,16 @@ function triggerUpdate(targetVersion) {
     const versionLabel = targetVersion ? ` to v${targetVersion}` : "";
     if (!confirm(`Push a firmware update${versionLabel} to your lamp? It will restart briefly.`)) return;
     if (mqttClient && mqttClient.connected) {
-        // Send only the base URL to allow the lamp to decipher its correct firmware file (PCB vs NeoPixel)
-        let otaUrl = new URL("../", window.location.href).href;
+        // Enforce HTTPS and authorized domain for OTA endpoint
+        let otaUrl = "https://www.linkedlamp.com/";
+        try {
+            if (window.location.protocol === "https:" && (window.location.hostname.includes("linkedlamp.com") || window.location.hostname.includes("github.io"))) {
+                otaUrl = new URL("../", window.location.href).href;
+            }
+        } catch (e) { }
+
         if (targetVersion && targetVersion.includes("beta")) {
-            otaUrl += "?beta=1";
+            otaUrl += (otaUrl.includes("?") ? "&" : "?") + "beta=1";
         }
 
         mqttClient.publish(getTopic(myDeviceId, "color_trigger"), "OTA:" + otaUrl);
@@ -4856,7 +4873,7 @@ function renderGroupsPage() {
                 <div class="group-presets-row" style="display: flex; gap: 10px; width: 100%; margin-top: 15px;">
                     ${topPresets.map(p => `
                         <button class="action-btn secondary-btn group-preset-btn" style="flex: 1; display: inline-flex; align-items: center; justify-content: flex-start; padding: 10px 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); color: var(--text); font-weight: 500; cursor: pointer; background: rgba(255,255,255,0.05); --preset-color: ${p.type === 'cycle' && p.colors && p.colors.length > 0 ? p.colors[0].hex : p.color};" onclick="handleGroupPresetTap('${acct.uid}', ${JSON.stringify(p).replace(/"/g, '&quot;')}, event)">
-                            <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; width: 100%;">${p.name}</span>
+                            <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; width: 100%;">${escapeHtml(p.name)}</span>
                         </button>
                     `).join('')}
                 </div>
@@ -4870,7 +4887,7 @@ function renderGroupsPage() {
                 </div>
                 ${circleHtml}
                 <div class="group-details" style="flex: 1; min-width: 0;">
-                    <h3 class="group-title">${displayName}</h3>
+                    <h3 class="group-title">${escapeHtml(displayName)}</h3>
                     <div class="group-settings-row">
                         <span class="group-setting-item" title="Day Brightness & Duration">
                             <span class="material-icons-round">wb_sunny</span>
@@ -5658,7 +5675,7 @@ function updateGroupTilePresets(uid, presetsList) {
 
     container.innerHTML = topPresets.map(p => `
         <button class="action-btn secondary-btn group-preset-btn" style="flex: 1; display: inline-flex; align-items: center; justify-content: flex-start; padding: 10px 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); color: var(--text); font-weight: 500; cursor: pointer; background: rgba(255,255,255,0.05); --preset-color: ${p.type === 'cycle' && p.colors && p.colors.length > 0 ? p.colors[0].hex : p.color};" onclick="handleGroupPresetTap('${uid}', ${JSON.stringify(p).replace(/"/g, '&quot;')}, event)">
-            <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; width: 100%;">${p.name}</span>
+            <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; width: 100%;">${escapeHtml(p.name)}</span>
         </button>
     `).join('');
 }
