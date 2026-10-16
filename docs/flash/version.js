@@ -2,5 +2,5 @@
 window.LINKED_LAMP_VERSIONS = {
   "stable": "1.0.2",
   "beta": null,
-  "lastUpdated": "2026-10-09T02:18:46.193113+00:00"
+  "lastUpdated": "2026-10-15T22:31:25.987588+00:00"
 };

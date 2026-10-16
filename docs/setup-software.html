@@ -462,6 +462,140 @@
                 transform: translateY(0);
             }
         }
+
+        /* MQTT Warning Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(8, 10, 18, 0.82);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            z-index: 99999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            animation: modalFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .modal-card {
+            background: #121524;
+            border: 1px solid rgba(255, 165, 2, 0.35);
+            border-radius: 18px;
+            padding: 30px;
+            max-width: 520px;
+            width: 100%;
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7), 0 0 35px rgba(255, 165, 2, 0.12);
+            animation: modalSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            text-align: left;
+        }
+
+        .modal-icon-header {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 16px;
+        }
+
+        .modal-warning-icon {
+            font-size: 2.2rem;
+            color: #ffa502;
+            background: rgba(255, 165, 2, 0.12);
+            padding: 10px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 165, 2, 0.25);
+            flex-shrink: 0;
+        }
+
+        .modal-title {
+            margin: 0;
+            font-size: 1.25rem;
+            color: white;
+            font-weight: 700;
+        }
+
+        .modal-desc {
+            color: var(--text-dim);
+            font-size: 0.92rem;
+            line-height: 1.55;
+            margin-bottom: 14px;
+        }
+
+        .modal-error-box {
+            background: rgba(255, 71, 87, 0.08);
+            border: 1px solid rgba(255, 71, 87, 0.25);
+            border-left: 4px solid #ff4757;
+            border-radius: 6px;
+            padding: 10px 14px;
+            color: #ff6b81;
+            font-family: monospace;
+            font-size: 0.82rem;
+            word-break: break-all;
+            margin-bottom: 15px;
+        }
+
+        .modal-tips {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 24px;
+            font-size: 0.86rem;
+            color: #ccc;
+        }
+
+        .modal-tips > strong {
+            color: white;
+            display: block;
+            margin-bottom: 6px;
+        }
+
+        .modal-tips li strong {
+            color: #fff;
+            display: inline;
+        }
+
+        .modal-tips ul {
+            margin: 0;
+            padding-left: 20px;
+            color: var(--text-dim);
+            line-height: 1.5;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        @keyframes modalFadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes modalSlideUp {
+            from {
+                opacity: 0;
+                transform: translateY(14px) scale(0.98);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        @keyframes spinnerRotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .spinner-spin {
+            animation: spinnerRotate 1s linear infinite;
+            display: inline-block;
+        }
     </style>
 </head>
 
@@ -665,6 +799,10 @@
                     </span>
                 </div>
 
+                <div id="mqttStatusNoticeA" style="display: none; justify-content: center; margin: -5px 0 15px;">
+                    <span id="mqttStatusBadgeA" style="display: inline-flex; align-items: center; gap: 6px; border-radius: 20px; padding: 4px 14px; font-size: 0.82rem;"></span>
+                </div>
+
                 <!-- Owner name prompt (shown only when MQTT couldn't retrieve the name) -->
                 <div class="form-group" id="namePromptA" style="display: none; margin-bottom: 15px;">
                     <label style="color: white; font-weight: 600;">Who will use this lamp?</label>
@@ -749,6 +887,10 @@
                     </span>
                 </div>
 
+                <div id="mqttStatusNoticeB" style="display: none; justify-content: center; margin: -5px 0 15px;">
+                    <span id="mqttStatusBadgeB" style="display: inline-flex; align-items: center; gap: 6px; border-radius: 20px; padding: 4px 14px; font-size: 0.82rem;"></span>
+                </div>
+
                 <!-- Owner name prompt (shown only when MQTT couldn't retrieve the name) -->
                 <div class="form-group" id="namePromptB" style="display: none; margin-bottom: 15px;">
                     <label style="color: white; font-weight: 600;">Who will use this lamp?</label>
@@ -822,6 +964,10 @@
         <!-- ====== MANUAL PATH: Config A ====== -->
         <div class="setup-card" id="step-config-a">
             <h2><span id="display_name1" style="color:var(--accent);">Device A</span>: Setup Config</h2>
+
+            <div id="mqttStatusNoticeManualA" style="display: none; justify-content: flex-start; margin: 5px 0 15px;">
+                <span id="mqttStatusBadgeManualA" style="display: inline-flex; align-items: center; gap: 6px; border-radius: 20px; padding: 4px 14px; font-size: 0.82rem;"></span>
+            </div>
 
             <div class="form-group" id="namePromptManualA" style="display: none; margin-bottom: 15px;">
                 <label style="color: white; font-weight: 600;">Who will use this lamp?</label>
@@ -905,6 +1051,10 @@
         <!-- ====== MANUAL PATH: Config B ====== -->
         <div class="setup-card" id="step-config-b">
             <h2><span id="display_name2" style="color:var(--accent);">Device B</span>: Setup Config</h2>
+
+            <div id="mqttStatusNoticeManualB" style="display: none; justify-content: flex-start; margin: 5px 0 15px;">
+                <span id="mqttStatusBadgeManualB" style="display: inline-flex; align-items: center; gap: 6px; border-radius: 20px; padding: 4px 14px; font-size: 0.82rem;"></span>
+            </div>
 
             <div class="form-group" id="namePromptManualB" style="display: none; margin-bottom: 15px;">
                 <label style="color: white; font-weight: 600;">Who will use this lamp?</label>
@@ -1154,9 +1304,20 @@
                 }
                 generateConfigs();
 
+                // Show checking status on following step
+                setMqttVerificationStatus('checking');
+
                 // Try to auto-detect names from MQTT before showing flash pages
-                attemptMqttNameDetection().then(() => {
+                attemptMqttNameDetection().then((res) => {
                     updateFlashPageNames();
+                    if (res && res.connected) {
+                        setMqttVerificationStatus('success');
+                    } else {
+                        const err = (res && res.error) ? res.error : "Connection failed";
+                        const bUrl = (res && res.brokerUrl) ? res.brokerUrl : null;
+                        setMqttVerificationStatus('failed', err);
+                        showMqttWarningPopup(err, bUrl);
+                    }
                 });
             }
 
@@ -1425,10 +1586,79 @@
         }
 
         // =====================================================================
-        // MQTT Name Auto-Detection (for reflashing)
+        // MQTT Name Auto-Detection (for reflashing) & Verification
         // =====================================================================
         let mqttDetectedNameA = null;
         let mqttDetectedNameB = null;
+
+        function setMqttVerificationStatus(state, errorMsg) {
+            const notices = [
+                { container: document.getElementById('mqttStatusNoticeA'), badge: document.getElementById('mqttStatusBadgeA') },
+                { container: document.getElementById('mqttStatusNoticeB'), badge: document.getElementById('mqttStatusBadgeB') },
+                { container: document.getElementById('mqttStatusNoticeManualA'), badge: document.getElementById('mqttStatusBadgeManualA') },
+                { container: document.getElementById('mqttStatusNoticeManualB'), badge: document.getElementById('mqttStatusBadgeManualB') },
+            ];
+
+            notices.forEach(({ container, badge }) => {
+                if (!container || !badge) return;
+                container.style.display = 'flex';
+                if (state === 'checking') {
+                    badge.style.background = 'rgba(107, 76, 255, 0.12)';
+                    badge.style.border = '1px solid rgba(107, 76, 255, 0.3)';
+                    badge.style.color = '#a29bfe';
+                    badge.innerHTML = '<span class="material-icons-round spinner-spin" style="font-size: 0.95rem;">sync</span> Verifying MQTT broker connection...';
+                } else if (state === 'success') {
+                    badge.style.background = 'rgba(46, 213, 115, 0.12)';
+                    badge.style.border = '1px solid rgba(46, 213, 115, 0.3)';
+                    badge.style.color = '#2ed573';
+                    badge.innerHTML = '<span class="material-icons-round" style="font-size: 0.95rem; color: #2ed573;">check_circle</span> MQTT broker connected successfully';
+                } else if (state === 'failed') {
+                    badge.style.background = 'rgba(255, 165, 2, 0.12)';
+                    badge.style.border = '1px solid rgba(255, 165, 2, 0.35)';
+                    badge.style.color = '#ffa502';
+                    badge.innerHTML = '<span class="material-icons-round" style="font-size: 0.95rem; color: #ffa502;">warning</span> Broker connection unverified (Proceeding with warning)';
+                }
+            });
+        }
+
+        function showMqttWarningPopup(errorMsg, brokerUrl) {
+            // The check runs in the background for up to 5s after leaving step 1. If the user
+            // already started flashing, don't interrupt (the warning badge is still shown).
+            if (typeof flashInProgress !== "undefined" && flashInProgress) return;
+
+            const modal = document.getElementById("mqttWarningModal");
+            if (!modal) {
+                const proceed = confirm(`⚠️ MQTT Connection Warning:\n\nCould not verify connection to the broker (${errorMsg || "Connection failed"}).\n\nDo you want to proceed anyway?`);
+                if (!proceed) goToStep(1);
+                return;
+            }
+
+            const errEl = document.getElementById("mqttWarningErrorDetail");
+            if (errEl) {
+                errEl.textContent = errorMsg ? `Error: ${errorMsg}` : "Error: Connection timed out or WebSocket handshake rejected.";
+            }
+
+            const urlEl = document.getElementById("modalWsUrlDisplay");
+            if (urlEl) {
+                urlEl.textContent = brokerUrl || "wss://[broker]:8084/mqtt";
+            }
+
+            const portEl = document.getElementById("modalWsPort");
+            const inWsPort = document.getElementById("in_ws_port").value.trim() || "8084";
+            if (portEl) portEl.textContent = inWsPort;
+
+            modal.style.display = "flex";
+        }
+
+        function closeMqttWarningModal(returnToDetails) {
+            const modal = document.getElementById("mqttWarningModal");
+            if (modal) modal.style.display = "none";
+            if (returnToDetails) {
+                goToStep(1);
+                const input = document.getElementById("in_mqtt_url");
+                if (input) input.focus();
+            }
+        }
 
         function attemptMqttNameDetection() {
             return new Promise((resolve) => {
@@ -1437,7 +1667,10 @@
                 const mUser = document.getElementById("in_mqtt_user").value.trim();
                 const mPw = document.getElementById("in_mqtt_pw").value.trim();
 
-                if (!wsUrl || !mUser || !mPw) { resolve(); return; }
+                if (!wsUrl || !mUser || !mPw) {
+                    resolve({ connected: false, error: "Missing broker credentials", brokerUrl: "" });
+                    return;
+                }
 
                 const mDelim = document.getElementById("in_mqtt_delimiter").value;
 
@@ -1453,17 +1686,24 @@
                 const clientId = "Setup-" + Math.random().toString(16).substring(2, 8);
 
                 let settingsReceived = 0;
+                let hasConnected = false;
+                let failureError = null;
+
                 const maxWait = setTimeout(() => {
                     try { client.end(true); } catch (e) { }
-                    resolve();
-                }, 6000); // 6 second timeout
+                    resolve({
+                        connected: hasConnected,
+                        error: hasConnected ? null : (failureError || "Connection timed out after 5 seconds"),
+                        brokerUrl
+                    });
+                }, 5000);
 
                 function checkDone() {
                     settingsReceived++;
                     if (settingsReceived >= 2) {
                         clearTimeout(maxWait);
                         try { client.end(true); } catch (e) { }
-                        resolve();
+                        resolve({ connected: true, error: null, brokerUrl });
                     }
                 }
 
@@ -1475,9 +1715,13 @@
                         password: mPw,
                         reconnectPeriod: 0,
                         clean: true,
-                        connectTimeout: 5000
+                        connectTimeout: 4500
                     });
-                } catch (e) { resolve(); return; }
+                } catch (e) {
+                    clearTimeout(maxWait);
+                    resolve({ connected: false, error: e.message || "Failed to initialize WebSocket client", brokerUrl });
+                    return;
+                }
 
                 function getSettingsTopic(deviceId) {
                     if (mDelim === "_") {
@@ -1487,8 +1731,15 @@
                 }
 
                 client.on("connect", () => {
+                    hasConnected = true;
                     client.subscribe(getSettingsTopic("A"));
                     client.subscribe(getSettingsTopic("B"));
+                    // Wait 1.5s for any retained name settings to arrive before completing
+                    setTimeout(() => {
+                        clearTimeout(maxWait);
+                        try { client.end(true); } catch (e) { }
+                        resolve({ connected: true, error: null, brokerUrl });
+                    }, 1500);
                 });
 
                 client.on("message", (topic, message) => {
@@ -1505,10 +1756,19 @@
                     checkDone();
                 });
 
-                client.on("error", () => {
-                    clearTimeout(maxWait);
-                    try { client.end(true); } catch (e) { }
-                    resolve();
+                client.on("error", (err) => {
+                    if (!hasConnected) {
+                        failureError = (err && err.message) ? err.message : "Authentication or WebSocket connection error";
+                        clearTimeout(maxWait);
+                        try { client.end(true); } catch (e) { }
+                        resolve({ connected: false, error: failureError, brokerUrl });
+                    }
+                });
+
+                client.on("close", () => {
+                    if (!hasConnected && !failureError) {
+                        failureError = "Connection closed before handshake completed. Check broker address, port, and credentials.";
+                    }
                 });
             });
         }
@@ -1669,6 +1929,44 @@
         }
 
     </script>
+
+    <!-- MQTT Connection Warning Modal -->
+    <div id="mqttWarningModal" class="modal-overlay" style="display: none;">
+        <div class="modal-card">
+            <div class="modal-icon-header">
+                <span class="material-icons-round modal-warning-icon">warning</span>
+                <div>
+                    <h3 class="modal-title">MQTT Connection Warning</h3>
+                    <span style="font-size: 0.82rem; color: #ffa502;">Broker connection could not be verified</span>
+                </div>
+            </div>
+            <p class="modal-desc">
+                We attempted to test a connection to your broker over WebSockets, but it did not connect:
+            </p>
+            <div class="modal-error-box" id="mqttWarningErrorDetail">
+                Connection failed or timed out.
+            </div>
+            <div class="modal-tips">
+                <strong>Please check:</strong>
+                <ul>
+                    <li>Did you mistype your <strong>Broker URL</strong>, <strong>Username</strong>, or <strong>Password</strong>?</li>
+                    <li>Is your broker online and accepting Secure WebSockets on port <strong id="modalWsPort">8084</strong>?</li>
+                    <li>Attempted address: <code id="modalWsUrlDisplay" style="color:var(--accent);">wss://...</code></li>
+                </ul>
+                <div style="margin-top: 10px; font-size: 0.82rem; color: #888; border-top: 1px dashed var(--border); padding-top: 8px;">
+                    <em>Note: If your broker only allows standard MQTT (port 8883) and disables WebSockets, physical lamps may still connect. You can choose to proceed anyway.</em>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn outline-btn" onclick="closeMqttWarningModal(true)" style="padding: 10px 18px;">
+                    <span class="material-icons-round" style="font-size: 1.1rem; margin-right: 4px;">arrow_back</span> Review Details
+                </button>
+                <button type="button" class="btn primary-btn" onclick="closeMqttWarningModal(false)" style="background: linear-gradient(135deg, #ffa502, #ff7f50); padding: 10px 20px;">
+                    Proceed Anyway <span class="material-icons-round" style="font-size: 1.1rem; margin-left: 4px;">arrow_forward</span>
+                </button>
+            </div>
+        </div>
+    </div>
 </body>
 
 </html>

@@ -607,9 +607,14 @@ void loadConfig() {
     Serial.println("SEND_CONFIG");  // Send handshake to web interface
     Serial.println("Waiting for config via Serial (30s timeout)...");
     unsigned long waitStart = millis();
+    unsigned long lastPrompt = millis();
     String serialBuffer = "";
 
     while (millis() - waitStart < 30000) {
+      if (millis() - lastPrompt >= 3000) {
+        lastPrompt = millis();
+        Serial.println("SEND_CONFIG");
+      }
       if (Serial.available()) {
         char c = Serial.read();
         serialBuffer += c;
@@ -2101,7 +2106,7 @@ void processSerialCommand(String cmd) {
     delay(500);
     ESP.restart();
 
-  } else if (cmd == "RESET_CONFIG") {
+  } else if (cmd == "RESET_CONFIG" || cmd == "SEND_CONFIG" || cmd == "send_config") {
     Serial.println("[CMD] Deleting /config.json and rebooting...");
     Serial.println("[CMD] On next boot, lamp will enter SEND_CONFIG mode (30s serial window).");
     LittleFS.remove("/config.json");
@@ -2117,12 +2122,14 @@ void processSerialCommand(String cmd) {
     delay(500);
     ESP.restart();
 
-  } else if (cmd.startsWith("SET_CONFIG:")) {
-    String json = cmd.substring(11); 
+  } else if (cmd.startsWith("SET_CONFIG:") || cmd.startsWith("SEND_CONFIG:") ||
+             cmd.startsWith("set_config:") || cmd.startsWith("send_config:")) {
+    int colonPos = cmd.indexOf(':');
+    String json = cmd.substring(colonPos + 1); 
     json.trim();
     JsonDocument doc;
     if (deserializeJson(doc, json)) {
-      Serial.println("[CMD] ERROR: Invalid JSON in SET_CONFIG.");
+      Serial.println("[CMD] ERROR: Invalid JSON in config command.");
       return;
     }
     
@@ -2130,6 +2137,7 @@ void processSerialCommand(String cmd) {
     if (wf) {
       serializeJsonPretty(doc, wf);
       wf.close();
+      Serial.println("CONFIG_SAVED");
       Serial.println("[CMD] Config saved to /config.json. Rebooting...");
       delay(500);
       ESP.restart();
@@ -2339,9 +2347,9 @@ void processSerialCommand(String cmd) {
     Serial.println("  RESET_WIFI      - Clear WiFi credentials and reboot (opens config portal)");
     Serial.println("  SCAN_WIFI       - Scan for nearby WiFi networks");
     Serial.println("  SET_WIFI:s,p    - Set new WiFi credentials (SSID,password) and reboot");
-    Serial.println("  RESET_CONFIG    - Delete MQTT config and reboot (enters SEND_CONFIG mode)");
+    Serial.println("  RESET_CONFIG    - Delete MQTT config and reboot (enters SEND_CONFIG mode, alias: SEND_CONFIG)");
     Serial.println("  RESET_ALL       - Factory reset: clear WiFi + config + state");
-    Serial.println("  SET_CONFIG:{}   - Set new config JSON and reboot");
+    Serial.println("  SET_CONFIG:{}   - Set new config JSON and reboot (alias: SEND_CONFIG:{})");
     Serial.println("  GET_CONFIG      - Print current /config.json");
     Serial.println("  GET_STATE       - Print current /state.json");
     Serial.println("  GET_STATUS      - Print WiFi/MQTT/role status");
